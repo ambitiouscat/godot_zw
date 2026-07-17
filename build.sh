@@ -5,6 +5,163 @@
 set -e
 
 # ============================================================================
+# Python 3.9+ Setup (Godot 4.7 requires Python >= 3.9)
+# ============================================================================
+
+# Try to find an existing Python >= 3.9
+find_python39() {
+    for candidate in python3.13 python3.12 python3.11 python3.10 python3.9 python3; do
+        if command -v "$candidate" &>/dev/null; then
+            local major minor
+            major=$("$candidate" -c 'import sys; print(sys.version_info.major)' 2>/dev/null) || continue
+            minor=$("$candidate" -c 'import sys; print(sys.version_info.minor)' 2>/dev/null) || continue
+            if [ "$major" -ge 3 ] && [ "$minor" -ge 9 ]; then
+                echo "$candidate"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+# Auto-install Python 3.9 without affecting the system's default python3
+auto_install_python39() {
+    echo ""
+    echo "  [SETUP] Python >= 3.9 not found. Installing python3.9 alongside existing Python..."
+    echo ""
+
+    case "$DISTRO" in
+        ubuntu|debian|kylin|neokylin|openkylin|uos|deepin|linuxmint|pop)
+            echo "  [SETUP] Using apt-get (Debian/Ubuntu/Kylin family)..."
+            if ! command -v sudo &>/dev/null; then
+                echo "  [ERROR] sudo not found. Please run as root or install python3.9 manually:"
+                echo "    apt-get install -y python3.9 python3.9-venv python3.9-distutils"
+                return 1
+            fi
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends \
+                python3.9 python3.9-venv python3.9-distutils
+            ;;
+        fedora|centos|rhel|rocky|alma)
+            echo "  [SETUP] Using dnf (Fedora/RHEL family)..."
+            if ! command -v sudo &>/dev/null; then
+                echo "  [ERROR] sudo not found. Please run as root or install python3.9 manually:"
+                echo "    dnf install -y python3.9"
+                return 1
+            fi
+            sudo dnf install -y python3.9
+            ;;
+        arch|manjaro|endeavouros)
+            echo "  [SETUP] Using pacman (Arch family)..."
+            if ! command -v sudo &>/dev/null; then
+                echo "  [ERROR] sudo not found. Please run as root or install python3.9 manually:"
+                echo "    pacman -S python"
+                return 1
+            fi
+            sudo pacman -S --noconfirm python
+            ;;
+        *)
+            echo "  [ERROR] Unsupported distro '$DISTRO' for auto-install."
+            echo "  Please install Python 3.9+ manually, then re-run this script."
+            return 1
+            ;;
+    esac
+
+    echo ""
+    echo "  [SETUP] python3.9 installed: $(python3.9 --version 2>/dev/null || echo 'FAILED')"
+    echo "  [SETUP] System default python3 unchanged: $(python3 --version 2>/dev/null)"
+}
+
+# Auto-install SCons under the target Python (user-level, no root, no system pollution)
+auto_install_scons() {
+    local py="$1"
+    echo ""
+    echo "  [SETUP] SCons not found under $py. Installing via pip --user..."
+    echo ""
+
+    # Ensure pip / distutils is available
+    if ! "$py" -m pip --version &>/dev/null; then
+        echo "  [SETUP] pip not found for $py, attempting to install ensurepip..."
+        case "$DISTRO" in
+            ubuntu|debian|kylin|neokylin|openkylin|uos|deepin|linuxmint|pop)
+                sudo apt-get install -y --no-install-recommends python3.9-distutils 2>/dev/null
+                "$py" -m ensurepip --user 2>/dev/null || true
+                ;;
+        esac
+    fi
+
+    # Install scons at user level (~/.local/) — does NOT touch system python3.8's scons
+    "$py" -m pip install --user scons
+
+    if "$py" -m SCons --version &>/dev/null; then
+        echo ""
+        echo "  [SETUP] SCons installed successfully under $py"
+    else
+        echo "  [ERROR] SCons installation failed."
+        return 1
+    fi
+}
+
+# --- Main setup flow ---
+
+# Detect distro early (needed by auto_install)
+DISTRO="unknown"
+if [ -f /etc/os-release ]; then
+    DISTRO=$(. /etc/os-release && echo "${ID:-unknown}")
+fi
+
+# 1. Find or install Python 3.9+
+PYTHON_CMD="$(find_python39)" || PYTHON_CMD=""
+
+if [ -z "$PYTHON_CMD" ]; then
+    echo ""
+    echo "  [WARN] Godot 4.7+ requires Python >= 3.9."
+    echo "         Current system python3: $(python3 --version 2>/dev/null || echo 'not found')"
+    echo ""
+    read -p "  Auto-install python3.9 (safe, alongside existing python3)? [Y/n]: " yn
+    case "${yn:-Y}" in
+        [Yy]*|"")
+            auto_install_python39 || exit 1
+            PYTHON_CMD="$(find_python39)" || PYTHON_CMD=""
+            ;;
+        *)
+            echo "  Skipped. Please install Python 3.9+ manually and re-run."
+            exit 1
+            ;;
+    esac
+fi
+
+if [ -z "$PYTHON_CMD" ]; then
+    echo ""
+    echo "[ERROR] Python 3.9+ still not found after install attempt. Exiting."
+    exit 1
+fi
+
+# 2. Find or install SCons under the target Python
+if ! "$PYTHON_CMD" -m SCons --version &>/dev/null; then
+    echo ""
+    echo "  [WARN] SCons not available under $PYTHON_CMD."
+    read -p "  Auto-install SCons under $PYTHON_CMD (--user, safe)? [Y/n]: " yn
+    case "${yn:-Y}" in
+        [Yy]*|"")
+            auto_install_scons "$PYTHON_CMD" || exit 1
+            ;;
+        *)
+            echo "  Skipped. Please install manually: $PYTHON_CMD -m pip install --user scons"
+            exit 1
+            ;;
+    esac
+fi
+
+# Use the found Python 3.9+ for scons
+SCONS_CMD="$PYTHON_CMD -m SCons"
+
+echo ""
+echo "  ✓ Python: $PYTHON_CMD ($($PYTHON_CMD --version 2>&1))"
+echo "  ✓ SCons:  $($PYTHON_CMD -m SCons --version 2>&1 | head -1)"
+echo ""
+
+# ============================================================================
 # Environment Detection
 # ============================================================================
 
@@ -20,19 +177,21 @@ case "$HOST_ARCH" in
 esac
 
 # Detect CPU cores for parallel build
-if command -v nproc &>/dev/null; then
+# Use all cores by default for maximum build speed.
+# Set BUILD_JOBS=N environment variable to override (e.g. BUILD_JOBS=4 ./build.sh)
+if [ -n "$BUILD_JOBS" ]; then
+    JOBS="$BUILD_JOBS"
+elif command -v nproc &>/dev/null; then
     JOBS=$(nproc)
 elif [ -f /proc/cpuinfo ]; then
     JOBS=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null || echo 4)
 else
     JOBS=4
 fi
+TOTAL_CORES=$JOBS
 
-# Detect OS distribution (for helpful dependency hints)
-DISTRO="unknown"
-if [ -f /etc/os-release ]; then
-    DISTRO=$(. /etc/os-release && echo "${ID:-unknown}")
-fi
+# Detect OS distribution (already done above for auto-install)
+# DISTRO is set in the Python setup section
 
 # Detect platform for SCons
 UNAME_S="$(uname -s)"
@@ -56,12 +215,8 @@ fi
 check_deps() {
     local missing=()
 
-    if ! command -v scons &>/dev/null; then
-        missing+=("scons (pip3 install scons)")
-    fi
-    if ! command -v python3 &>/dev/null; then
-        missing+=("python3")
-    fi
+    # Python 3.9+ and SCons are already guaranteed by the auto-install above.
+    # Check remaining build toolchain dependencies:
     if ! command -v pkg-config &>/dev/null; then
         missing+=("pkg-config")
     fi
@@ -124,6 +279,7 @@ print_env() {
     echo "  ├─ Arch:        $ARCH_TAG ($HOST_ARCH)"
     echo "  ├─ Distro:      $DISTRO"
     echo "  ├─ CPU Cores:   $JOBS"
+    echo "  ├─ Python:      $PYTHON_CMD ($($PYTHON_CMD --version 2>&1))"
     if [ -n "$ARCH_FLAG" ]; then
         echo "  ├─ SCons Arch:  $ARCH_FLAG"
     fi
@@ -171,7 +327,7 @@ while true; do
             echo ""
             echo "[DEBUG] Starting build... ($ARCH_TAG, -j$JOBS)"
             echo ""
-            scons p=$PLATFORM target=editor debug_symbols=true optimize=debug module_mono_enabled=yes $ARCH_FLAG -j$JOBS
+            $SCONS_CMD p=$PLATFORM target=editor debug_symbols=true optimize=debug module_mono_enabled=yes $ARCH_FLAG -j$JOBS
             echo ""
             echo "[DEBUG] Build finished with exit code: $?"
             ;;
@@ -179,7 +335,7 @@ while true; do
             echo ""
             echo "[RELWITHDEBINFO] Starting build... ($ARCH_TAG, -j$JOBS)"
             echo ""
-            scons p=$PLATFORM target=editor debug_symbols=true optimize=speed module_mono_enabled=yes $ARCH_FLAG -j$JOBS
+            $SCONS_CMD p=$PLATFORM target=editor debug_symbols=true optimize=speed module_mono_enabled=yes $ARCH_FLAG -j$JOBS
             echo ""
             echo "[RELWITHDEBINFO] Build finished with exit code: $?"
             ;;
@@ -187,7 +343,7 @@ while true; do
             echo ""
             echo "[RELEASE] Starting build... ($ARCH_TAG, -j$JOBS)"
             echo ""
-            scons p=$PLATFORM target=editor optimize=speed module_mono_enabled=yes $ARCH_FLAG -j$JOBS
+            $SCONS_CMD p=$PLATFORM target=editor optimize=speed module_mono_enabled=yes $ARCH_FLAG -j$JOBS
             echo ""
             echo "[RELEASE] Build finished with exit code: $?"
             ;;
@@ -195,7 +351,7 @@ while true; do
             echo ""
             echo "[TEMPLATE_RELEASE] Starting build... ($ARCH_TAG, -j$JOBS)"
             echo ""
-            scons p=$PLATFORM target=template_release optimize=speed $ARCH_FLAG -j$JOBS
+            $SCONS_CMD p=$PLATFORM target=template_release optimize=speed $ARCH_FLAG -j$JOBS
             echo ""
             echo "[TEMPLATE_RELEASE] Build finished with exit code: $?"
             ;;
