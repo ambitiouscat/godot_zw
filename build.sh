@@ -317,10 +317,11 @@ while true; do
     echo "  2. RelWithDebInfo (debug_symbols=true,  optimize=speed)"
     echo "  3. Release        (optimize=speed,      no symbols)"
     echo "  4. Template Release (target=template_release, no editor)"
-    echo "  5. Check Dependencies"
-    echo "  6. Exit"
+    echo "  5. Update C# API  (glue + assemblies)"
+    echo "  6. Check Dependencies"
+    echo "  7. Exit"
     echo ""
-    read -p "Please select [1-6]: " choice
+    read -p "Please select [1-7]: " choice
 
     case "$choice" in
         1)
@@ -351,18 +352,28 @@ while true; do
             echo ""
             echo "[TEMPLATE_RELEASE] Starting build... ($ARCH_TAG, -j$JOBS)"
             echo ""
-            $SCONS_CMD p=$PLATFORM target=template_release optimize=speed $ARCH_FLAG -j$JOBS
+            $SCONS_CMD p=$PLATFORM target=template_release optimize=speed module_mono_enabled=yes $ARCH_FLAG -j$JOBS
             echo ""
             echo "[TEMPLATE_RELEASE] Build finished with exit code: $?"
             ;;
         5)
+            echo ""
+            echo "[C# API] Running update-csharp-api.sh..."
+            echo ""
+            if [ -f "update-csharp-api.sh" ]; then
+                bash update-csharp-api.sh
+            else
+                echo "[ERROR] update-csharp-api.sh not found in current directory."
+            fi
+            ;;
+        6)
             echo ""
             echo "[CHECK] Verifying build dependencies..."
             if check_deps; then
                 echo "[CHECK] All dependencies OK ✓"
             fi
             ;;
-        6)
+        7)
             echo "Bye."
             break
             ;;
