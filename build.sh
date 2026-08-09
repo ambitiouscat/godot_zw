@@ -1,0 +1,384 @@
+#!/bin/bash
+# Godot Engine Build (Linux/macOS)
+# Supports: x86_64, arm64 (Kylin/飞腾/鲲鹏), rv64, ppc64, loongarch64
+
+set -e
+
+# ============================================================================
+# Python 3.9+ Setup (Godot 4.7 requires Python >= 3.9)
+# ============================================================================
+
+# Try to find an existing Python >= 3.9
+find_python39() {
+    for candidate in python3.13 python3.12 python3.11 python3.10 python3.9 python3; do
+        if command -v "$candidate" &>/dev/null; then
+            local major minor
+            major=$("$candidate" -c 'import sys; print(sys.version_info.major)' 2>/dev/null) || continue
+            minor=$("$candidate" -c 'import sys; print(sys.version_info.minor)' 2>/dev/null) || continue
+            if [ "$major" -ge 3 ] && [ "$minor" -ge 9 ]; then
+                echo "$candidate"
+                return 0
+            fi
+        fi
+    done
+    return 1
+}
+
+# Auto-install Python 3.9 without affecting the system's default python3
+auto_install_python39() {
+    echo ""
+    echo "  [SETUP] Python >= 3.9 not found. Installing python3.9 alongside existing Python..."
+    echo ""
+
+    case "$DISTRO" in
+        ubuntu|debian|kylin|neokylin|openkylin|uos|deepin|linuxmint|pop)
+            echo "  [SETUP] Using apt-get (Debian/Ubuntu/Kylin family)..."
+            if ! command -v sudo &>/dev/null; then
+                echo "  [ERROR] sudo not found. Please run as root or install python3.9 manually:"
+                echo "    apt-get install -y python3.9 python3.9-venv python3.9-distutils"
+                return 1
+            fi
+            sudo apt-get update -qq
+            sudo apt-get install -y --no-install-recommends \
+                python3.9 python3.9-venv python3.9-distutils
+            ;;
+        fedora|centos|rhel|rocky|alma)
+            echo "  [SETUP] Using dnf (Fedora/RHEL family)..."
+            if ! command -v sudo &>/dev/null; then
+                echo "  [ERROR] sudo not found. Please run as root or install python3.9 manually:"
+                echo "    dnf install -y python3.9"
+                return 1
+            fi
+            sudo dnf install -y python3.9
+            ;;
+        arch|manjaro|endeavouros)
+            echo "  [SETUP] Using pacman (Arch family)..."
+            if ! command -v sudo &>/dev/null; then
+                echo "  [ERROR] sudo not found. Please run as root or install python3.9 manually:"
+                echo "    pacman -S python"
+                return 1
+            fi
+            sudo pacman -S --noconfirm python
+            ;;
+        *)
+            echo "  [ERROR] Unsupported distro '$DISTRO' for auto-install."
+            echo "  Please install Python 3.9+ manually, then re-run this script."
+            return 1
+            ;;
+    esac
+
+    echo ""
+    echo "  [SETUP] python3.9 installed: $(python3.9 --version 2>/dev/null || echo 'FAILED')"
+    echo "  [SETUP] System default python3 unchanged: $(python3 --version 2>/dev/null)"
+}
+
+# Auto-install SCons under the target Python (user-level, no root, no system pollution)
+auto_install_scons() {
+    local py="$1"
+    echo ""
+    echo "  [SETUP] SCons not found under $py. Installing via pip --user..."
+    echo ""
+
+    # Ensure pip / distutils is available
+    if ! "$py" -m pip --version &>/dev/null; then
+        echo "  [SETUP] pip not found for $py, attempting to install ensurepip..."
+        case "$DISTRO" in
+            ubuntu|debian|kylin|neokylin|openkylin|uos|deepin|linuxmint|pop)
+                sudo apt-get install -y --no-install-recommends python3.9-distutils 2>/dev/null
+                "$py" -m ensurepip --user 2>/dev/null || true
+                ;;
+        esac
+    fi
+
+    # Install scons at user level (~/.local/) — does NOT touch system python3.8's scons
+    "$py" -m pip install --user scons
+
+    if "$py" -m SCons --version &>/dev/null; then
+        echo ""
+        echo "  [SETUP] SCons installed successfully under $py"
+    else
+        echo "  [ERROR] SCons installation failed."
+        return 1
+    fi
+}
+
+# --- Main setup flow ---
+
+# Detect distro early (needed by auto_install)
+DISTRO="unknown"
+if [ -f /etc/os-release ]; then
+    DISTRO=$(. /etc/os-release && echo "${ID:-unknown}")
+fi
+
+# 1. Find or install Python 3.9+
+PYTHON_CMD="$(find_python39)" || PYTHON_CMD=""
+
+if [ -z "$PYTHON_CMD" ]; then
+    echo ""
+    echo "  [WARN] Godot 4.7+ requires Python >= 3.9."
+    echo "         Current system python3: $(python3 --version 2>/dev/null || echo 'not found')"
+    echo ""
+    read -p "  Auto-install python3.9 (safe, alongside existing python3)? [Y/n]: " yn
+    case "${yn:-Y}" in
+        [Yy]*|"")
+            auto_install_python39 || exit 1
+            PYTHON_CMD="$(find_python39)" || PYTHON_CMD=""
+            ;;
+        *)
+            echo "  Skipped. Please install Python 3.9+ manually and re-run."
+            exit 1
+            ;;
+    esac
+fi
+
+if [ -z "$PYTHON_CMD" ]; then
+    echo ""
+    echo "[ERROR] Python 3.9+ still not found after install attempt. Exiting."
+    exit 1
+fi
+
+# 2. Find or install SCons under the target Python
+if ! "$PYTHON_CMD" -m SCons --version &>/dev/null; then
+    echo ""
+    echo "  [WARN] SCons not available under $PYTHON_CMD."
+    read -p "  Auto-install SCons under $PYTHON_CMD (--user, safe)? [Y/n]: " yn
+    case "${yn:-Y}" in
+        [Yy]*|"")
+            auto_install_scons "$PYTHON_CMD" || exit 1
+            ;;
+        *)
+            echo "  Skipped. Please install manually: $PYTHON_CMD -m pip install --user scons"
+            exit 1
+            ;;
+    esac
+fi
+
+# Use the found Python 3.9+ for scons
+SCONS_CMD="$PYTHON_CMD -m SCons"
+
+echo ""
+echo "  ✓ Python: $PYTHON_CMD ($($PYTHON_CMD --version 2>&1))"
+echo "  ✓ SCons:  $($PYTHON_CMD -m SCons --version 2>&1 | head -1)"
+echo ""
+
+# ============================================================================
+# Environment Detection
+# ============================================================================
+
+# Detect CPU architecture
+HOST_ARCH="$(uname -m)"
+case "$HOST_ARCH" in
+    x86_64|amd64)    ARCH_TAG="x86_64" ;;
+    aarch64|arm64)    ARCH_TAG="arm64" ;;
+    riscv64)          ARCH_TAG="rv64" ;;
+    ppc64le|ppc64)    ARCH_TAG="ppc64" ;;
+    loongarch64)      ARCH_TAG="loongarch64" ;;
+    *)                echo "[WARN] Unrecognized arch: $HOST_ARCH, falling back to x86_64"; ARCH_TAG="x86_64" ;;
+esac
+
+# Detect CPU cores for parallel build
+# Use all cores by default for maximum build speed.
+# Set BUILD_JOBS=N environment variable to override (e.g. BUILD_JOBS=4 ./build.sh)
+if [ -n "$BUILD_JOBS" ]; then
+    JOBS="$BUILD_JOBS"
+elif command -v nproc &>/dev/null; then
+    JOBS=$(nproc)
+elif [ -f /proc/cpuinfo ]; then
+    JOBS=$(grep -c "^processor" /proc/cpuinfo 2>/dev/null || echo 4)
+else
+    JOBS=4
+fi
+TOTAL_CORES=$JOBS
+
+# Detect OS distribution (already done above for auto-install)
+# DISTRO is set in the Python setup section
+
+# Detect platform for SCons
+UNAME_S="$(uname -s)"
+case "$UNAME_S" in
+    Linux)   PLATFORM="linuxbsd" ;;
+    Darwin)  PLATFORM="macos" ;;
+    MINGW*|MSYS*|CYGWIN*) PLATFORM="windows" ;;
+    *)       PLATFORM="linuxbsd" ;;
+esac
+
+# Build arch flag (only pass if not auto-detected correctly)
+ARCH_FLAG=""
+if [ "$ARCH_TAG" != "x86_64" ]; then
+    ARCH_FLAG="arch=$ARCH_TAG"
+fi
+
+# ============================================================================
+# Dependency Check
+# ============================================================================
+
+check_deps() {
+    local missing=()
+
+    # Python 3.9+ and SCons are already guaranteed by the auto-install above.
+    # Check remaining build toolchain dependencies:
+    if ! command -v pkg-config &>/dev/null; then
+        missing+=("pkg-config")
+    fi
+    if ! command -v gcc &>/dev/null && ! command -v g++ &>/dev/null && ! command -v clang++ &>/dev/null; then
+        missing+=("gcc/g++ or clang++")
+    fi
+
+    if [ ${#missing[@]} -gt 0 ]; then
+        echo ""
+        echo "[ERROR] Missing build dependencies:"
+        for dep in "${missing[@]}"; do
+            echo "  - $dep"
+        done
+        echo ""
+
+        # Distribution-specific install hints
+        case "$DISTRO" in
+            ubuntu|debian|kylin|neokylin|openkylin|uos|deepin)
+                echo "Install command (Debian/Ubuntu/Kylin):"
+                echo "  sudo apt-get install -y build-essential scons pkg-config python3 \\"
+                echo "    libx11-dev libxcursor-dev libxinerama-dev libxext-dev libxrandr-dev \\"
+                echo "    libxrender-dev libxi-dev libxkbcommon-dev libxkbcommon-x11-dev \\"
+                echo "    libgl1-mesa-dev libglu1-mesa-dev libasound2-dev libpulse-dev \\"
+                echo "    libudev-dev libdbus-1-dev libwayland-dev libdecor-0-dev \\"
+                echo "    libfontconfig-dev libspeechd-dev"
+                ;;
+            fedora|centos|rhel|rocky)
+                echo "Install command (Fedora/RHEL):"
+                echo "  sudo dnf install -y gcc-c++ scons pkgconf-pkg-config python3 \\"
+                echo "    libX11-devel libXcursor-devel libXinerama-devel libXext-devel \\"
+                echo "    libXrandr-devel libXi-devel libXrender-devel \\"
+                echo "    mesa-libGL-devel mesa-libGLU-devel alsa-lib-devel pulseaudio-libs-devel \\"
+                echo "    systemd-devel dbus-devel wayland-devel libxkbcommon-devel \\"
+                echo "    fontconfig-devel"
+                ;;
+            arch|manjaro)
+                echo "Install command (Arch):"
+                echo "  sudo pacman -S gcc scons pkgconf python3 \\"
+                echo "    libx11 libxcursor libxinerama libxext libxrandr libxi libxrender \\"
+                echo "    mesa glu alsa-lib pulseaudio systemd wayland libxkbcommon fontconfig"
+                ;;
+            *)
+                echo "Please install the missing dependencies using your system's package manager."
+                ;;
+        esac
+        echo ""
+        return 1
+    fi
+    return 0
+}
+
+# ============================================================================
+# Print Environment Info
+# ============================================================================
+
+print_env() {
+    echo ""
+    echo "  Environment:"
+    echo "  ├─ Platform:    $PLATFORM"
+    echo "  ├─ Arch:        $ARCH_TAG ($HOST_ARCH)"
+    echo "  ├─ Distro:      $DISTRO"
+    echo "  ├─ CPU Cores:   $JOBS"
+    echo "  ├─ Python:      $PYTHON_CMD ($($PYTHON_CMD --version 2>&1))"
+    if [ -n "$ARCH_FLAG" ]; then
+        echo "  ├─ SCons Arch:  $ARCH_FLAG"
+    fi
+    if [ "$DISTRO" = "kylin" ] || [ "$DISTRO" = "neokylin" ] || [ "$DISTRO" = "openkylin" ]; then
+        echo "  ├─ ★ Kylin OS detected — ARM64 native build"
+    fi
+    echo "  └─ SCons Jobs:  -j$JOBS"
+    echo ""
+}
+
+# ============================================================================
+# Interactive Build Menu
+# ============================================================================
+
+while true; do
+    echo ""
+    echo "============================================"
+    echo "    Godot Engine 4.7.0 Build ($PLATFORM)"
+    echo "============================================"
+    echo ""
+    echo "  Build mode comparison:"
+    echo "  +-----------------+----------+---------+---------+-----------------------------+"
+    echo "  | Mode            | Optimize | Symbols | Speed   | Debug capability            |"
+    echo "  +-----------------+----------+---------+---------+-----------------------------+"
+    echo "  | 1. Debug        | None     | Yes     | Slow    | Full: stack, vars, watches  |"
+    echo "  | 2. RelWithDeb   | Speed    | Yes     | Fast    | Stack + line numbers only   |"
+    echo "  | 3. Release      | Speed    | No      | Fast    | None                        |"
+    echo "  | 4. Template     | Speed    | No      | Fast    | Export template (no editor) |"
+    echo "  +-----------------+----------+---------+---------+-----------------------------+"
+    echo ""
+    echo "  Tip: Use RelWithDebInfo for production debugging (core files + GDB)."
+    echo ""
+    print_env
+    echo "  1. Debug          (debug_symbols=true,  optimize=debug)"
+    echo "  2. RelWithDebInfo (debug_symbols=true,  optimize=speed)"
+    echo "  3. Release        (optimize=speed,      no symbols)"
+    echo "  4. Template Release (target=template_release, no editor)"
+    echo "  5. Update C# API  (glue + assemblies)"
+    echo "  6. Check Dependencies"
+    echo "  7. Exit"
+    echo ""
+    read -p "Please select [1-7]: " choice
+
+    case "$choice" in
+        1)
+            echo ""
+            echo "[DEBUG] Starting build... ($ARCH_TAG, -j$JOBS)"
+            echo ""
+            $SCONS_CMD p=$PLATFORM target=editor debug_symbols=true optimize=debug module_mono_enabled=yes $ARCH_FLAG -j$JOBS
+            echo ""
+            echo "[DEBUG] Build finished with exit code: $?"
+            ;;
+        2)
+            echo ""
+            echo "[RELWITHDEBINFO] Starting build... ($ARCH_TAG, -j$JOBS)"
+            echo ""
+            $SCONS_CMD p=$PLATFORM target=editor debug_symbols=true optimize=speed module_mono_enabled=yes $ARCH_FLAG -j$JOBS
+            echo ""
+            echo "[RELWITHDEBINFO] Build finished with exit code: $?"
+            ;;
+        3)
+            echo ""
+            echo "[RELEASE] Starting build... ($ARCH_TAG, -j$JOBS)"
+            echo ""
+            $SCONS_CMD p=$PLATFORM target=editor optimize=speed module_mono_enabled=yes $ARCH_FLAG -j$JOBS
+            echo ""
+            echo "[RELEASE] Build finished with exit code: $?"
+            ;;
+        4)
+            echo ""
+            echo "[TEMPLATE_RELEASE] Starting build... ($ARCH_TAG, -j$JOBS)"
+            echo ""
+            $SCONS_CMD p=$PLATFORM target=template_release optimize=speed module_mono_enabled=yes $ARCH_FLAG -j$JOBS
+            echo ""
+            echo "[TEMPLATE_RELEASE] Build finished with exit code: $?"
+            ;;
+        5)
+            echo ""
+            echo "[C# API] Running update-csharp-api.sh..."
+            echo ""
+            if [ -f "update-csharp-api.sh" ]; then
+                bash update-csharp-api.sh
+            else
+                echo "[ERROR] update-csharp-api.sh not found in current directory."
+            fi
+            ;;
+        6)
+            echo ""
+            echo "[CHECK] Verifying build dependencies..."
+            if check_deps; then
+                echo "[CHECK] All dependencies OK ✓"
+            fi
+            ;;
+        7)
+            echo "Bye."
+            break
+            ;;
+        *)
+            echo "Invalid choice."
+            ;;
+    esac
+done
