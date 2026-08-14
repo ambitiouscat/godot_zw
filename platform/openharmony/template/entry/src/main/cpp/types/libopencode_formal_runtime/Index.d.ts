@@ -14,7 +14,6 @@ export interface FormalRuntimeBootstrapInput {
   allowedOrigin: string;
   capabilityProfile: string;
   deviceForm?: string;
-  generation: number;
   requestedPort: number;
 }
 
@@ -26,30 +25,38 @@ export interface FormalRuntimeContract {
 }
 
 export interface FormalRuntimeStartResult {
+  code: number;
   pid: number;
+  callbackCode: number;
   generation: number;
-  errorCode: number;
+  phase: string;
+  hostEventPath: string;
 }
 
 export interface FormalRuntimeStopResult {
-  stopped: boolean;
-  errorCode: number;
+  code: number;
+  pid: number;
+  generation: number;
+  accepted: boolean;
+  phase: string;
 }
 
 export interface FormalRuntimeState {
+  contractVersion: number;
   activePid: number;
   activeGeneration: number;
+  highestGeneration: number;
   lastExitPid: number;
   lastExitSignal: number;
   lastExitGeneration: number;
-  phase: number;
-  errorCode: number;
+  exitObserved: boolean;
+  phase: string;
 }
 
 declare const formalRuntime: {
   startFormalRuntime(input: FormalRuntimeBootstrapInput): FormalRuntimeStartResult;
   stopFormalRuntime(generation: number): FormalRuntimeStopResult;
-  getFormalRuntimeState(generation: number): FormalRuntimeState;
+  getFormalRuntimeState(): FormalRuntimeState;
   readFormalHostEvent(): string;
   getFormalRuntimeContract(): FormalRuntimeContract;
 };
