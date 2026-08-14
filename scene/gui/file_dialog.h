@@ -217,6 +217,9 @@ private:
 	MenuButton *drives = nullptr;
 	int selected_drive = 0;
 	LineEdit *directory_edit = nullptr;
+
+	Button *native_browse = nullptr;
+
 	HBoxContainer *shortcuts_container = nullptr;
 
 	Button *refresh_button = nullptr;
@@ -359,6 +362,10 @@ private:
 	virtual void shortcut_input(const Ref<InputEvent> &p_event) override;
 
 	void _native_popup();
+
+	void _native_browse_pressed();
+	void _on_native_dir_selected(bool p_success, const Array &p_paths, int p_id);
+
 	void _native_dialog_cb(bool p_ok, const Vector<String> &p_files, int p_filter);
 	void _native_dialog_cb_with_options(bool p_ok, const Vector<String> &p_files, int p_filter, const Dictionary &p_selected_options);
 

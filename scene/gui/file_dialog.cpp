@@ -52,6 +52,10 @@
 #include "scene/theme/theme_db.h"
 #include "servers/display/display_server.h"
 
+#ifdef OPENHARMONY_ENABLED
+#include "platform/openharmony/display_server_openharmony.h"
+#endif
+
 void FileDialog::popup_file_dialog() {
 	popup_centered_clamped(Vector2(1050, 700) * get_theme_default_base_scale(), 0.8f);
 	_focus_file_text();
@@ -97,6 +101,32 @@ bool FileDialog::_can_use_native_popup() const {
 		return DisplayServer::get_singleton()->has_feature(DisplayServerEnums::FEATURE_NATIVE_DIALOG_FILE_EXTRA);
 	}
 	return DisplayServer::get_singleton()->has_feature(DisplayServerEnums::FEATURE_NATIVE_DIALOG_FILE);
+}
+
+void FileDialog::_native_browse_pressed() {
+#ifdef OPENHARMONY_ENABLED
+	DisplayServerOpenHarmony *dso = static_cast<DisplayServerOpenHarmony *>(DisplayServer::get_singleton());
+	dso->directory_picker_show(
+		TTRC("Select a Directory"),
+		directory_edit->get_text(),
+		callable_mp(this, &FileDialog::_on_native_dir_selected)
+	);
+	hide();
+#else
+	// Fallback: hide the button on platforms without native directory picker.
+	if (native_browse) {
+		native_browse->hide();
+	}
+#endif
+}
+
+void FileDialog::_on_native_dir_selected(bool p_success, const Array &p_paths, int p_id) {
+	show();
+	if (!p_success || p_paths.is_empty()) {
+		return;
+	}
+	directory_edit->set_text(p_paths[0]);
+	_change_dir(p_paths[0]);
 }
 
 Vector2i FileDialog::_get_list_mode_icon_size() const {
@@ -306,6 +336,7 @@ void FileDialog::_notification(int p_what) {
 			_setup_button(refresh_button, theme_cache.reload);
 			_setup_button(favorite_button, theme_cache.favorite);
 			_setup_button(make_dir_button, theme_cache.create_folder);
+			_setup_button(native_browse, theme_cache.reload);
 			_setup_button(show_hidden, theme_cache.toggle_hidden);
 			_setup_button(thumbnail_mode_button, theme_cache.thumbnail_mode);
 			_setup_button(list_mode_button, theme_cache.list_mode);
@@ -2398,6 +2429,12 @@ FileDialog::FileDialog() {
 	drives->get_popup()->connect("index_pressed", callable_mp(this, &FileDialog::_select_drive));
 	drives->set_accessibility_name(ETR("Drive"));
 	top_toolbar->add_child(drives);
+
+	native_browse = memnew(Button);
+	native_browse->set_theme_type_variation(SceneStringName(FlatButton));
+	native_browse->set_text(TTRC("Select Folder"));
+	native_browse->connect(SceneStringName(pressed), callable_mp(this, &FileDialog::_native_browse_pressed));
+	top_toolbar->add_child(native_browse);
 
 	directory_edit = memnew(LineEdit);
 	directory_edit->set_accessibility_name(ETR("Path:"));

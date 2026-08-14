@@ -1,0 +1,40 @@
+{
+  "string": [
+    {
+      "name": "module_desc",
+      "value": "module description"
+    },
+    {
+      "name": "EntryAbility_desc",
+      "value": "GDAI Engine"
+    },
+    {
+      "name": "EntryAbility_label",
+      "value": "GDAI"
+    },
+    {
+      "name": "user_permissions",
+      "value": ""
+    },
+    {
+      "name": "INTERNET_reason",
+      "value": "For accessing network"
+    },
+    {
+      "name": "MICROPHONE_reason",
+      "value": "For recording audio"
+    },
+    {
+      "name": "ACCELEROMETER_reason",
+      "value": "For motion sensing"
+    },
+    {
+      "name": "GYROSCOPE_reason",
+      "value": "For motion sensing"
+    },
+    {
+      "name": "VIBRATE_reason",
+      "value": "For haptic feedback"
+    }
+  ]
+}

@@ -30,6 +30,10 @@
 
 #include "project_dialog.h"
 
+#ifdef OPENHARMONY_ENABLED
+#include "platform/openharmony/display_server_openharmony.h"
+#endif
+
 #include "core/config/project_settings.h"
 #include "core/io/dir_access.h"
 #include "core/io/zip_io.h"
@@ -449,6 +453,56 @@ void ProjectDialog::_browse_install_path() {
 
 	fdialog_install->set_file_mode(EditorFileDialog::FILE_MODE_OPEN_DIR);
 	fdialog_install->popup_file_dialog();
+}
+
+void ProjectDialog::_browse_project_path_native() {
+#ifdef OPENHARMONY_ENABLED
+	String path = project_path->get_text();
+	if (path.is_relative_path()) {
+		path = EDITOR_GET("filesystem/directories/default_project_path");
+	}
+	DisplayServerOpenHarmony *dso = static_cast<DisplayServerOpenHarmony *>(DisplayServer::get_singleton());
+	dso->directory_picker_show(
+		TTRC("Select a Directory"),
+		path,
+		callable_mp(this, &ProjectDialog::_on_native_dir_selected)
+	);
+	hide();
+#else
+	_browse_project_path();
+#endif
+}
+
+void ProjectDialog::_on_native_dir_selected(bool p_success, const Array &p_paths, int p_id) {
+	show_dialog(false);
+	if (!p_success || p_paths.is_empty()) {
+		return;
+	}
+	String path = p_paths[0];
+	if (create_dir->is_pressed() && (mode == MODE_NEW || mode == MODE_INSTALL || mode == MODE_DUPLICATE)) {
+		project_path->set_text(path.path_join(project_path->get_text().get_file()));
+	} else {
+		project_path->set_text(path);
+	}
+	_project_path_changed();
+
+	// Add selected directory to EditorFileDialog recent list.
+	Vector<String> recent = EditorSettings::get_singleton()->get_recent_dirs();
+	int idx = recent.find(path);
+	if (idx >= 0) {
+		recent.remove_at(idx);
+	}
+	recent.insert(0, path);
+	if (recent.size() > 15) {
+		recent.resize(15);
+	}
+	EditorSettings::get_singleton()->set_recent_dirs(recent);
+
+	if (install_path->is_visible_in_tree()) {
+		install_path->grab_focus();
+	} else {
+		get_ok_button()->grab_focus();
+	}
 }
 
 void ProjectDialog::_project_path_selected(const String &p_path) {
@@ -998,6 +1052,7 @@ void ProjectDialog::_notification(int p_what) {
 			create_dir->set_button_icon(get_editor_theme_icon(SNAME("FolderCreate")));
 			project_browse->set_button_icon(get_editor_theme_icon(SNAME("FolderBrowse")));
 			install_browse->set_button_icon(get_editor_theme_icon(SNAME("FolderBrowse")));
+			native_project_browse->set_button_icon(get_editor_theme_icon(SNAME("FolderBrowse")));
 		} break;
 		case NOTIFICATION_READY: {
 			fdialog_project = memnew(EditorFileDialog);
@@ -1043,6 +1098,12 @@ ProjectDialog::ProjectDialog() {
 	l->set_text(TTRC("Project Path:"));
 	l->set_h_size_flags(Control::SIZE_EXPAND_FILL);
 	pphb_label->add_child(l);
+
+	native_project_browse = memnew(Button);
+	native_project_browse->set_text(TTRC("Select Folder"));
+	native_project_browse->set_tooltip_text(TTRC("Select a directory from the file system"));
+	native_project_browse->connect(SceneStringName(pressed), callable_mp(this, &ProjectDialog::_browse_project_path_native));
+	pphb_label->add_child(native_project_browse);
 
 	create_dir = memnew(CheckButton);
 	create_dir->set_text(TTRC("Create Folder"));

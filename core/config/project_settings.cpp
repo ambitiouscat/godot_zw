@@ -724,9 +724,9 @@ Error ProjectSettings::_setup(const String &p_path, const String &p_main_pack, b
 		// We need to test both possibilities as extensions for Linux binaries are optional
 		// (so both 'mygame.bin' and 'mygame' should be able to find 'mygame.pck').
 
-#if defined(MACOS_ENABLED) || defined(APPLE_EMBEDDED_ENABLED)
+#if defined(MACOS_ENABLED) || defined(APPLE_EMBEDDED_ENABLED) || defined(OPENHARMONY_ENABLED)
 		if (!found) {
-			// Attempt to load PCK from macOS .app bundle resources.
+			// Attempt to load PCK from macOS/OpenHarmony .app bundle resources.
 			found = _load_resource_pack(OS::get_singleton()->get_bundle_resource_dir().path_join(exec_basename + ".pck"), false, 0, true) || _load_resource_pack(OS::get_singleton()->get_bundle_resource_dir().path_join(exec_filename + ".pck"), false, 0, true);
 		}
 #endif
@@ -783,8 +783,8 @@ Error ProjectSettings::_setup(const String &p_path, const String &p_main_pack, b
 		return err;
 	}
 
-#if defined(MACOS_ENABLED) || defined(APPLE_EMBEDDED_ENABLED)
-	// Attempt to load project file from macOS .app bundle resources.
+#if defined(MACOS_ENABLED) || defined(APPLE_EMBEDDED_ENABLED) || defined(OPENHARMONY_ENABLED)
+	// Attempt to load project file from macOS/OpenHarmony .app bundle resources.
 	resource_path = OS::get_singleton()->get_bundle_resource_dir();
 	if (!resource_path.is_empty()) {
 		if (resource_path[resource_path.length() - 1] == '/') {

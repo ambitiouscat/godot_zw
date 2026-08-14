@@ -24,5 +24,15 @@ if env["platform"] in ["macos", "windows", "linuxbsd"]:
     env_thirdparty.disable_warnings()
     env_thirdparty.add_source_files(env.drivers_sources, thirdparty_sources)
 
+if env["platform"] == "openharmony" and env["opengl3"]:
+    thirdparty_dir = "#thirdparty/glad/"
+
+    env.Prepend(CPPPATH=[thirdparty_dir])
+    env.Append(CPPDEFINES=["GLAD_ENABLED"])
+
+    env_thirdparty = env.Clone()
+    env_thirdparty.disable_warnings()
+    env_thirdparty.add_source_files(env.drivers_sources, [thirdparty_dir + "gl.c", thirdparty_dir + "egl.c"])
+
 # Godot source files
 env.add_source_files(env.drivers_sources, "*.cpp")

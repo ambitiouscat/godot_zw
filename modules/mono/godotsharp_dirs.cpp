@@ -112,6 +112,7 @@ static const char *platform_name_map[][2] = {
 	{ "Android", "android" },
 	{ "iOS", "ios" },
 	{ "Web", "web" },
+	{ "OpenHarmony", "openharmony" },
 	{ nullptr, nullptr }
 };
 
@@ -218,8 +219,12 @@ private:
 			}
 			api_assemblies_dir = data_dir_root;
 		} else {
+#ifdef OPENHARMONY_ENABLED
+			String data_dir_root = exe_dir;
+#else
 			// The dotnet publish data is in a directory next to the executable.
 			String data_dir_root = exe_dir.path_join("data_" + appname_safe + "_" + platform + "_" + arch);
+#endif
 #ifdef MACOS_ENABLED
 			if (!DirAccess::exists(data_dir_root)) {
 				data_dir_root = res_dir.path_join("data_" + appname_safe + "_" + platform + "_" + arch);

@@ -77,6 +77,7 @@ private:
 	CheckButton *create_dir = nullptr;
 	Button *project_browse = nullptr;
 	Button *install_browse = nullptr;
+	Button *native_project_browse = nullptr;
 	VBoxContainer *name_container = nullptr;
 	VBoxContainer *project_path_container = nullptr;
 	VBoxContainer *install_path_container = nullptr;
@@ -137,6 +138,8 @@ private:
 
 	void _browse_project_path();
 	void _browse_install_path();
+	void _browse_project_path_native();
+	void _on_native_dir_selected(bool p_success, const Array &p_paths, int p_id);
 
 	void _project_path_selected(const String &p_path);
 	void _install_path_selected(const String &p_path);
