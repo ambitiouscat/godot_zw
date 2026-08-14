@@ -78,6 +78,7 @@ def configure(env: "SConsEnvironment"):
 
     # Save this in environment for use by other modules
     env["ENV"]["PATH"] = f"{sdk_root}/native/llvm/bin{os.pathsep}" + env["ENV"]["PATH"]
+    os.environ["PATH"] = f"{sdk_root}/native/llvm/bin{os.pathsep}" + os.environ.get("PATH", "")
 
     env["CC"] = "clang"
     env["CXX"] = "clang++"
