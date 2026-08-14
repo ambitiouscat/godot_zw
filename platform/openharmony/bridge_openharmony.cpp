@@ -432,6 +432,8 @@ int64_t godot_init(NativeResourceManager *p_resource_manager, void *p_native_win
 
 	g_godot_init_in_progress = false;
 
+	Thread::release_main_thread(); // setup2 and game loop will be called from the vsync render thread.
+
 	const char *connection_name = "godot";
 	native_vsync = OH_NativeVSync_Create(connection_name, strlen(connection_name));
 	return OH_NativeVSync_RequestFrame(native_vsync, godot_step, nullptr);
