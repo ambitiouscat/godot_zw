@@ -161,7 +161,7 @@ namespace embree
 /// Linux Platform
 ////////////////////////////////////////////////////////////////////////////////
 
-#if defined(__LINUX__) && !defined(__ANDROID__)
+#if defined(__LINUX__) && !defined(__ANDROID__) && !defined(__OHOS__)
 
 #include <fstream>
 #include <sstream>
@@ -254,10 +254,10 @@ namespace embree
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
-/// Android Platform
+/// Android and OpenHarmony Platforms
 ////////////////////////////////////////////////////////////////////////////////
 
-#if defined(__ANDROID__)
+#if defined(__ANDROID__) || defined(__OHOS__)
 
 namespace embree
 {
@@ -396,7 +396,7 @@ namespace embree
     pthread_attr_destroy(&attr);
 
     /* set affinity */
-#if defined(__LINUX__) && !defined(__ANDROID__)
+#if defined(__LINUX__) && !defined(__ANDROID__) && !defined(__OHOS__)
     if (threadID >= 0) {
       cpu_set_t cset;
       CPU_ZERO(&cset);
@@ -411,7 +411,7 @@ namespace embree
       CPU_SET(threadID, &cset);
       pthread_setaffinity_np(*tid, sizeof(cset), &cset);
     }
-#elif defined(__ANDROID__)
+#elif defined(__ANDROID__) || defined(__OHOS__)
     if (threadID >= 0) {
       cpu_set_t cset;
       CPU_ZERO(&cset);
@@ -437,8 +437,8 @@ namespace embree
 
   /*! destroy a hardware thread by its handle */
   void destroyThread(thread_t tid) {
-#if defined(__ANDROID__)
-    FATAL("Can't destroy threads on Android."); // pthread_cancel not implemented.
+#if defined(__ANDROID__) || defined(__OHOS__)
+    FATAL("Can't destroy threads on Android/OpenHarmony."); // pthread_cancel not implemented.
 #else
     pthread_cancel(*(pthread_t*)tid);
     delete (pthread_t*)tid;
