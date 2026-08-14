@@ -52,27 +52,18 @@ show_gui_menu() {
     echo "  │     调试符号: 无 | 优化: speed | 目标: template_release          │"
     echo "  │     用途: 导出模板, 正式发布                                     │"
     echo "  ├─────────────────────────────────────────────────────────────────┤"
-    echo "  │  Rust FFI                                                        │"
-    echo "  ├─────────────────────────────────────────────────────────────────┤"
-    echo "  │ [4] rust-release   Rust 交叉编译 (release)                       │"
-    echo "  │     生成 libclaude_code_ffi.a → 模板 libs/                       │"
-    echo "  │     用途: 部署前必须执行, 否则 CC 面板无 Rust 后端                │"
-    echo "  │                                                                 │"
-    echo "  │ [5] rust-debug     Rust 交叉编译 (debug)                         │"
-    echo "  │     同上, debug 模式, 带调试符号                                  │"
-    echo "  ├─────────────────────────────────────────────────────────────────┤"
     echo "  │  Windows Desktop (本地测试)                                      │"
     echo "  ├─────────────────────────────────────────────────────────────────┤"
-    echo "  │ [6] test           Windows Editor + 自动化测试                   │"
+    echo "  │ [4] test           Windows Editor + 自动化测试                   │"
     echo "  │     scons platform=windows target=editor tests=yes               │"
     echo "  │     编译后自动执行 --test 运行全部 C++ 单元测试                   │"
     echo "  │     用途: 本地验证 engine commands / bridge 逻辑                 │"
     echo "  │                                                                 │"
-    echo "  │ [7] windows-editor Windows Editor (无测试)                       │"
+    echo "  │ [5] windows-editor Windows Editor (无测试)                       │"
     echo "  │     scons platform=windows target=editor                         │"
     echo "  │     用途: 编译桌面版 Godot 编辑器进行手动测试                     │"
     echo "  ├─────────────────────────────────────────────────────────────────┤"
-    echo "  │ [8] clean         清理编译产物                                    │"
+    echo "  │ [6] clean         清理编译产物                                    │"
     echo "  │     scons --clean + 删除 bin/obj/, 重置 SCons 缓存                │"
     echo "  │     用途: 编译失败后清理, 强制重新编译                             │"
     echo "  └─────────────────────────────────────────────────────────────────┘"
@@ -167,20 +158,6 @@ do_test_build() {
 
     cd "$PROJECT_ROOT"
 
-    # ---- Step 0: Build Rust FFI library for Windows ----
-    local RUST_DIR="$PROJECT_ROOT/rust"
-    if [ -f "$RUST_DIR/Cargo.toml" ]; then
-        echo "[0/2] Building Rust FFI library (Windows)..."
-        echo "  cargo build --lib --release --features ffi"
-        cd "$RUST_DIR"
-        cargo build --lib --release --features ffi
-        cd "$PROJECT_ROOT"
-        echo "  Rust build complete: rust/target/release/claude_code_rs.lib"
-    else
-        echo "WARNING: Rust project not found at $RUST_DIR, skipping FFI build."
-    fi
-    echo ""
-
     local SCONS_ARGS=(
         "platform=windows"
         "target=editor"
@@ -258,25 +235,6 @@ do_test_build() {
         echo "  Binary: $EXE_FILE"
         echo "  Run:    $EXE_FILE"
         echo ""
-    fi
-}
-
-# ============================================================
-#  Rust Cross-Compile
-# ============================================================
-do_rust_build() {
-    local BUILD_MODE="${1:-release}"
-    local RUST_SCRIPT="$PROJECT_ROOT/scripts/cross_compile_rust.sh"
-
-    if [ -f "$RUST_SCRIPT" ]; then
-        if [ "$BUILD_MODE" = "debug" ]; then
-            bash "$RUST_SCRIPT" --debug
-        else
-            bash "$RUST_SCRIPT"
-        fi
-    else
-        echo "ERROR: Rust cross-compile script not found: $RUST_SCRIPT"
-        exit 1
     fi
 }
 
@@ -537,14 +495,6 @@ case "${1:-}" in
         do_test_build "no"
         exit 0
         ;;
-    rust|rust-release )
-        do_rust_build "release"
-        exit 0
-        ;;
-    rust-debug )
-        do_rust_build "debug"
-        exit 0
-        ;;
     debug|release-debug|release )
         do_ohos_build "$1"
         exit 0
@@ -556,7 +506,7 @@ case "${1:-}" in
             3) do_ohos_build "release"; exit 0 ;;
             *)
                 echo "ERROR: Unknown argument '$1'"
-                echo "Usage: $0 [gui|clean|test|windows-editor|rust|rust-debug|debug|release-debug|release|--help]"
+                echo "Usage: $0 [gui|clean|test|windows-editor|debug|release-debug|release|--help]"
                 echo "       $0  (no args → default: OHOS release-debug)"
                 exit 1
                 ;;
