@@ -42,9 +42,12 @@ RenderingContextDriver::SurfaceID RenderingContextDriverVulkanOpenHarmony::surfa
 	create_info.sType = VK_STRUCTURE_TYPE_SURFACE_CREATE_INFO_OHOS;
 	create_info.window = wpd->window;
 
+	PFN_vkCreateSurfaceOHOS CreateSurfaceOHOS = (PFN_vkCreateSurfaceOHOS)vkGetInstanceProcAddr(instance_get(), "vkCreateSurfaceOHOS");
+	ERR_FAIL_COND_V_MSG(!CreateSurfaceOHOS, SurfaceID(), "Could not find Vulkan function 'vkCreateSurfaceOHOS'.");
+
 	VkSurfaceKHR vk_surface = VK_NULL_HANDLE;
-	VkResult err = vkCreateSurfaceOHOS(instance_get(), &create_info, get_allocation_callbacks(VK_OBJECT_TYPE_SURFACE_KHR), &vk_surface);
-	ERR_FAIL_COND_V(err != VK_SUCCESS, SurfaceID());
+	VkResult err = CreateSurfaceOHOS(instance_get(), &create_info, get_allocation_callbacks(VK_OBJECT_TYPE_SURFACE_KHR), &vk_surface);
+	ERR_FAIL_COND_V_MSG(err != VK_SUCCESS, SurfaceID(), vformat("Couldn't create OpenHarmony Surface (VkResult error %d).", err));
 
 	Surface *surface = memnew(Surface);
 	surface->vk_surface = vk_surface;

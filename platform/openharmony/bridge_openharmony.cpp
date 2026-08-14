@@ -283,8 +283,8 @@ void godot_step(long long timestamp, void *data) {
 			if (pending_stop_playing.load(std::memory_order_acquire)) {
 #ifdef TOOLS_ENABLED
 				EditorRunBar *run_bar = EditorRunBar::get_singleton();
-				if (run_bar) {
-					run_bar->notify_external_stop();
+				if (run_bar && run_bar->is_playing()) {
+					run_bar->stop_playing();
 				}
 #endif
 				pending_stop_playing.store(false, std::memory_order_release);
