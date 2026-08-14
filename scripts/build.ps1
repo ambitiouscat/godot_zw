@@ -248,9 +248,9 @@ $soSizeMB = [math]::Round($soFile.Length / 1MB, 2)
 Write-Host "  Output SO: $($soFile.Name) ($soSizeMB MB)" -ForegroundColor Green
 
 # ============================================================
-#  6. Step 2: Copy .so to Template
+#  6. Step 2: Copy .so & libnode.so to Template
 # ============================================================
-Write-Host "`n[2/3] Copying libgodot.so to DevEco template..." -ForegroundColor Cyan
+Write-Host "`n[2/4] Copying native libraries to DevEco template..." -ForegroundColor Cyan
 $templateLibs = "$ProjectRoot\platform\openharmony\template\entry\libs\arm64-v8a"
 if (-not (Test-Path $templateLibs)) {
     New-Item -ItemType Directory -Force -Path $templateLibs | Out-Null
@@ -258,12 +258,21 @@ if (-not (Test-Path $templateLibs)) {
 
 $destSo = "$templateLibs\libgodot.so"
 Copy-Item -Force $soFile.FullName $destSo
-Write-Host "  Copied → $destSo ($soSizeMB MB)" -ForegroundColor Green
+Write-Host "  Copied libgodot.so → $destSo ($soSizeMB MB)" -ForegroundColor Green
+
+$nodeSoSrc = "$ProjectRoot\..\third_party\node-openharmony\dist\node-v24.13.0-openharmony-arm64\lib\arm64-v8a\libnode.so.137"
+if (Test-Path $nodeSoSrc) {
+    $nodeDest = "$templateLibs\libnode.so.137"
+    if (-not (Test-Path $nodeDest) -or ((Get-Item $nodeSoSrc).Length -ne (Get-Item $nodeDest).Length)) {
+        Copy-Item -Force $nodeSoSrc $nodeDest
+        Write-Host "  Copied libnode.so.137 → $nodeDest" -ForegroundColor Green
+    }
+}
 
 # ============================================================
-#  7. Step 3: Copy Bridge Headers
+#  7. Step 3: Copy Bridge Headers & Package OpenCode Assets
 # ============================================================
-Write-Host "`n[3/3] Synchronizing NAPI bridge headers to template..." -ForegroundColor Cyan
+Write-Host "`n[3/4] Synchronizing bridge headers & OpenCode assets..." -ForegroundColor Cyan
 $templateInclude = "$ProjectRoot\platform\openharmony\template\entry\src\main\cpp\include"
 if (-not (Test-Path $templateInclude)) {
     New-Item -ItemType Directory -Force -Path $templateInclude | Out-Null
@@ -272,6 +281,11 @@ if (-not (Test-Path $templateInclude)) {
 Copy-Item -Force "$ProjectRoot\platform\openharmony\bridge_openharmony.h" "$templateInclude\napi_bridge.h"
 Copy-Item -Force "$ProjectRoot\platform\openharmony\platform_config.h" "$templateInclude\platform_config.h"
 Write-Host "  Bridge headers synchronized → $templateInclude\" -ForegroundColor Green
+
+$packScript = "$ProjectRoot\scripts\package-opencode-assets.mjs"
+if (Test-Path $packScript) {
+    node $packScript
+}
 
 # ============================================================
 #  8. Optional: Package HAP with DevEco CLI

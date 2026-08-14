@@ -1,0 +1,6 @@
+{
+  "name": "libopencode_formal_runtime.so",
+  "types": "./Index.d.ts",
+  "version": "1.0.0",
+  "description": "OpenCode Formal Runtime NCP Bridge"
+}
