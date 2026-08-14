@@ -33,6 +33,12 @@
 // IWYU pragma: begin_exports.
 #ifdef USE_VOLK
 #include <volk.h>
+#if defined(VK_USE_PLATFORM_OHOS)
+#include <vulkan/vulkan_ohos.h>
+#endif
+#if defined(VK_USE_PLATFORM_ANDROID_KHR)
+#include <vulkan/vulkan_android.h>
+#endif
 #else
 #include <cstdint>
 #define VK_NO_STDINT_H
