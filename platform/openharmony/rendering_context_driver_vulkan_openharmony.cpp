@@ -30,6 +30,7 @@
 
 #ifdef VULKAN_ENABLED
 #include "rendering_context_driver_vulkan_openharmony.h"
+#include "core/variant/variant.h"
 
 const char *RenderingContextDriverVulkanOpenHarmony::_get_platform_surface_extension() const {
 	return VK_OHOS_SURFACE_EXTENSION_NAME;
