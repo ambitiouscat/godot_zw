@@ -325,7 +325,13 @@ Object.assign(process.env, {
   OPENCODE_DISABLE_PRUNE: '1',
   OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: '1'
 });
-process.chdir(bootstrap.projectRoot);
+const fs = require('node:fs');
+try {
+  fs.mkdirSync(bootstrap.projectRoot, { recursive: true });
+  process.chdir(bootstrap.projectRoot);
+} catch (_) {
+  try { process.chdir(bootstrap.filesDirectory); } catch (_) {}
+}
 const nativePublish = globalThis.__opencodeHarmonyPublishHostEvent;
 for (const name of [
   '__opencodeHarmonyContractVersion',

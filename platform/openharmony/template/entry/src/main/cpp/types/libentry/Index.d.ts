@@ -140,6 +140,12 @@ export const fsResult: (resultJson: string) => boolean;
 // Set environment variable (calls libc setenv)
 export const setEnv: (name: string, value: string) => void;
 
+// OpenCode Bridge — Editor context & Script application
+export const getEditorContext: () => string;
+export const applyScriptChanges: (filePath: string, newContent: string) => boolean;
+export const requestOpenCodeEditorContext: (requestId: string) => boolean;
+export const requestOpenCodeEditorAction: (requestId: string, actionJson: string) => boolean;
+
 // File content read/write: implemented as pure ArkTS utilities in FileManager.ets
 // (not as NAPI functions — file:// URI I/O requires ArkTS-side @ohos.file.fs)
 

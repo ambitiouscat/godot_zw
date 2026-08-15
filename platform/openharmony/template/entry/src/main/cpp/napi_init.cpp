@@ -1357,6 +1357,54 @@ static napi_value NAPI_Global_setCcToggleCallback(napi_env env, napi_callback_in
 	return result;
 }
 
+static napi_value NAPI_Global_getEditorContext(napi_env env, napi_callback_info info) {
+	const char *json_str = godot_get_editor_context_json();
+	napi_value result;
+	if (json_str) {
+		napi_create_string_utf8(env, json_str, NAPI_AUTO_LENGTH, &result);
+		free((void *)json_str);
+	} else {
+		napi_create_string_utf8(env, "{}", NAPI_AUTO_LENGTH, &result);
+	}
+	return result;
+}
+
+static napi_value NAPI_Global_applyScriptChanges(napi_env env, napi_callback_info info) {
+	size_t argc = 2;
+	napi_value args[2] = { nullptr, nullptr };
+	if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr) || argc < 2) {
+		napi_value false_val;
+		napi_get_boolean(env, false, &false_val);
+		return false_val;
+	}
+	size_t path_len = 0;
+	napi_get_value_string_utf8(env, args[0], nullptr, 0, &path_len);
+	std::string path(path_len, '\0');
+	napi_get_value_string_utf8(env, args[0], &path[0], path_len + 1, &path_len);
+
+	size_t content_len = 0;
+	napi_get_value_string_utf8(env, args[1], nullptr, 0, &content_len);
+	std::string content(content_len, '\0');
+	napi_get_value_string_utf8(env, args[1], &content[0], content_len + 1, &content_len);
+
+	bool ok = godot_apply_script_changes(path.c_str(), content.c_str());
+	napi_value result;
+	napi_get_boolean(env, ok, &result);
+	return result;
+}
+
+static napi_value NAPI_Global_requestOpenCodeEditorContext(napi_env env, napi_callback_info info) {
+	napi_value result;
+	napi_get_boolean(env, true, &result);
+	return result;
+}
+
+static napi_value NAPI_Global_requestOpenCodeEditorAction(napi_env env, napi_callback_info info) {
+	napi_value result;
+	napi_get_boolean(env, true, &result);
+	return result;
+}
+
 static napi_value Init(napi_env env, napi_value exports) {
 	napi_property_descriptor desc[] = {
 		{ "setResourceManager", nullptr, NAPI_Global_setResourceManager, nullptr, nullptr, nullptr, napi_default, nullptr },
@@ -1389,7 +1437,11 @@ static napi_value Init(napi_env env, napi_value exports) {
 		{ "setEnv", nullptr, NAPI_Global_setEnv, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "resetEditorRunState", nullptr, NAPI_ResetEditorRunState, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "setWindowModeCallback", nullptr, NAPI_Global_setWindowModeCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
-		{ "setCcToggleCallback", nullptr, NAPI_Global_setCcToggleCallback, nullptr, nullptr, nullptr, napi_default, nullptr }
+		{ "setCcToggleCallback", nullptr, NAPI_Global_setCcToggleCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "getEditorContext", nullptr, NAPI_Global_getEditorContext, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "applyScriptChanges", nullptr, NAPI_Global_applyScriptChanges, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "requestOpenCodeEditorContext", nullptr, NAPI_Global_requestOpenCodeEditorContext, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "requestOpenCodeEditorAction", nullptr, NAPI_Global_requestOpenCodeEditorAction, nullptr, nullptr, nullptr, napi_default, nullptr }
 	};
 	napi_define_properties(env, exports, sizeof(desc) / sizeof(desc[0]), desc);
 

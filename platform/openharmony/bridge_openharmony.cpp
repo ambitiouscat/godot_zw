@@ -42,7 +42,13 @@
 #include <string>
 
 #ifdef TOOLS_ENABLED
+#include "editor/editor_node.h"
+#include "editor/editor_interface.h"
+#include "editor/editor_data.h"
+#include "editor/script/script_editor_plugin.h"
 #include "editor/run/editor_run_bar.h"
+#include "core/io/file_access.h"
+#include "core/io/json.h"
 #endif
 
 #include "core/config/project_settings.h"
@@ -922,4 +928,81 @@ void godot_process_engine_commands() {
 	engine_cmd_done = true;
 	lock.unlock();
 	engine_cmd_cv.notify_all();
+}
+
+// ============================================================
+// OpenCode bridge - Editor Context & Script Patching
+// ============================================================
+
+const char *godot_get_editor_context_json() {
+#ifdef TOOLS_ENABLED
+	if (!EditorNode::get_singleton() || !EditorInterface::get_singleton()) {
+		return strdup("{\"has_context\":false,\"script\":null,\"nodes\":[]}");
+	}
+	Dictionary result;
+	result["has_context"] = true;
+
+	// 1. Current Script
+	Dictionary script_dict;
+	ScriptEditor *se = ScriptEditor::get_singleton();
+	if (se) {
+		ScriptEditorBase *seb = se->get_current_editor();
+		if (seb) {
+			Ref<Resource> res = seb->get_edited_resource();
+			Ref<Script> script = res;
+			if (script.is_valid()) {
+				script_dict["path"] = script->get_path();
+				script_dict["content"] = script->get_source_code();
+			}
+		}
+	}
+	result["script"] = script_dict;
+
+	// 2. Selected Nodes
+	Array nodes_arr;
+	EditorSelection *sel = EditorInterface::get_singleton()->get_selection();
+	if (sel) {
+		List<Node *> nodes = sel->get_top_selected_node_list();
+		for (Node *n : nodes) {
+			Dictionary node_dict;
+			node_dict["name"] = n->get_name();
+			node_dict["class"] = n->get_class();
+			node_dict["path"] = String(n->get_path());
+			nodes_arr.push_back(node_dict);
+		}
+	}
+	result["nodes"] = nodes_arr;
+
+	String json_str = JSON::stringify(result);
+	return strdup(json_str.utf8().get_data());
+#else
+	return strdup("{\"has_context\":false,\"error\":\"not in tools build\"}");
+#endif
+}
+
+bool godot_apply_script_changes(const char *p_path, const char *p_content) {
+#ifdef TOOLS_ENABLED
+	if (!p_path || !p_content) {
+		return false;
+	}
+	String path = String::utf8(p_path);
+	String content = String::utf8(p_content);
+
+	// Save to disk first
+	Ref<FileAccess> fa = FileAccess::open(path, FileAccess::WRITE);
+	if (fa.is_null()) {
+		return false;
+	}
+	fa->store_string(content);
+	fa->close();
+
+	// Notify ScriptEditor to reload/update buffer if currently open
+	ScriptEditor *se = ScriptEditor::get_singleton();
+	if (se) {
+		se->reload_scripts();
+	}
+	return true;
+#else
+	return false;
+#endif
 }

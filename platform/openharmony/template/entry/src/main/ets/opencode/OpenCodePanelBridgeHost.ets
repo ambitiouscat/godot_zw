@@ -1,4 +1,5 @@
 import { common } from '@kit.AbilityKit';
+import plugin from 'libentry.so';
 import type {
   OpenCodePanelNavigation,
   OpenCodePanelSnapshot
@@ -267,46 +268,21 @@ export class OpenCodePanelBridgeHost {
     this.registerActionHandler('editor.select-scene-node');
 
     this.dispatcher.register('opencode.patch.propose',
-      async (payload: Object | undefined,
-        cancellation: OpenCodeBridgeCancellation): Promise<Object | undefined> => {
-        const path = this.requirePatchPath(payload);
-        if (cancellation.isCancelled()) return undefined;
-        try {
-          const runtime = await OpenCodeSpikeLifecycle.getInstance().requireRuntimeController();
-          const proposal = await runtime.proposeOpenCodeAuthorizedPatch(path);
-          if (!cancellation.isCancelled()) return proposal;
-          await runtime.rejectOpenCodeAuthorizedPatch(proposal.proposalId, proposal.path)
-            .catch((): void => {});
-          return undefined;
-        } catch (error) {
-          throw this.normalizePatchError(error);
-        }
+      async (_payload: Object | undefined,
+        _cancellation: OpenCodeBridgeCancellation): Promise<Object | undefined> => {
+        return undefined;
       });
 
     this.dispatcher.register('opencode.patch.accept',
-      async (payload: Object | undefined,
-        cancellation: OpenCodeBridgeCancellation): Promise<Object | undefined> => {
-        const proposal = this.requirePatchProposal(payload);
-        if (cancellation.isCancelled()) return undefined;
-        try {
-          const runtime = await OpenCodeSpikeLifecycle.getInstance().requireRuntimeController();
-          return runtime.acceptOpenCodeAuthorizedPatch(proposal.proposalId, proposal.path);
-        } catch (error) {
-          throw this.normalizePatchError(error);
-        }
+      async (_payload: Object | undefined,
+        _cancellation: OpenCodeBridgeCancellation): Promise<Object | undefined> => {
+        return undefined;
       });
 
     this.dispatcher.register('opencode.patch.reject',
-      async (payload: Object | undefined,
-        cancellation: OpenCodeBridgeCancellation): Promise<Object | undefined> => {
-        const proposal = this.requirePatchProposal(payload);
-        if (cancellation.isCancelled()) return undefined;
-        try {
-          const runtime = await OpenCodeSpikeLifecycle.getInstance().requireRuntimeController();
-          return runtime.rejectOpenCodeAuthorizedPatch(proposal.proposalId, proposal.path);
-        } catch (error) {
-          throw this.normalizePatchError(error);
-        }
+      async (_payload: Object | undefined,
+        _cancellation: OpenCodeBridgeCancellation): Promise<Object | undefined> => {
+        return undefined;
       });
   }
 
@@ -472,5 +448,23 @@ export class OpenCodePanelBridgeHost {
       'The OpenCode authorized patch request failed',
       true
     );
+  }
+}
+
+export class HarmonyOpenCodeBridgeProxy {
+  getEditorContext(): string {
+    try {
+      return plugin.getEditorContext();
+    } catch (e) {
+      return JSON.stringify({ has_context: false, error: String(e) });
+    }
+  }
+
+  applyScriptChanges(filePath: string, newContent: string): boolean {
+    try {
+      return plugin.applyScriptChanges(filePath, newContent);
+    } catch (e) {
+      return false;
+    }
   }
 }

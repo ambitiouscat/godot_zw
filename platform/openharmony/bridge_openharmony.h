@@ -209,4 +209,8 @@ void godot_set_fs_request_callback(GodotFsRequestCallback p_callback);
 // Set system locale from ArkTS (e.g., "zh-Hans-CN")
 // Must be called before godot_init, or at least before the editor/project manager starts
 void godot_set_locale(const char *p_locale);
+
+// OpenCode bridge - Editor context query & code patch application
+const char *godot_get_editor_context_json();
+bool godot_apply_script_changes(const char *p_path, const char *p_content);
 }

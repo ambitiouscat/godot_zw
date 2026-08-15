@@ -3,7 +3,6 @@ import { deviceInfo } from '@kit.BasicServicesKit';
 import { hilog } from '@kit.PerformanceAnalysisKit';
 import type { OpenCodeFormalRuntimeController } from './OpenCodeFormalRuntimeController';
 import type { OpenCodeFormalChangedPathDispatcher } from './OpenCodeFormalChangedPathDispatcher';
-import type { RuntimeController } from './RuntimeController';
 import type {
   OpenCodePanelNavigation,
   OpenCodePanelSessionController,
@@ -54,7 +53,6 @@ export class OpenCodeSpikeLifecycleError extends Error {
  */
 export class OpenCodeSpikeLifecycle {
   private static readonly INSTANCE: OpenCodeSpikeLifecycle = new OpenCodeSpikeLifecycle();
-  private runtimeController?: RuntimeController;
   private formalRuntimeController?: OpenCodeFormalRuntimeController;
   private formalChangedPathDispatcher?: OpenCodeFormalChangedPathDispatcher;
   private formalPanelUnsubscribe?: () => void;
@@ -132,8 +130,7 @@ export class OpenCodeSpikeLifecycle {
       runtimeSelection: OPENCODE_HARMONY_RUNTIME_SELECTION,
       phase: this.phase,
       foreground: this.foreground,
-      controllerReady: this.runtimeController !== undefined ||
-        this.formalRuntimeController !== undefined,
+      controllerReady: this.formalRuntimeController !== undefined,
       errorCode: this.errorCode,
       panel: this.panelController?.getSnapshot()
     };
@@ -171,38 +168,6 @@ export class OpenCodeSpikeLifecycle {
     }
   }
 
-  async requireRuntimeController(): Promise<RuntimeController> {
-    if (!OPENCODE_HARMONY_ENABLED) {
-      throw new OpenCodeSpikeLifecycleError('SPIKE_DISABLED', 'disabled',
-        'OpenCode runtime is disabled for this editor build');
-    }
-    if (OPENCODE_HARMONY_FORMAL_RUNTIME_SELECTED) {
-      throw new OpenCodeSpikeLifecycleError('FORMAL_LEGACY_CONTROLLER_REJECTED',
-        this.phase,
-        'The formal upstream runtime cannot use the legacy compatibility controller');
-    }
-    if (OPENCODE_HARMONY_RUNTIME_SELECTION !== OPENCODE_HARMONY_MINIMAL_RUNTIME) {
-      throw new OpenCodeSpikeLifecycleError('RUNTIME_SELECTION_INVALID', 'error',
-        'The OpenCode runtime selection is not supported by this editor build');
-    }
-    if (this.initialization === undefined) {
-      throw new OpenCodeSpikeLifecycleError('CONTROLLER_NOT_INITIALIZED', this.phase,
-        'OpenCode runtime controller has not been attached to EditorAbility');
-    }
-    try {
-      await this.initialization;
-    } catch (error) {
-      if (error instanceof OpenCodeSpikeLifecycleError) throw error;
-      throw new OpenCodeSpikeLifecycleError('CONTROLLER_INITIALIZATION_FAILED', this.phase,
-        'OpenCode runtime controller initialization failed');
-    }
-    if (this.runtimeController === undefined) {
-      throw new OpenCodeSpikeLifecycleError('CONTROLLER_UNAVAILABLE', this.phase,
-        'OpenCode runtime controller is unavailable');
-    }
-    return this.runtimeController;
-  }
-
   async requireFormalRuntimeController(): Promise<OpenCodeFormalRuntimeController> {
     if (!OPENCODE_HARMONY_ENABLED) {
       throw new OpenCodeSpikeLifecycleError('SPIKE_DISABLED', 'disabled',
@@ -223,11 +188,7 @@ export class OpenCodeSpikeLifecycle {
   }
 
   async requirePanelController(): Promise<OpenCodePanelSessionController> {
-    if (OPENCODE_HARMONY_FORMAL_RUNTIME_SELECTED) {
-      await this.requireFormalRuntimeController();
-    } else {
-      await this.requireRuntimeController();
-    }
+    await this.requireFormalRuntimeController();
     if (this.panelController === undefined) {
       throw new OpenCodeSpikeLifecycleError('PANEL_CONTROLLER_UNAVAILABLE', this.phase,
         'OpenCode panel controller is unavailable');
@@ -250,8 +211,6 @@ export class OpenCodeSpikeLifecycle {
         await this.panelController.shutdown();
       } else if (this.formalRuntimeController !== undefined) {
         await this.formalRuntimeController.shutdownIfRunning();
-      } else if (this.runtimeController !== undefined) {
-        await this.runtimeController.shutdownIfRunning();
       }
       hilog.info(DOMAIN, 'OpenCodeRuntime', 'LIFECYCLE_DESTROY complete');
     } catch (error) {
@@ -266,7 +225,6 @@ export class OpenCodeSpikeLifecycle {
       this.formalChangedPathDispatcher = undefined;
       this.panelController = undefined;
       this.formalRuntimeController = undefined;
-      this.runtimeController = undefined;
       this.projectRoot = '';
       this.initialization = undefined;
       this.destruction = undefined;
@@ -275,36 +233,7 @@ export class OpenCodeSpikeLifecycle {
   }
 
   private async initializeRuntimeController(context: common.UIAbilityContext): Promise<void> {
-    this.publishState('initializing', this.foreground, 'none');
-    try {
-      const runtimeModule = await import('./RuntimeController');
-      const bridgeModule = await import('./OpenCodeBridgeProtocol');
-      bridgeModule.validateOpenCodeBridgeProtocolContract();
-      this.runtimeController = new runtimeModule.RuntimeController(
-        context.filesDir,
-        COMPILE_SDK_VERSION,
-        deviceInfo.sdkApiVersion,
-        COMPILE_SDK_API_VERSION,
-        TARGET_API_VERSION
-      );
-      const panelModule = await import('./OpenCodePanelController');
-      this.panelController = new panelModule.OpenCodePanelController(
-        context, this.runtimeController, this.projectRoot);
-      if (this.foreground) this.panelController.onForeground();
-      this.publishState('idle', this.foreground, 'none');
-      hilog.info(DOMAIN, 'OpenCodeRuntime',
-        'LIFECYCLE_CREATE ready buildMode=%{public}s deviceApi=%{public}d',
-        OPENCODE_HARMONY_BUILD_MODE, deviceInfo.sdkApiVersion);
-    } catch (error) {
-      const lifecycleError = error instanceof OpenCodeSpikeLifecycleError ? error :
-        new OpenCodeSpikeLifecycleError('CONTROLLER_IMPORT_FAILED', 'initializing',
-          'OpenCode runtime controller could not be loaded');
-      this.publishState('error', this.foreground, lifecycleError.code);
-      hilog.error(DOMAIN, 'OpenCodeRuntime',
-        'LIFECYCLE_CREATE_FAILED code=%{public}s type=%{public}s',
-        lifecycleError.code, error instanceof Error ? error.name : 'unknown');
-      throw lifecycleError;
-    }
+    return this.initializeFormalRuntimeController(context);
   }
 
   private async initializeFormalRuntimeController(context: common.UIAbilityContext):
@@ -399,7 +328,6 @@ export class OpenCodeSpikeLifecycle {
     if (this.formalRuntimeController !== undefined) {
       return this.formalRuntimeController.getPhase();
     }
-    if (this.runtimeController !== undefined) return this.runtimeController.getPhase();
     return this.phase;
   }
 
