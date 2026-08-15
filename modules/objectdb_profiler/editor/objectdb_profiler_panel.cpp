@@ -425,9 +425,11 @@ ObjectDBProfilerPanel::ObjectDBProfilerPanel() {
 	Ref<DirAccess> snapshot_dir = _get_and_create_snapshot_storage_dir();
 	if (snapshot_dir.is_valid()) {
 		for (const String &file_name : snapshot_dir->get_files()) {
-			Vector<String> name_parts = file_name.split(".");
-			ERR_CONTINUE_MSG(name_parts.size() != 2 || name_parts[1] != "odb_snapshot", "ObjectDB snapshot file did not have .odb_snapshot extension. Skipping: " + file_name);
-			_add_snapshot_button(name_parts[0], snapshot_dir->get_current_dir().path_join(file_name));
+			if (file_name.get_extension() != "odb_snapshot") {
+				continue;
+			}
+			String basename = file_name.get_basename();
+			_add_snapshot_button(basename, snapshot_dir->get_current_dir().path_join(file_name));
 		}
 	}
 }
