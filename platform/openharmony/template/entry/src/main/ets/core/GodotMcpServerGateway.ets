@@ -181,6 +181,11 @@ export class GodotMcpServerGateway {
 
   private handleNewConnection(client: socket.TCPSocketConnection): void {
     logger.info('Godot client connected to 6505 gateway, awaiting WS handshake');
+    if (this.activeClient && this.activeClient !== client) {
+      try {
+        this.activeClient.close();
+      } catch (_e) {}
+    }
     this.activeClient = client;
     this.isHandshakeComplete = false;
 
@@ -283,7 +288,24 @@ export class GodotMcpServerGateway {
   private handleJsonRpcMessage(text: string): void {
     try {
       const msg = JSON.parse(text) as Record<string, Object>;
+      const method = String(msg['method'] || '');
       const id = String(msg['id'] || '');
+
+      // Respond immediately to Godot ping message to prevent inactivity timeout
+      if (method === 'ping') {
+        const pongObj: Record<string, Object> = {
+          'jsonrpc': '2.0',
+          'result': 'pong'
+        };
+        if (id && id.length > 0) {
+          pongObj['id'] = id;
+        }
+        const pongResponse = JSON.stringify(pongObj);
+        const pongBytes = this.textEncoder.encodeInto(pongResponse);
+        this.sendWebSocketFrame(0x01, pongBytes);
+        return;
+      }
+
       if (id && this.pendingCommands.has(id)) {
         const pending = this.pendingCommands.get(id)!;
         clearTimeout(pending.timeoutId);
