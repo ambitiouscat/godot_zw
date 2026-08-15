@@ -30,6 +30,14 @@ const instructionsPath = path.join(
   workspaceRoot,
   "formal-runtime/assets/config/AGENTS.md"
 );
+const opencodeConfigPath = path.join(
+  workspaceRoot,
+  "formal-runtime/assets/config/opencode.json"
+);
+const mcpServerRoot = path.join(
+  workspaceRoot,
+  "formal-runtime/assets/mcp/godot-server"
+);
 
 function sha256File(filePath) {
   const content = readFileSync(filePath);
@@ -87,8 +95,14 @@ export function packageOpenCodeAssets() {
   console.log("  [2/4] Copying SDK client bundle...");
   copyTree(clientRoot, path.join(staging, "install/v1/client"), "install/v1/client", resources);
 
-  console.log("  [3/4] Copying AGENTS.md config...");
+  console.log("  [3/4] Copying configuration...");
   copyOne(instructionsPath, path.join(staging, "install/v1/config/AGENTS.md"), "install/v1/config/AGENTS.md", resources);
+  if (existsSync(opencodeConfigPath)) {
+    copyOne(opencodeConfigPath, path.join(staging, "install/v1/config/opencode.json"), "install/v1/config/opencode.json", resources);
+  }
+  if (existsSync(mcpServerRoot)) {
+    copyTree(mcpServerRoot, path.join(staging, "install/v1/mcp/godot-server"), "install/v1/mcp/godot-server", resources);
+  }
 
   console.log("  [4/4] Copying governance manifests...");
   const manifestFiles = [
@@ -146,7 +160,54 @@ export function packageOpenCodeAssets() {
   rmSync(staging, { recursive: true, force: true });
 
   console.log(`  ✓ OpenCode assets packaged successfully (${resources.length} files, ${(totalBytes / 1024 / 1024).toFixed(2)} MB, sha256: ${outputSha256.substring(0, 12)}...)`);
+  
+  packageGodotMcpAddon();
   console.log("=========================================\n");
+}
+
+export function packageGodotMcpAddon() {
+  console.log("  Packaging Godot MCP Pro In-Engine Addon...");
+  const sourceDir = path.join(godotRoot, "editor/plugins/godot_mcp");
+  const targetDir = path.join(rawfileRoot, "editor/addons/godot_mcp");
+  const manifestPath = path.join(rawfileRoot, "editor/addons/godot-mcp-manifest.json");
+
+  if (!existsSync(sourceDir)) {
+    console.warn(`  [!] Source directory ${sourceDir} does not exist.`);
+    return;
+  }
+
+  if (existsSync(targetDir)) {
+    rmSync(targetDir, { recursive: true, force: true });
+  }
+  mkdirSync(targetDir, { recursive: true });
+
+  const files = [];
+  function collectAndCopy(currentSrc, currentDst, relPrefix = "") {
+    mkdirSync(currentDst, { recursive: true });
+    const entries = readdirSync(currentSrc, { withFileTypes: true });
+    for (const entry of entries) {
+      const srcPath = path.join(currentSrc, entry.name);
+      const dstPath = path.join(currentDst, entry.name);
+      const relPath = relPrefix ? `${relPrefix}/${entry.name}` : entry.name;
+      if (entry.isDirectory()) {
+        collectAndCopy(srcPath, dstPath, relPath);
+      } else if (entry.isFile()) {
+        cpSync(srcPath, dstPath);
+        files.push(relPath);
+      }
+    }
+  }
+
+  collectAndCopy(sourceDir, targetDir);
+  files.sort();
+
+  const manifest = {
+    version: "1.16.0",
+    addonName: "godot_mcp",
+    files,
+  };
+  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+  console.log(`  ✓ Godot MCP Pro Addon packaged (${files.length} files into rawfile/editor/addons/godot_mcp)`);
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

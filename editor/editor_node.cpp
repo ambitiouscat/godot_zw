@@ -35,9 +35,14 @@
 #include "core/extension/gdextension_manager.h"
 #include "core/input/input.h"
 #include "core/io/config_file.h"
+#include "core/io/dir_access.h"
 #include "core/io/file_access.h"
 #include "core/io/image.h"
+#include "core/io/json.h"
 #include "core/io/missing_resource.h"
+#if defined(OPENHARMONY_ENABLED)
+#include <hilog/log.h>
+#endif
 #include "core/io/resource_importer.h"
 #include "core/io/resource_loader.h"
 #include "core/io/resource_saver.h"
@@ -1230,6 +1235,7 @@ void EditorNode::_execute_upgrades() {
 
 void EditorNode::init_plugins() {
 	_initializing_plugins = true;
+
 	Vector<String> addons;
 	if (ProjectSettings::get_singleton()->has_setting("editor_plugins/enabled")) {
 		addons = GLOBAL_GET("editor_plugins/enabled");
@@ -1238,9 +1244,24 @@ void EditorNode::init_plugins() {
 	for (const String &addon : addons) {
 		set_addon_plugin_enabled(addon, true);
 	}
+
+#if defined(OPENHARMONY_ENABLED)
+	OH_LOG_INFO(LOG_APP, "[MCP] init_plugins: checking godot_mcp cfg_exists=%{public}d enabled=%{public}d",
+		(int)FileAccess::exists("res://addons/godot_mcp/plugin.cfg"),
+		(int)is_addon_plugin_enabled("godot_mcp"));
+#endif
+
+	// Auto-enable Godot MCP engine daemon if present in project addons
+	if (FileAccess::exists("res://addons/godot_mcp/plugin.cfg") && !is_addon_plugin_enabled("godot_mcp")) {
+		set_addon_plugin_enabled("godot_mcp", true);
+		print_line("[MCP] Enabled godot_mcp addon plugin in project");
+	}
 	_initializing_plugins = false;
 
 	if (!pending_addons.is_empty()) {
+#if defined(OPENHARMONY_ENABLED)
+		OH_LOG_INFO(LOG_APP, "[MCP] pending_addons count = %{public}d, connecting to script_classes_updated", (int)pending_addons.size());
+#endif
 		EditorFileSystem::get_singleton()->connect("script_classes_updated", callable_mp(this, &EditorNode::_enable_pending_addons), CONNECT_ONE_SHOT);
 	}
 }
@@ -4497,9 +4518,19 @@ void EditorNode::set_addon_plugin_enabled(const String &p_addon, bool p_enabled,
 			return;
 		}
 
+#if defined(OPENHARMONY_ENABLED)
+		OH_LOG_INFO(LOG_APP, "[MCP] set_addon_plugin_enabled: %{public}s p_enabled=%{public}d scr_null=%{public}d base_type=%{public}s tool=%{public}d init=%{public}d",
+			addon_path.utf8().get_data(), (int)p_enabled, (int)scr.is_null(),
+			scr.is_valid() ? String(scr->get_instance_base_type()).utf8().get_data() : "null",
+			scr.is_valid() ? (int)scr->is_tool() : 0, (int)_initializing_plugins);
+#endif
+
 		// Errors in the script cause the base_type to be an empty StringName.
 		if (scr->get_instance_base_type() == StringName()) {
 			if (_initializing_plugins) {
+#if defined(OPENHARMONY_ENABLED)
+				OH_LOG_INFO(LOG_APP, "[MCP] %{public}s queued to pending_addons", p_addon.utf8().get_data());
+#endif
 				// However, if it happens during initialization, waiting for file scan might help.
 				pending_addons.push_back(p_addon);
 				return;
@@ -6199,6 +6230,9 @@ void EditorNode::_build_icon_type_cache() {
 }
 
 void EditorNode::_enable_pending_addons() {
+#if defined(OPENHARMONY_ENABLED)
+	OH_LOG_INFO(LOG_APP, "[MCP] _enable_pending_addons processing %{public}d addons", (int)pending_addons.size());
+#endif
 	for (uint32_t i = 0; i < pending_addons.size(); i++) {
 		set_addon_plugin_enabled(pending_addons[i], true);
 	}

@@ -35,6 +35,7 @@ import plugin from 'libentry.so';
 import { Logger } from '../core/Logger';
 import { setGodotMode, setProjectPath, setRestartArgs, isGameLaunched, setGameLaunched } from '../core/AbilityState';
 import { BridgeCallbacks } from '../core/BridgeCallbacks';
+import { GodotMcpInstaller } from '../core/GodotMcpInstaller';
 
 const logger = new Logger('EditorAbility')
 
@@ -67,13 +68,28 @@ export default class EditorAbility extends UIAbility {
 
     // Read Want parameters from launching intent
     if (want.parameters) {
+      let targetProj: string | null = null;
       if (want.parameters['projectPath']) {
-        setProjectPath(want.parameters['projectPath'] as string);
-        logger.info('Project path received', want.parameters['projectPath'] as string);
+        targetProj = want.parameters['projectPath'] as string;
+        setProjectPath(targetProj);
+        logger.info('Project path received', targetProj);
       }
       if (want.parameters['restartArgs']) {
-        setRestartArgs(want.parameters['restartArgs'] as string[]);
+        const args = want.parameters['restartArgs'] as string[];
+        setRestartArgs(args);
         logger.info('Restart args received');
+        if (!targetProj) {
+          const pathIdx = args.indexOf('--path');
+          if (pathIdx >= 0 && pathIdx + 1 < args.length) {
+            targetProj = args[pathIdx + 1];
+          }
+        }
+      } else if (targetProj) {
+        setRestartArgs(['--rendering-driver', 'opengl3', '--path', targetProj, '--editor']);
+        logger.info('Generated default restartArgs for project', targetProj);
+      }
+      if (targetProj) {
+        void GodotMcpInstaller.ensureInstalled(this.context, targetProj);
       }
       if (want.parameters['godotMode']) {
         setGodotMode(want.parameters['godotMode'] as string);

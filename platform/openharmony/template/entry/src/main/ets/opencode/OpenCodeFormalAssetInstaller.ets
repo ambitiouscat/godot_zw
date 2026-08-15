@@ -10,7 +10,7 @@ const FORMAL_PACKAGE_ID = 'opencode-formal-harmony-tier-a-v1';
 const FORMAL_PACKAGE_INSTALL_ROOT = 'opencode-formal/install/v1';
 const FORMAL_PACKAGE_FILES_PREFIX = 'install/v1/';
 const FORMAL_PACKAGE_STATE_FILE = '.opencode-formal-package-state.json';
-const FORMAL_PACKAGE_MAX_FILES = 2048;
+const FORMAL_PACKAGE_MAX_FILES = 4096;
 const FORMAL_PACKAGE_MAX_BYTES = 128 * 1024 * 1024;
 const FORMAL_ASSET_WRITE_CHUNK_BYTES = 1024 * 1024;
 

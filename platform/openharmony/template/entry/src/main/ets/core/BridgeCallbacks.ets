@@ -179,17 +179,16 @@ export class BridgeCallbacks {
           logger.error('terminateSelf failed', e)
         })
       } else {
-        // All other transitions: startAbility + terminateSelf for clean switch.
+        // All other transitions: startAbility first, then terminate current after target attaches window
         context.startAbility(want).then(() => {
-          logger.info(`${targetAbility} started, terminating current`)
-          return context.terminateSelf()
+          logger.info(`${targetAbility} started, scheduling delayed terminateSelf`)
+          setTimeout(() => {
+            context.terminateSelf().catch((err: BusinessError) => {
+              logger.warn('Delayed terminateSelf caught error', err)
+            })
+          }, 800)
         }).catch((e: Error) => {
-          logger.error('startAbility or terminateSelf failed', e)
-          try {
-            context.terminateSelf()
-          } catch (_) {
-            logger.error('terminateSelf also threw — app may be in stuck state')
-          }
+          logger.error('startAbility failed', e)
         })
       }
     })

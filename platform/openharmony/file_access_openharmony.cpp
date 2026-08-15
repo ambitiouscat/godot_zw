@@ -70,6 +70,29 @@ Error FileAccessOpenHarmony::open_internal(const String &p_path, int p_mode_flag
 	_cpath = "";
 	_is_rawfile = false;
 
+	if (p_path.begins_with("res://addons/godot_mcp/") || file.contains("/addons/godot_mcp/")) {
+		if (p_mode_flags != FileAccess::READ) {
+			return ERR_FILE_CANT_WRITE;
+		}
+		String rel = p_path.trim_prefix("res://addons/godot_mcp/");
+		if (rel == p_path) {
+			int idx = file.find("/addons/godot_mcp/");
+			if (idx != -1) {
+				rel = file.substr(idx + 18);
+			}
+		}
+		String rawfile_path = "editor/addons/godot_mcp/" + rel;
+		if (resource_manager != nullptr) {
+			_rawfile = OH_ResourceManager_OpenRawFile64(resource_manager, rawfile_path.utf8().get_data());
+			if (_rawfile != nullptr) {
+				_cpath = p_path;
+				_is_rawfile = true;
+				return OK;
+			}
+		}
+		return ERR_FILE_NOT_FOUND;
+	}
+
 	if (is_in_bundle(file)) {
 		if (p_mode_flags != FileAccess::READ) {
 			return ERR_FILE_CANT_WRITE;
@@ -83,7 +106,7 @@ Error FileAccessOpenHarmony::open_internal(const String &p_path, int p_mode_flag
 		_is_rawfile = true;
 		return OK;
 	}
-		return FileAccessUnix::open_internal(p_path, p_mode_flags);
+	return FileAccessUnix::open_internal(p_path, p_mode_flags);
 }
 
 bool FileAccessOpenHarmony::is_open() const {
@@ -197,6 +220,24 @@ bool FileAccessOpenHarmony::store_buffer(const uint8_t *p_src, uint64_t p_length
 
 bool FileAccessOpenHarmony::file_exists(const String &p_path) {
 	String file = fix_path(p_path);
+	if (p_path.begins_with("res://addons/godot_mcp/") || file.contains("/addons/godot_mcp/")) {
+		String rel = p_path.trim_prefix("res://addons/godot_mcp/");
+		if (rel == p_path) {
+			int idx = file.find("/addons/godot_mcp/");
+			if (idx != -1) {
+				rel = file.substr(idx + 18);
+			}
+		}
+		String rawfile_path = "editor/addons/godot_mcp/" + rel;
+		if (resource_manager != nullptr) {
+			RawFile64 *rf = OH_ResourceManager_OpenRawFile64(resource_manager, rawfile_path.utf8().get_data());
+			if (rf != nullptr) {
+				OH_ResourceManager_CloseRawFile64(rf);
+				return true;
+			}
+		}
+		return false;
+	}
 	if (is_in_bundle(file)) {
 		Ref<DirAccess> dir_access = DirAccessOpenHarmony::create(DirAccess::AccessType::ACCESS_FILESYSTEM);
 		return dir_access->file_exists(file);

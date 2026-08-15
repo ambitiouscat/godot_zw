@@ -62,7 +62,20 @@ bool DirAccessOpenHarmony::is_in_bundle(String p_path) {
 Error DirAccessOpenHarmony::list_dir_begin() {
 	if (_is_rawdir) {
 		list_dir_end();
-		String raw_dir = current_dir.trim_prefix(OS_OpenHarmony::get_singleton()->get_bundle_resource_dir());
+		String raw_dir;
+		if (current_dir.begins_with("res://addons/godot_mcp") || current_dir.contains("/addons/godot_mcp")) {
+			String rel = current_dir.trim_prefix("res://addons/godot_mcp");
+			if (rel == current_dir) {
+				int idx = current_dir.find("/addons/godot_mcp");
+				if (idx != -1) {
+					rel = current_dir.substr(idx + 17);
+				}
+			}
+			rel = rel.trim_prefix("/");
+			raw_dir = "editor/addons/godot_mcp" + (rel.is_empty() ? "" : "/" + rel);
+		} else {
+			raw_dir = current_dir.trim_prefix(OS_OpenHarmony::get_singleton()->get_bundle_resource_dir());
+		}
 		_rawdir = OH_ResourceManager_OpenRawDir(resource_manager, raw_dir.utf8().get_data());
 		_rawfile_count = OH_ResourceManager_GetRawFileCount(_rawdir);
 		_rawdir_counter = 0;
@@ -116,6 +129,12 @@ void DirAccessOpenHarmony::list_dir_end() {
 }
 
 Error DirAccessOpenHarmony::change_dir(String p_dir) {
+	if (p_dir.begins_with("res://addons/godot_mcp") || p_dir.contains("/addons/godot_mcp")) {
+		list_dir_end();
+		current_dir = p_dir;
+		_is_rawdir = true;
+		return OK;
+	}
 	p_dir = get_absolute_path(p_dir);
 	if (is_in_bundle(p_dir)) {
 		if (!dir_exists(p_dir)) {
@@ -145,6 +164,24 @@ Error DirAccessOpenHarmony::make_dir(String p_dir) {
 }
 
 bool DirAccessOpenHarmony::file_exists(String p_file) {
+	if (p_file.begins_with("res://addons/godot_mcp/") || p_file.contains("/addons/godot_mcp/")) {
+		String rel = p_file.trim_prefix("res://addons/godot_mcp/");
+		if (rel == p_file) {
+			int idx = p_file.find("/addons/godot_mcp/");
+			if (idx != -1) {
+				rel = p_file.substr(idx + 18);
+			}
+		}
+		String rawfile_path = "editor/addons/godot_mcp/" + rel;
+		if (resource_manager != nullptr) {
+			RawFile64 *rf = OH_ResourceManager_OpenRawFile64(resource_manager, rawfile_path.utf8().get_data());
+			if (rf != nullptr) {
+				OH_ResourceManager_CloseRawFile64(rf);
+				return true;
+			}
+		}
+		return false;
+	}
 	p_file = get_absolute_path(p_file);
 	if (is_in_bundle(p_file)) {
 		p_file = p_file.trim_prefix(OS_OpenHarmony::get_singleton()->get_bundle_resource_dir());
@@ -173,6 +210,9 @@ bool DirAccessOpenHarmony::file_exists(String p_file) {
 }
 
 bool DirAccessOpenHarmony::dir_exists(String p_dir) {
+	if (p_dir.begins_with("res://addons/godot_mcp") || p_dir.contains("/addons/godot_mcp")) {
+		return true;
+	}
 	p_dir = get_absolute_path(p_dir);
 	if (is_in_bundle(p_dir)) {
 		p_dir = p_dir.trim_prefix(OS_OpenHarmony::get_singleton()->get_bundle_resource_dir());

@@ -137,8 +137,10 @@ void OS_OpenHarmony::initialize() {
 	// Without ACCESS_USERDATA, "user://" paths can't be opened because
 	// FileAccess::create_for_path() and DirAccess::create_for_path()
 	// use ACCESS_USERDATA for "user://" prefix.
+	FileAccess::make_default<FileAccessOpenHarmony>(FileAccess::ACCESS_RESOURCES);
 	FileAccess::make_default<FileAccessOpenHarmony>(FileAccess::ACCESS_FILESYSTEM);
 	FileAccess::make_default<FileAccessOpenHarmony>(FileAccess::ACCESS_USERDATA);
+	DirAccess::make_default<DirAccessOpenHarmony>(DirAccess::ACCESS_RESOURCES);
 	DirAccess::make_default<DirAccessOpenHarmony>(DirAccess::ACCESS_FILESYSTEM);
 	DirAccess::make_default<DirAccessOpenHarmony>(DirAccess::ACCESS_USERDATA);
 }

@@ -35,6 +35,7 @@ import plugin from 'libentry.so';
 import { Logger } from '../core/Logger';
 import { setGodotMode, setProjectPath, setRestartArgs } from '../core/AbilityState';
 import { BridgeCallbacks } from '../core/BridgeCallbacks';
+import { GodotMcpInstaller } from '../core/GodotMcpInstaller';
 
 const logger = new Logger('GameAbility')
 
@@ -53,8 +54,10 @@ export default class GameAbility extends UIAbility {
     // Read Want parameters from launching intent
     if (want.parameters) {
       if (want.parameters['projectPath']) {
-        setProjectPath(want.parameters['projectPath'] as string);
-        logger.info('Project path received', want.parameters['projectPath'] as string);
+        const projectPath = want.parameters['projectPath'] as string;
+        setProjectPath(projectPath);
+        logger.info('Project path received', projectPath);
+        void GodotMcpInstaller.ensureInstalled(this.context, projectPath);
       }
       if (want.parameters['restartArgs']) {
         setRestartArgs(want.parameters['restartArgs'] as string[]);

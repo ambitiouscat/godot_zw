@@ -59,6 +59,94 @@
 #include "core/string/translation_server.h"
 #include "core/variant/variant_parser.h"
 #include "core/version.h"
+#if defined(OPENHARMONY_ENABLED)
+#include <hilog/log.h>
+#include "core/io/file_access_memory.h"
+#include "core/io/json.h"
+#include "platform/openharmony/file_access_openharmony.h"
+#include <rawfile/raw_file_manager.h>
+
+class PackedSourceVirtualMCP : public PackSource {
+	HashMap<String, Vector<uint8_t>> virtual_files;
+
+public:
+	void add_virtual_file(const String &p_vpath, const Vector<uint8_t> &p_data) {
+		String simplified = p_vpath.simplify_path();
+		if (!simplified.begins_with("res://")) {
+			simplified = "res://" + simplified;
+		}
+		virtual_files[simplified] = p_data;
+		uint8_t md5[16] = { 0 };
+		PackedData::get_singleton()->add_path("virtual://mcp", simplified, 0, p_data.size(), md5, this, true, false, false, false);
+	}
+
+	virtual bool try_open_pack(const String &p_path, bool p_replace_files, uint64_t p_offset, const Vector<uint8_t> &p_decryption_key = Vector<uint8_t>()) override {
+		return false;
+	}
+
+	virtual Ref<FileAccess> get_file(const String &p_path, PackedData::PackedFile *p_file, const Vector<uint8_t> &p_decryption_key = Vector<uint8_t>()) override {
+		String simplified = p_path.simplify_path();
+		if (!simplified.begins_with("res://")) {
+			simplified = "res://" + simplified;
+		}
+		if (virtual_files.has(simplified)) {
+			const Vector<uint8_t> &buf = virtual_files[simplified];
+			Ref<FileAccessMemory> fam = memnew(FileAccessMemory);
+			fam->open_custom(buf.ptr(), buf.size());
+			return fam;
+		}
+		return Ref<FileAccess>();
+	}
+};
+
+static PackedSourceVirtualMCP *virtual_mcp_source = nullptr;
+
+static void initialize_virtual_mcp_pack() {
+	if (virtual_mcp_source != nullptr) {
+		return;
+	}
+	NativeResourceManager *res_mgr = FileAccessOpenHarmony::get_resource_manager();
+	if (res_mgr == nullptr) {
+		return;
+	}
+	RawFile64 *manifest_file = OH_ResourceManager_OpenRawFile64(res_mgr, "editor/addons/godot-mcp-manifest.json");
+	if (manifest_file == nullptr) {
+		return;
+	}
+	uint64_t m_len = OH_ResourceManager_GetRawFileSize64(manifest_file);
+	Vector<uint8_t> m_buf;
+	m_buf.resize((int)m_len + 1);
+	OH_ResourceManager_ReadRawFile64(manifest_file, m_buf.ptrw(), m_len);
+	m_buf.write[(int)m_len] = 0;
+	OH_ResourceManager_CloseRawFile64(manifest_file);
+
+	JSON json;
+	if (json.parse(String::utf8((const char *)m_buf.ptr())) == OK) {
+		Dictionary dict = json.get_data();
+		Array files = dict.get("files", Array());
+		virtual_mcp_source = memnew(PackedSourceVirtualMCP);
+		PackedData::get_singleton()->add_pack_source(virtual_mcp_source);
+
+		for (int i = 0; i < files.size(); i++) {
+			String rel_path = files[i];
+			String raw_name = "editor/addons/godot_mcp/" + rel_path;
+			String virtual_path = "res://addons/godot_mcp/" + rel_path;
+
+			RawFile64 *rf = OH_ResourceManager_OpenRawFile64(res_mgr, raw_name.utf8().get_data());
+			if (rf != nullptr) {
+				uint64_t f_len = OH_ResourceManager_GetRawFileSize64(rf);
+				Vector<uint8_t> f_buf;
+				f_buf.resize((int)f_len);
+				OH_ResourceManager_ReadRawFile64(rf, f_buf.ptrw(), f_len);
+				OH_ResourceManager_CloseRawFile64(rf);
+
+				virtual_mcp_source->add_virtual_file(virtual_path, f_buf);
+			}
+		}
+		OH_LOG_INFO(LOG_APP, "[MCP] Early virtually mounted godot_mcp addon (%{public}d files) at Main::setup", (int)files.size());
+	}
+}
+#endif
 #include "drivers/register_driver_types.h"
 #include "main/app_icon.gen.h"
 #include "main/main_timer_sync.h"
@@ -1153,6 +1241,10 @@ Error Main::setup(const char *execpath, int argc, char *argv[], bool p_second_ph
 	}
 
 	packed_data->add_pack_source(zip_packed_data);
+#endif
+
+#if defined(OPENHARMONY_ENABLED)
+	initialize_virtual_mcp_pack();
 #endif
 
 	// Exit error code used in the `goto error` conditions.
