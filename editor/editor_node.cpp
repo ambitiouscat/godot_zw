@@ -63,6 +63,7 @@
 #include "editor/docks/history_dock.h"
 #include "editor/docks/import_dock.h"
 #include "editor/docks/inspector_dock.h"
+#include "editor/docks/opencode_dock.h"
 #include "editor/docks/scene_tree_dock.h"
 #include "editor/docks/signals_dock.h"
 #include "editor/editor_data.h"
@@ -9186,6 +9187,11 @@ EditorNode::EditorNode() {
 
 	memnew(GroupsDock);
 	editor_dock_manager->add_dock(GroupsDock::get_singleton());
+
+#ifdef OPENHARMONY_ENABLED
+	memnew(OpenCodeDock);
+	editor_dock_manager->add_dock(OpenCodeDock::get_singleton());
+#endif
 
 	history_dock = memnew(HistoryDock);
 	editor_dock_manager->add_dock(history_dock);

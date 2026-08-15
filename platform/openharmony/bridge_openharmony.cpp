@@ -1006,3 +1006,16 @@ bool godot_apply_script_changes(const char *p_path, const char *p_content) {
 	return false;
 #endif
 }
+
+static GodotOpenCodeDockGeometryCallback g_opencode_dock_geometry_cb = nullptr;
+
+void godot_set_opencode_dock_geometry_callback(GodotOpenCodeDockGeometryCallback p_callback) {
+	g_opencode_dock_geometry_cb = p_callback;
+}
+
+void godot_notify_opencode_dock_geometry(float p_x, float p_y, float p_width, float p_height, bool p_is_visible) {
+	if (g_opencode_dock_geometry_cb) {
+		g_opencode_dock_geometry_cb(p_x, p_y, p_width, p_height, p_is_visible);
+	}
+}
+

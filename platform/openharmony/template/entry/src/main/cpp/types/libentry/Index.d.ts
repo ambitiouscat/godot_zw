@@ -140,9 +140,10 @@ export const fsResult: (resultJson: string) => boolean;
 // Set environment variable (calls libc setenv)
 export const setEnv: (name: string, value: string) => void;
 
-// OpenCode Bridge — Editor context & Script application
+// OpenCode Bridge — Editor context & Script application & Dock geometry synchronization
 export const getEditorContext: () => string;
 export const applyScriptChanges: (filePath: string, newContent: string) => boolean;
+export const setOpenCodeDockGeometryCallback: (callback: (x: number, y: number, width: number, height: number, isVisible: boolean) => void) => boolean;
 export const requestOpenCodeEditorContext: (requestId: string) => boolean;
 export const requestOpenCodeEditorAction: (requestId: string, actionJson: string) => boolean;
 

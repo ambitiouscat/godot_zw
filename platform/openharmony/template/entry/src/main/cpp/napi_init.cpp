@@ -1393,6 +1393,67 @@ static napi_value NAPI_Global_applyScriptChanges(napi_env env, napi_callback_inf
 	return result;
 }
 
+struct OpenCodeDockGeometryData {
+	float x;
+	float y;
+	float width;
+	float height;
+	bool is_visible;
+};
+
+static napi_threadsafe_function g_opencode_dock_tsf = nullptr;
+
+static void opencode_dock_tsf_callback(napi_env env, napi_value js_callback, void *context, void *data) {
+	if (env == nullptr || js_callback == nullptr) {
+		if (data) {
+			delete static_cast<OpenCodeDockGeometryData *>(data);
+		}
+		return;
+	}
+	OpenCodeDockGeometryData *geom = static_cast<OpenCodeDockGeometryData *>(data);
+	if (!geom) {
+		return;
+	}
+
+	napi_value argv[5];
+	napi_create_double(env, geom->x, &argv[0]);
+	napi_create_double(env, geom->y, &argv[1]);
+	napi_create_double(env, geom->width, &argv[2]);
+	napi_create_double(env, geom->height, &argv[3]);
+	napi_get_boolean(env, geom->is_visible, &argv[4]);
+
+	napi_value undefined, result;
+	napi_get_undefined(env, &undefined);
+	napi_call_function(env, undefined, js_callback, 5, argv, &result);
+	delete geom;
+}
+
+static void napi_opencode_dock_geometry_callback(float p_x, float p_y, float p_width, float p_height, bool p_is_visible) {
+	if (g_opencode_dock_tsf) {
+		OpenCodeDockGeometryData *data = new OpenCodeDockGeometryData{ p_x, p_y, p_width, p_height, p_is_visible };
+		napi_call_threadsafe_function(g_opencode_dock_tsf, data, napi_tsfn_nonblocking);
+	}
+}
+
+static napi_value NAPI_Global_setOpenCodeDockGeometryCallback(napi_env env, napi_callback_info info) {
+	size_t argc = 1;
+	napi_value args[1] = { nullptr };
+	napi_get_cb_info(env, info, &argc, args, nullptr, nullptr);
+	napi_value resource_name;
+	napi_create_string_utf8(env, "opencode_dock_tsf", NAPI_AUTO_LENGTH, &resource_name);
+	napi_value async_resource;
+	napi_create_object(env, &async_resource);
+	napi_create_threadsafe_function(
+		env, args[0], async_resource, resource_name,
+		0, 1, nullptr, nullptr, nullptr,
+		opencode_dock_tsf_callback, &g_opencode_dock_tsf
+	);
+	godot_set_opencode_dock_geometry_callback(napi_opencode_dock_geometry_callback);
+	napi_value result;
+	napi_get_boolean(env, true, &result);
+	return result;
+}
+
 static napi_value NAPI_Global_requestOpenCodeEditorContext(napi_env env, napi_callback_info info) {
 	napi_value result;
 	napi_get_boolean(env, true, &result);
@@ -1440,6 +1501,7 @@ static napi_value Init(napi_env env, napi_value exports) {
 		{ "setCcToggleCallback", nullptr, NAPI_Global_setCcToggleCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "getEditorContext", nullptr, NAPI_Global_getEditorContext, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "applyScriptChanges", nullptr, NAPI_Global_applyScriptChanges, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "setOpenCodeDockGeometryCallback", nullptr, NAPI_Global_setOpenCodeDockGeometryCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "requestOpenCodeEditorContext", nullptr, NAPI_Global_requestOpenCodeEditorContext, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "requestOpenCodeEditorAction", nullptr, NAPI_Global_requestOpenCodeEditorAction, nullptr, nullptr, nullptr, napi_default, nullptr }
 	};
