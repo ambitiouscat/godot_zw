@@ -33,9 +33,10 @@ import { window } from '@kit.ArkUI';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import plugin from 'libentry.so';
 import { Logger } from '../core/Logger';
-import { setGodotMode, setProjectPath, setRestartArgs } from '../core/AbilityState';
+import { getGodotMode, setGodotMode, setProjectPath, setRestartArgs } from '../core/AbilityState';
 import { BridgeCallbacks } from '../core/BridgeCallbacks';
 import { GodotMcpInstaller } from '../core/GodotMcpInstaller';
+import { GodotMcpServerGateway } from '../core/GodotMcpServerGateway';
 
 const logger = new Logger('GameAbility')
 
@@ -68,10 +69,16 @@ export default class GameAbility extends UIAbility {
         logger.info('Godot mode override', want.parameters['godotMode'] as string);
       }
     }
+
+    // Start Godot MCP Gateway for Editor mode
+    if (getGodotMode() === 'editor') {
+      void GodotMcpServerGateway.getInstance().start(6505);
+    }
   }
 
   onDestroy(): void {
     logger.info('Ability onDestroy');
+    void GodotMcpServerGateway.getInstance().stop();
     setGodotMode('pm');
     setProjectPath(null);
     setRestartArgs(null);

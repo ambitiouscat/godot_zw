@@ -16,6 +16,7 @@ import { Logger } from '../core/Logger';
 import { injectStandardDirs } from '../core/StandardDirProvider';
 import { getProjectPath } from '../core/AbilityState';
 import { GodotMcpInstaller } from '../core/GodotMcpInstaller';
+import { GodotMcpServerGateway } from '../core/GodotMcpServerGateway';
 import { HarmonyOpenCodeBridgeProxy } from '../opencode/OpenCodePanelBridgeHost';
 import { OpenCodeFormalPanelController } from '../opencode/OpenCodeFormalPanelController';
 import { OpenCodeFormalRuntimeController } from '../opencode/OpenCodeFormalRuntimeController';
@@ -126,6 +127,7 @@ struct GameWindow {
 
       // Auto-provision Godot MCP In-Engine Addon into the opened project
       void GodotMcpInstaller.ensureInstalled(this.context, initialProjectDir)
+      void GodotMcpServerGateway.getInstance().start(6505)
 
       const runtimeController = new OpenCodeFormalRuntimeController(
         this.context.filesDir,
@@ -168,7 +170,7 @@ struct GameWindow {
     }
   }
 
-  private handleBridgeMessageFromWeb(msg: string, hostPort: webview.WebMessagePort) {
+  private async handleBridgeMessageFromWeb(msg: string, hostPort: webview.WebMessagePort): Promise<void> {
     try {
       const req: Record<string, Object> = JSON.parse(msg) as Record<string, Object>;
       if (!req || typeof req !== 'object') return;
@@ -198,8 +200,20 @@ struct GameWindow {
           ok = false;
           errStr = `,"error":{"code":"PATCH_FAILED","summary":${JSON.stringify(String(e))},"retryable":true}`;
         }
+      } else if (method === 'mcp.execute_command' || method === 'mcp.call_tool') {
+        try {
+          const payload = (req['payload'] as Record<string, Object>) || {};
+          const cmdName: string = (payload['name'] as string) || (payload['method'] as string) || '';
+          const cmdArgs = (payload['arguments'] as Record<string, Object>) || (payload['params'] as Record<string, Object>) || {};
+          const cmdRes = await GodotMcpServerGateway.getInstance().executeGodotCommand(cmdName, cmdArgs);
+          resultJson = JSON.stringify(cmdRes);
+        } catch (e) {
+          ok = false;
+          errStr = `,"error":{"code":"MCP_COMMAND_FAILED","summary":${JSON.stringify(String(e))},"retryable":false}`;
+        }
       } else if (method === 'runtime.status') {
-        resultJson = '{"phase":"ready","visible":true,"ready":true,"generation":1,"errorCode":"","errorSummary":"","retryable":false,"mcp":{"available":true,"ports":"6505-6514","toolCount":179}}';
+        const isMcpConnected = GodotMcpServerGateway.getInstance().isGodotConnected();
+        resultJson = `{"phase":"ready","visible":true,"ready":true,"generation":1,"errorCode":"","errorSummary":"","retryable":false,"mcp":{"available":true,"connected":${isMcpConnected},"ports":"6505-6514","toolCount":179}}`;
       } else {
         resultJson = '{"acknowledged":true}';
       }
