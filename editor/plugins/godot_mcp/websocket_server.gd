@@ -19,7 +19,7 @@ const MAX_PORT := 6514
 const RECONNECT_INTERVAL := 3.0
 const BUFFER_SIZE := 16 * 1024 * 1024  # 16MB
 const PING_INTERVAL := 5.0  # send ping every N seconds while connected
-const INACTIVITY_TIMEOUT := 30.0  # force-close if no message received for N seconds
+const INACTIVITY_TIMEOUT := 600.0  # force-close if no message received for N seconds (tolerant of UI modals/typing)
 const HANDSHAKE_TIMEOUT := 10.0  # give up on a socket stuck CONNECTING/CLOSING
 ## Optional, opt-in. See SECURITY.md — this defends against other users on a
 ## shared machine and against cross-project mix-ups, NOT against a process
