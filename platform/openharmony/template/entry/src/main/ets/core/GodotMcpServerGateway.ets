@@ -111,6 +111,17 @@ interface PendingCommand {
   timeoutId: number;
 }
 
+interface JsonRpcPongResult {
+  pong: boolean;
+}
+
+interface JsonRpcPingPong {
+  jsonrpc: string;
+  method?: string;
+  id?: string;
+  result?: JsonRpcPongResult;
+}
+
 /**
  * Dedicated local 6505 WebSocket server gateway.
  * Serves as the middle bridge between Godot's websocket_server.gd client and OpenCode's AI engine.
@@ -125,6 +136,8 @@ export class GodotMcpServerGateway {
   private pendingCommands: Map<string, PendingCommand> = new Map();
   private textDecoder = new util.TextDecoder();
   private textEncoder = new util.TextEncoder();
+
+  private heartbeatTimerId: number = -1;
 
   public static getInstance(): GodotMcpServerGateway {
     if (!GodotMcpServerGateway.instance) {
@@ -163,6 +176,7 @@ export class GodotMcpServerGateway {
 
   public async stop(): Promise<void> {
     this.isRunning = false;
+    this.stopHeartbeat();
     if (this.activeClient) {
       try {
         this.activeClient.close();
@@ -179,8 +193,30 @@ export class GodotMcpServerGateway {
     logger.info('GodotMcpServerGateway stopped');
   }
 
+  private startHeartbeat(): void {
+    this.stopHeartbeat();
+    this.heartbeatTimerId = setInterval(() => {
+      if (this.isGodotConnected()) {
+        const pingObj: JsonRpcPingPong = {
+          jsonrpc: '2.0',
+          method: 'ping'
+        };
+        const pingBytes = this.textEncoder.encodeInto(JSON.stringify(pingObj));
+        this.sendWebSocketFrame(0x01, pingBytes);
+      }
+    }, 10000);
+  }
+
+  private stopHeartbeat(): void {
+    if (this.heartbeatTimerId !== -1) {
+      clearInterval(this.heartbeatTimerId);
+      this.heartbeatTimerId = -1;
+    }
+  }
+
   private handleNewConnection(client: socket.TCPSocketConnection): void {
     logger.info('Godot client connected to 6505 gateway, awaiting WS handshake');
+    this.stopHeartbeat();
     if (this.activeClient && this.activeClient !== client) {
       try {
         this.activeClient.close();
@@ -195,6 +231,7 @@ export class GodotMcpServerGateway {
 
     client.on('close', () => {
       logger.info('Godot client disconnected from 6505 gateway');
+      this.stopHeartbeat();
       if (this.activeClient === client) {
         this.activeClient = null;
         this.isHandshakeComplete = false;
@@ -225,6 +262,7 @@ export class GodotMcpServerGateway {
           const respBytes = this.textEncoder.encodeInto(response);
           this.activeClient?.send({ data: respBytes.buffer as ArrayBuffer });
           this.isHandshakeComplete = true;
+          this.startHeartbeat();
           logger.info('WebSocket handshake completed with Godot MCP Pro plugin on 6505');
         }
       }
@@ -291,16 +329,29 @@ export class GodotMcpServerGateway {
       const method = String(msg['method'] || '');
       const id = String(msg['id'] || '');
 
-      // Respond immediately to Godot ping message to prevent inactivity timeout
+      // Handle pong from Godot
+      if (method === 'pong') {
+        return;
+      }
+
+      // Respond immediately to Godot ping message with protocol-compliant JSON-RPC pong
       if (method === 'ping') {
-        const pongObj: Record<string, Object> = {
-          'jsonrpc': '2.0',
-          'result': 'pong'
-        };
+        let pongResponse = '';
         if (id && id.length > 0) {
-          pongObj['id'] = id;
+          const res: JsonRpcPongResult = { pong: true };
+          const pongObj: JsonRpcPingPong = {
+            jsonrpc: '2.0',
+            id: id,
+            result: res
+          };
+          pongResponse = JSON.stringify(pongObj);
+        } else {
+          const pongObj: JsonRpcPingPong = {
+            jsonrpc: '2.0',
+            method: 'pong'
+          };
+          pongResponse = JSON.stringify(pongObj);
         }
-        const pongResponse = JSON.stringify(pongObj);
         const pongBytes = this.textEncoder.encodeInto(pongResponse);
         this.sendWebSocketFrame(0x01, pongBytes);
         return;
