@@ -315,6 +315,7 @@ struct GameWindow {
                   name: '__init_opencode_editor_bridge_v1__',
                   protocol: 'opencode.i3d.editor-bridge',
                   version: 1,
+                  scope: 'sdk-client',
                   panelInstanceId: 'panel:main:01'
                 });
                 this.webController.postMessage(bootstrapPayload, [webPort], '*');
