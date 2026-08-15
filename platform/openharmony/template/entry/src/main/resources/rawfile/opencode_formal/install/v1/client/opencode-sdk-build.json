@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "client": "sdk-composed",
+  "sdkPackage": "@opencode-ai/sdk",
+  "sdkVersion": "1.17.18",
+  "sdkImport": "@opencode-ai/sdk/v2/client",
+  "localProviderBootstrap": false,
+  "embeddedCredentials": false,
+  "distribution": "distributable",
+  "sourceMaps": false,
+  "files": [
+    {
+      "path": "css/app.bd516e26.css",
+      "bytes": 21884,
+      "sha256": "41e3dc7b87a6ac2e2afc24e4317e4164a6a53dee52af3822ac4325f6d62d5d5b"
+    },
+    {
+      "path": "index.html",
+      "bytes": 516,
+      "sha256": "c4c078148bb42d3156a34d0947d64c190ddfb6caef20f63fc944c2e4f93a5e43"
+    },
+    {
+      "path": "js/app.2a5bd695.js",
+      "bytes": 82934,
+      "sha256": "039763e4695430b21475f18079cac3ff4256e796719dcbd22ea82d227099ac1e"
+    },
+    {
+      "path": "js/chunk-vendors.c21a8b2e.js",
+      "bytes": 190926,
+      "sha256": "02ddd729e4799598ad3cd2ac2d2d30419f63c34191f19a52b156f451d73aa62c"
+    }
+  ]
+}

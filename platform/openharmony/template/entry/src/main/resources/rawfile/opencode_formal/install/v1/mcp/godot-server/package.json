@@ -1,0 +1,57 @@
+{
+  "name": "godot-mcp-pro",
+  "version": "1.16.0",
+  "description": "Premium MCP server for AI-powered Godot development with 178 tools",
+  "main": "build/index.js",
+  "bin": {
+    "godot-cli": "build/cli.js",
+    "godot-mcp-setup": "build/setup.js"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "watch": "tsc --watch",
+    "start": "node build/index.js",
+    "setup": "node build/setup.js",
+    "test": "npm run test:unit",
+    "test:unit": "vitest run",
+    "catalog:capture": "node scripts/capture-tool-manifest.mjs --update",
+    "catalog:check": "node scripts/capture-tool-manifest.mjs --check",
+    "test:contract": "node scripts/check-adapter-dependencies.mjs && npm run catalog:check",
+    "build:opencode-plugin": "node scripts/build-opencode-plugin.mjs",
+    "test:bundle": "npm run build:opencode-plugin && node scripts/test-bundle-baseline.mjs",
+    "test:lifecycle": "node tests/run_stdio_eof_test.mjs",
+    "test:all": "npm run typecheck && npm run test:unit && npm run test:contract && npm run build && npm run test:bundle && npm run test:lifecycle && npm run test:merge-sidecars && npm run test:sidecar-compiler && npm run test:ci-matrix && npm run test:ci-opencode-patch && npm run test:ci-bun-compiler",
+    "build:sidecars": "node scripts/build-sidecars.mjs",
+    "test:source-fingerprint": "node tests/source-fingerprint.mjs",
+    "test:merge-sidecars": "node tests/merge-sidecar-manifests.mjs",
+    "test:sidecar-compiler": "node tests/build-sidecars-compiler.mjs",
+    "test:ci-matrix": "node tests/ci-platform-smoke.mjs",
+    "test:ci-opencode-patch": "node tests/ci-opencode-patch.mjs",
+    "test:ci-bun-compiler": "node tests/ci-bun-compiler.mjs",
+    "verify:sidecars": "node scripts/verify-sidecar-manifest.mjs",
+    "verify:sidecars:release": "node scripts/verify-sidecar-manifest.mjs --require-signed",
+    "test:sidecar-native": "node tests/run_sidecar_smoke.mjs",
+    "test:release": "npm run build:sidecars && npm run verify:sidecars && npm run test:sidecar-native",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "1.26.0",
+    "ws": "^8.18.0",
+    "zod": "4.1.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.0",
+    "vitest": "^4.1.2"
+  },
+  "keywords": [
+    "godot",
+    "mcp",
+    "ai",
+    "editor"
+  ],
+  "license": "MIT"
+}

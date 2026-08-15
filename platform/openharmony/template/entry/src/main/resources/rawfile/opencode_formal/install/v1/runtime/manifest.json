@@ -1,0 +1,1785 @@
+{
+  "schemaVersion": 1,
+  "generator": "formal-runtime/scripts/build-formal-runtime.mjs",
+  "inputManifestSha256": "e3dbc6098f2ea8f1492ed654e8dca308e19d6fe8b241240dade035a989bc366d",
+  "outputSha256": "5818fa0d4554e322d1f6470cdc631198fe4234b569dabe1531dccc226959ffb3",
+  "bytes": 21293773,
+  "baselineManifestSha256": "ade3e7905a59774fb2996d9ee083ad3604618284461c4b360b256c20be6328b7",
+  "upstream": {
+    "revision": "f47684787ad07e5311bd9422c1a9eb70c9966274",
+    "tree": "c0d28973357332ef7feb4b08a401fcf2913b2d12",
+    "version": "1.17.18",
+    "lockfileSha256": "2644650fa1e90a3d6412beda4810af9b9260d8886d79fb6ba99f21032ae09e6f"
+  },
+  "buildTool": {
+    "name": "bun",
+    "version": "1.3.14",
+    "bytes": 98480216,
+    "sha256": "0187f68d843f825a72ada4a7eca60db896ed753759a7f8252edcd31ac1bf1b9c"
+  },
+  "buildSources": [
+    {
+      "path": "formal-runtime/scripts/build-formal-runtime.ps1",
+      "sha256": "a2722bb3e2637572deb1e4efada9067e404af727e33367bcc4b905d7b022f72e"
+    },
+    {
+      "path": "formal-runtime/scripts/build-formal-runtime.mjs",
+      "sha256": "1bc7311536bbbd536ef8e9830756c3e6a4d04ae1c07f32a9eda569bdd65b9f05"
+    },
+    {
+      "path": "formal-runtime/scripts/verify-packaged-extensions.mjs",
+      "sha256": "3eb3b66922c6351c4d4672f8b4ea6e4b3621133dbef1b2a01ee06d90572382d1"
+    },
+    {
+      "path": "formal-runtime/test/packaging/verify-formal-runtime-bundle.mjs",
+      "sha256": "5cea03a99795b72f25658175ad2b82b956ba355bf6f4c5d49a665ca11e87d4b5"
+    },
+    {
+      "path": "formal-runtime/test/packaging/verify-formal-runtime-node-load.mjs",
+      "sha256": "767845c991bffa6c9e0fd10123386f72a11077f95fe665c62b77edf647f0cfd0"
+    }
+  ],
+  "sharedPatches": [
+    {
+      "path": "formal-runtime/patches/upstream/0001-runtime-component-composition-seam.patch",
+      "sha256": "ac8a3a9633fe0caafc85a14c38b7d2577ac811e78cda3638d606be7c2b3bf5eb"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0002-lazy-global-path-initialization.patch",
+      "sha256": "5fd9d39e2069e0ad1775b0248b857eb82b6c6fe5ad3dbebe3db249e5efae39c5"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0003-direct-location-service-map-import.patch",
+      "sha256": "44e82a1b23f5a2d9accd35f17e137612ca2b054c34df7f0f28f4af0a93e168ca"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0004-portable-stable-provider-boundaries.patch",
+      "sha256": "34cde959acc0d797f78fc2e1ab2fa1345f8d9bc567020be7cdae0253073aca3e"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0005-portable-stable-session-boundaries.patch",
+      "sha256": "94a8d0e8f3e76d09d5ca0f5082678df80d4e907d937d239142f94871cfbf3da5"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0006-portable-plugin-watcher-leaves.patch",
+      "sha256": "6ab2cdcb5975122f20c28d61c8da773fa366eefe60d496d7d58cfc7a9f44e7a6"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0007-portable-code-mode-loader.patch",
+      "sha256": "e5227b2c0c5b7d9bf4f1f69650369d48b110ef4a16664104d371d5ab37d1b071"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0008-portable-models-dev-source.patch",
+      "sha256": "3c9681c180f0700686477bd52b040a89c6dda3bbd3560db058012480d7d92527"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0009-portable-model-override-regression.patch",
+      "sha256": "ffa62c48df210202ff3f3ddf500add4a956be8cd93adbe7be5ca1125076a6e57"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0010-redact-provider-failure-diagnostics.patch",
+      "sha256": "0b6827d818d03bf0ffbc4ff803572e2f5a6f6c97f5fdbbbfde154655b39fad76"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0011-portable-session-recovery-parity.patch",
+      "sha256": "6b745c4aeafa4c963290ccb9425a9613247a01dd6dd234507415e8a7f3d021b7"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0012-portable-config-instruction-precedence.patch",
+      "sha256": "dfe6f11b5557d6f503344d4bb337bfae87614ed6613dc4bd06cc2307343f5a1e"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0013-portable-agent-workspace-parity.patch",
+      "sha256": "982ed1d7987af7ad574543c2e11b4b81a11828114a6f519b5d106e2ee027fa0b"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0014-invalidate-provider-auth-state.patch",
+      "sha256": "2ccf61de805cc0df09681c95712ee2df867cba9aa0480becc4329e8f2b3740b9"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0015-refactor-make-built-in-tool-profile-selectable.patch",
+      "sha256": "f8577862282bc4c8a56a328d9821523182ba9aeb21066a54c5546d910c6daaf2"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0016-refactor-load-built-in-tools-by-runtime-profile.patch",
+      "sha256": "0cf0575b5111d42ff881f7396a52736b3d84cf6e1c1d904746169297e4cbdbce"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0017-refactor-isolate-workspace-tool-filesystem.patch",
+      "sha256": "07d2566300b55777af88609df8cc9b220b20b643ba012df52a81e1f747728962"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0018-fix-exclude-display-only-tools-from-model-context.patch",
+      "sha256": "12117e1577273ee9bc278d044820391925735a615953b7d18b99a79dc51a3307"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0019-fix-make-skill-discovery-deterministic.patch",
+      "sha256": "fe2bd6d2c02aa7dcb30d04f8c1f9a2f5b62ff6e2762daa921d13ae3b515fa658"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0020-refactor-isolate-public-http-contracts.patch",
+      "sha256": "fc69b9f27f608edb67abc84dcb347b4fc40f24320a4cc0c13eb24057ee498ad7"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0021-feat-add-platform-capability-contract.patch",
+      "sha256": "a444083017da2dfca28dc90bf0e7e81c5426b6984d1e23d5ce11f3973a6c1fed"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0022-refactor-isolate-MCP-resource-schema.patch",
+      "sha256": "7f5b6093987464c079f88c6681753f7e50ff7059cbdadd90a3fe08d72b63bcb6"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0023-test-complete-official-SDK-operation-matrix.patch",
+      "sha256": "c6add4600bc76044284d93f42e9559dbeec06b0973c2b4c1b29058efdd46e04a"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0024-test-cover-official-api-contract-negatives.patch",
+      "sha256": "14ccc18d48df444546494d1f952b2155f079c9b861c327c061c16ea832e26d27"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0025-feat-gate-unavailable-client-controls.patch",
+      "sha256": "6714b735328bc697589a7da0e82a0ff6784104619802cfe55585d4310b0399d7"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0026-feat-add-portable-server-runtime-options.patch",
+      "sha256": "2de54913917c1ab1ae3f5e181f7f1dc678ed9217d3105d2741f0cb8f4081f84a"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0027-isolate-remote-mcp-from-process-services.patch",
+      "sha256": "07da81e129476447cb89e6686c66a3b647de6647f827b0a904df0c87ddb0ac99"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0028-enable-remote-mcp-client-controls.patch",
+      "sha256": "a43b2590ff6bc056de0a05c5f8d22c9dfaf327e531a0af6b7d97a0c419916b2f"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0029-refactor-mcp-handler-factory.patch",
+      "sha256": "5d74c674bd2755bb13ee8925beac87236f51f5b23a0544f8fffcca5cd7ea51bf"
+    }
+  ],
+  "platformInputs": {
+    "nodeVersion": "v24.13.0",
+    "moduleAbi": 137,
+    "libnodeSha256": "3c1de216394f4b20a94c5727d2d401d2ddab2372bd25dd912a9e8034e69f55cd",
+    "harmonySdkVersion": "6.1.0.105",
+    "packageApi": 23
+  },
+  "networkTransport": {
+    "id": "node-fetch-2.7.0-jitless-http",
+    "manifest": {
+      "path": "openspec/changes/port-upstream-opencode-runtime-to-harmony/manifests/jitless-network-transport.json",
+      "sha256": "1ad6f78cc6de3745d485a5fae60964f5e589ceaad8a8e41e6603cefa083ac0be"
+    },
+    "packages": [
+      {
+        "name": "node-fetch",
+        "version": "2.7.0",
+        "integrity": "sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==",
+        "license": "MIT"
+      },
+      {
+        "name": "whatwg-url",
+        "version": "5.0.0",
+        "integrity": "sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==",
+        "license": "MIT"
+      },
+      {
+        "name": "tr46",
+        "version": "0.0.3",
+        "integrity": "sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==",
+        "license": "MIT"
+      },
+      {
+        "name": "webidl-conversions",
+        "version": "3.0.1",
+        "integrity": "sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==",
+        "license": "BSD-2-Clause"
+      }
+    ],
+    "output": {
+      "path": "assets/node-fetch-harmony.cjs",
+      "bytes": 385070,
+      "sha256": "01262537391ee3e32fc4f53adadb88bc30d7608e2ad96c47f4da713aab6e0980"
+    },
+    "fetchInjection": "effect/unstable/http FetchHttpClient.Fetch",
+    "webSocketInjection": "HarmonyWebSocketFactory",
+    "webAssembly": false,
+    "optionalEncoding": "unavailable"
+  },
+  "loopbackSecurity": {
+    "version": 1,
+    "hostname": "127.0.0.1",
+    "requestedPort": 0,
+    "credentialEntropyBytes": 32,
+    "authorization": "Basic",
+    "origin": "exact-current-loopback-or-omitted",
+    "staleGeneration": "credential-rotation-and-optional-generation-header"
+  },
+  "authorizedProjectFilesystem": {
+    "version": 1,
+    "pathContract": "project-relative-posix",
+    "containment": "canonical-realpath",
+    "symlinks": "rejected",
+    "protectedMutations": [
+      ".git",
+      ".hg",
+      ".svn",
+      ".opencode-harmony-atomic-*"
+    ],
+    "stalePreconditions": "sha256-or-missing",
+    "mutationCommit": "same-directory-file-fsync-and-atomic-replace",
+    "changedPathNotification": "once-after-commit"
+  },
+  "searchWatcher": {
+    "version": 1,
+    "processCreation": false,
+    "glob": "node-path-matchesGlob",
+    "grep": "bounded-javascript-regexp",
+    "watcher": "bounded-polling-plus-direct-mutation-notification",
+    "resultShape": "upstream-filesystem-entry-match-and-watcher-event"
+  },
+  "runtimeLifecycle": {
+    "version": 1,
+    "generation": "strictly-increasing-single-active",
+    "readiness": "recovery-listener-and-resource-health",
+    "gracefulStop": "listener-first-reverse-resource-close",
+    "forcedExit": "native-observation-and-next-generation-recovery",
+    "sqlite": "managed-recovery-health-close-resource"
+  },
+  "nativeChildRuntime": {
+    "version": 1,
+    "entryExport": "startHarmonyNativeChildRuntime",
+    "listener": "upstream-server-listen",
+    "routes": "upstream-stable-http-api",
+    "ui": "hap-private-upstream-solidjs-assets",
+    "projectRouting": "single-host-authorized-root",
+    "platformReplacements": [
+      "global",
+      "database",
+      "http-client",
+      "models-dev"
+    ],
+    "statePreparation": [
+      "copy-before-transform",
+      "global-configuration",
+      "provider-credentials"
+    ],
+    "lifecycle": "managed-listener-and-network-transport"
+  },
+  "stableProviderPlatform": {
+    "version": 1,
+    "plugin": "packaged-tier-a-noop-service",
+    "npm": "runtime-installation-unavailable",
+    "configPluginDiscovery": "disabled-until-packaged-allowlist",
+    "executionPath": "upstream-ai-sdk",
+    "bundledProviders": [
+      "@ai-sdk/anthropic",
+      "@ai-sdk/openai",
+      "@ai-sdk/openai-compatible"
+    ],
+    "dynamicProviderInstallation": "unavailable",
+    "executableLegacyConfig": "unavailable",
+    "otlpExport": "unavailable",
+    "substitutions": [
+      {
+        "id": "appNodePlatform",
+        "path": "formal-runtime/src/adapters/stable-app-node-platform.ts",
+        "sha256": "2ce34111bcf948ace9a500502aaef12ff1b46d8b7d17c3dab5ad26536745a56c"
+      },
+      {
+        "id": "builtinTools",
+        "path": "formal-runtime/src/adapters/stable-builtin-tool-loader.ts",
+        "sha256": "f8ff7ac9a5af7f4d41eb7a286ceace0d70d0719b150f22fdaa432e87dffd3937"
+      },
+      {
+        "id": "bundledProviders",
+        "path": "formal-runtime/src/adapters/stable-bundled-providers.ts",
+        "sha256": "5613085ff45a141064a20aeb76ef068f50002f6b55cdc8153a422cbf203fb5c9"
+      },
+      {
+        "id": "childProcessSpawner",
+        "path": "formal-runtime/src/adapters/stable-child-process-spawner.ts",
+        "sha256": "0b21ce7382a88a957f8654d227c0e3be3771f1d501b51ea9c47575a41e8d05ac"
+      },
+      {
+        "id": "corePlugin",
+        "path": "formal-runtime/src/adapters/stable-core-plugin.ts",
+        "sha256": "0c3d6918767a8a7548229be0885313edb74ee6b7c934a1021bcd7c4718bbadf4"
+      },
+      {
+        "id": "dynamicProvider",
+        "path": "formal-runtime/src/adapters/stable-dynamic-provider.ts",
+        "sha256": "cb7a6aae183e6dd0623814e05a136de6ca0a3e0f2c50c251bb3b0f65de667211"
+      },
+      {
+        "id": "effectSqlMigrator",
+        "path": "formal-runtime/src/adapters/stable-effect-sql-migrator.ts",
+        "sha256": "9484c7d19e9b01c91f11a70809c40506fe58f61b88e9678283db0d3cdbfe0b21"
+      },
+      {
+        "id": "externalTools",
+        "path": "formal-runtime/src/adapters/stable-external-tools.ts",
+        "sha256": "3a30e3b0288bde3c0f71f386939c36dbef86393eb0bb3865965d344884043f8b"
+      },
+      {
+        "id": "format",
+        "path": "formal-runtime/src/adapters/stable-format.ts",
+        "sha256": "9347c41769a59d05ddbd8ff839ba4a0764113e0c5a62c657e13e31880b0cdb82"
+      },
+      {
+        "id": "gitlabWorkflow",
+        "path": "formal-runtime/src/adapters/stable-gitlab-workflow.ts",
+        "sha256": "4d755e465f7bf372850970e9e9a32c42718d845525fbe356472787c96738f0d7"
+      },
+      {
+        "id": "legacyConfig",
+        "path": "formal-runtime/src/adapters/stable-legacy-config.ts",
+        "sha256": "7ea0b5580e62fcd41cd88f2621aa9d61c2389ad4fa86c1ca82dc549cdb99da5a"
+      },
+      {
+        "id": "lsp",
+        "path": "formal-runtime/src/adapters/stable-lsp.ts",
+        "sha256": "631401ca859f94b80b385d53bfd0817f7100f267a5d96641b7675d11490db3db"
+      },
+      {
+        "id": "locationServices",
+        "path": "formal-runtime/src/adapters/stable-location-services.ts",
+        "sha256": "31624c29a0490614a201e24a0111e6b16b92d0e3dda0f7a4e532023f4f2c051c"
+      },
+      {
+        "id": "mcp",
+        "path": "formal-runtime/src/adapters/stable-mcp.ts",
+        "sha256": "7cf68fbd63da4ed4ef9d384d7c45ad0247653e27e362b168c7d46e87f2ee078b"
+      },
+      {
+        "id": "mcpBrowser",
+        "path": "formal-runtime/src/adapters/stable-mcp-browser.ts",
+        "sha256": "25df44f0c391682f213879b8aad8a5059215b92cf61f78d7c298250629066ae8"
+      },
+      {
+        "id": "plugin",
+        "path": "formal-runtime/src/adapters/stable-plugin.ts",
+        "sha256": "e7908071f0f8879a21b9a61c7ae164e00eff136b07e66c2371223479ae535a9d"
+      },
+      {
+        "id": "process",
+        "path": "formal-runtime/src/adapters/stable-process.ts",
+        "sha256": "6eff55cd819a2668d23dda889e587f63513abd8a445fd2ccab881e877ed91588"
+      },
+      {
+        "id": "npm",
+        "path": "formal-runtime/src/adapters/stable-npm.ts",
+        "sha256": "b70f739f2184b4b474b6c4f7deb5037fd6cb04097b8dd1f33d641361f93b9a17"
+      },
+      {
+        "id": "configPlugin",
+        "path": "formal-runtime/src/adapters/stable-config-plugin.ts",
+        "sha256": "868ea144aac4843090a85f408f2a493d38d06a1e6a90f956e24529c25f58f65f"
+      },
+      {
+        "id": "nativeLlmRuntime",
+        "path": "formal-runtime/src/adapters/stable-native-llm-runtime.ts",
+        "sha256": "87b0fbc8a76bde89136296ee27b98dac94c65e4c872bd116fc3da0368e06f3be"
+      },
+      {
+        "id": "observability",
+        "path": "formal-runtime/src/adapters/stable-observability.ts",
+        "sha256": "477b8345c2ca1ce929099467fa3e36ea5d25a38004b850559564393729b93743"
+      },
+      {
+        "id": "npmConfig",
+        "path": "formal-runtime/src/adapters/stable-npm-config.ts",
+        "sha256": "45911d6b24bc30bbf1c3dd529aadea1a5e67124974c1910428c38398858aee4c"
+      },
+      {
+        "id": "ripgrep",
+        "path": "formal-runtime/src/adapters/stable-ripgrep.ts",
+        "sha256": "dec2b449c2f9544a7c2d27f98801d85fcfbcee25473105cf522d77a6c71c630c"
+      },
+      {
+        "id": "skillDiscovery",
+        "path": "formal-runtime/src/adapters/stable-skill-discovery.ts",
+        "sha256": "102a8aeb65a1d462c0c4d2ba3b0067bbe2429c4c2943d6500e030dca31db894d"
+      },
+      {
+        "id": "toolFileSystem",
+        "path": "formal-runtime/src/adapters/stable-tool-filesystem.ts",
+        "sha256": "b8eb21436e09e2d59502d6d8de21bfbd44f76acf7ea439f1c0cecce13c173176"
+      },
+      {
+        "id": "ui",
+        "path": "formal-runtime/src/adapters/stable-ui.ts",
+        "sha256": "9dedfa38efc650bbe667916f24da60bb7c5f26824f1745353802983ac5a489ee"
+      },
+      {
+        "id": "watcher",
+        "path": "formal-runtime/src/adapters/stable-watcher.ts",
+        "sha256": "01de99c772aa601cccf46a3241ecdeb018e2e7f9c9a2370f7c4d6e85e0b7d249"
+      }
+    ]
+  },
+  "stableSessionPlatform": {
+    "version": 1,
+    "authority": "upstream-session-prompt-processor",
+    "executableExternalTools": "unavailable-until-packaged-allowlist",
+    "substitutions": [
+      {
+        "id": "externalTools",
+        "path": "formal-runtime/src/adapters/stable-external-tools.ts",
+        "sha256": "3a30e3b0288bde3c0f71f386939c36dbef86393eb0bb3865965d344884043f8b"
+      }
+    ]
+  },
+  "stableToolPlatform": {
+    "version": 1,
+    "authority": "upstream-stable-tool-registry",
+    "selection": "harmony-tier-a-profile",
+    "accepted": [
+      "read",
+      "write",
+      "edit",
+      "apply_patch",
+      "glob",
+      "grep",
+      "question",
+      "todowrite",
+      "skill",
+      "webfetch",
+      "websearch",
+      "shell"
+    ],
+    "internal": [
+      "invalid"
+    ],
+    "names": "upstream-tool-define",
+    "schemas": "upstream-effect-schema",
+    "permissions": "upstream-tool-context-ask",
+    "results": "upstream-tool-execute-result",
+    "lifecycle": [
+      "pending",
+      "running",
+      "completed",
+      "error"
+    ],
+    "processCreation": "restricted-shell-tool",
+    "localDefinitions": [
+      "shell"
+    ],
+    "disabledDefinitions": [
+      "bash",
+      "execute",
+      "lsp",
+      "plan_exit"
+    ],
+    "processFreeLeaves": [
+      "child-process-spawner",
+      "format",
+      "lsp",
+      "mcp",
+      "ripgrep",
+      "tool-filesystem"
+    ],
+    "workspaceFilesystem": "authorized-project-adapter",
+    "staleMutationPreconditions": true,
+    "substitution": {
+      "path": "formal-runtime/src/adapters/stable-builtin-tool-loader.ts",
+      "sha256": "f8ff7ac9a5af7f4d41eb7a286ceace0d70d0719b150f22fdaa432e87dffd3937"
+    }
+  },
+  "stableMcpPlatform": {
+    "version": 1,
+    "authority": "upstream-mcp-service-and-modelcontextprotocol-sdk",
+    "transports": [
+      "streamable-http",
+      "sse"
+    ],
+    "authentication": [
+      "headers",
+      "oauth-loopback-callback"
+    ],
+    "localStdio": "unavailable",
+    "runtimeInstallation": false,
+    "processCreation": false,
+    "browserLaunch": "arkweb-authorization-url-required",
+    "source": {
+      "path": "opencode/packages/opencode/src/mcp/index.ts",
+      "sha256": "c244571c326891633c0eefbd2c50aebedc714cf1ac2e61d796b0a7fe712ebc01"
+    },
+    "isolationPatch": {
+      "path": "formal-runtime/patches/upstream/0027-isolate-remote-mcp-from-process-services.patch",
+      "sha256": "07da81e129476447cb89e6686c66a3b647de6647f827b0a904df0c87ddb0ac99"
+    }
+  },
+  "stableOfficialApiPlatform": {
+    "version": 1,
+    "authority": "upstream-openapi-generated-combined-sdk",
+    "composition": "tier-a-selected-upstream-handlers",
+    "routeDefinitions": [
+      {
+        "id": "config",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/config",
+        "exportName": "ConfigApi"
+      },
+      {
+        "id": "control",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/control",
+        "exportName": "ControlApi"
+      },
+      {
+        "id": "control-plane",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/control-plane",
+        "exportName": "ControlPlaneApi"
+      },
+      {
+        "id": "event-api",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/event",
+        "exportName": "EventApi"
+      },
+      {
+        "id": "experimental",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/experimental",
+        "exportName": "ExperimentalApi"
+      },
+      {
+        "id": "file",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/file",
+        "exportName": "FileApi"
+      },
+      {
+        "id": "global",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/global",
+        "exportName": "GlobalApi"
+      },
+      {
+        "id": "instance",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/instance",
+        "exportName": "InstanceApi"
+      },
+      {
+        "id": "mcp",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/mcp",
+        "exportName": "McpApi"
+      },
+      {
+        "id": "permission",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/permission",
+        "exportName": "PermissionApi"
+      },
+      {
+        "id": "project",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/project",
+        "exportName": "ProjectApi"
+      },
+      {
+        "id": "project-copy",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/project-copy",
+        "exportName": "ProjectCopyApi"
+      },
+      {
+        "id": "provider",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/provider",
+        "exportName": "ProviderApi"
+      },
+      {
+        "id": "question",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/question",
+        "exportName": "QuestionApi"
+      },
+      {
+        "id": "session",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/session",
+        "exportName": "SessionApi"
+      },
+      {
+        "id": "sync",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/sync",
+        "exportName": "SyncApi"
+      },
+      {
+        "id": "workspace",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/groups/workspace",
+        "exportName": "WorkspaceApi"
+      }
+    ],
+    "legacyHandlers": [
+      {
+        "id": "config",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/config",
+        "exportName": "makeConfigHandlers"
+      },
+      {
+        "id": "control",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/control",
+        "exportName": "makeControlHandlers"
+      },
+      {
+        "id": "control-plane",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/control-plane",
+        "exportName": "makeControlPlaneHandlers"
+      },
+      {
+        "id": "event",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handlers/event",
+        "exportName": "eventHandlers"
+      },
+      {
+        "id": "experimental",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/experimental",
+        "exportName": "makeExperimentalHandlers"
+      },
+      {
+        "id": "file",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/file",
+        "exportName": "makeFileHandlers"
+      },
+      {
+        "id": "global",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/global",
+        "exportName": "makeGlobalHandlers"
+      },
+      {
+        "id": "instance",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/instance",
+        "exportName": "makeInstanceHandlers"
+      },
+      {
+        "id": "mcp",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/mcp",
+        "exportName": "makeMcpHandlers"
+      },
+      {
+        "id": "permission",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/permission",
+        "exportName": "makePermissionHandlers"
+      },
+      {
+        "id": "project",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/project",
+        "exportName": "makeProjectHandlers"
+      },
+      {
+        "id": "project-copy",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/project-copy",
+        "exportName": "makeProjectCopyHandlers"
+      },
+      {
+        "id": "provider",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/provider",
+        "exportName": "makeProviderHandlers"
+      },
+      {
+        "id": "question",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/question",
+        "exportName": "makeQuestionHandlers"
+      },
+      {
+        "id": "session",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/session",
+        "exportName": "makeSessionHandlers"
+      },
+      {
+        "id": "sync",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/sync",
+        "exportName": "makeSyncHandlers"
+      },
+      {
+        "id": "workspace",
+        "module": "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/workspace",
+        "exportName": "makeWorkspaceHandlers"
+      }
+    ],
+    "protocolGroups": [
+      {
+        "id": "health",
+        "module": "@opencode-ai/protocol/groups/health",
+        "exportName": "HealthGroup"
+      },
+      {
+        "id": "location",
+        "module": "@opencode-ai/protocol/groups/location",
+        "exportName": "LocationGroup"
+      },
+      {
+        "id": "agent",
+        "module": "@opencode-ai/protocol/groups/agent",
+        "exportName": "AgentGroup"
+      },
+      {
+        "id": "session",
+        "module": "@opencode-ai/protocol/groups/session",
+        "exportName": "makeSessionGroup"
+      },
+      {
+        "id": "message",
+        "module": "@opencode-ai/protocol/groups/message",
+        "exportName": "MessageGroup"
+      },
+      {
+        "id": "model",
+        "module": "@opencode-ai/protocol/groups/model",
+        "exportName": "ModelGroup"
+      },
+      {
+        "id": "provider",
+        "module": "@opencode-ai/protocol/groups/provider",
+        "exportName": "ProviderGroup"
+      },
+      {
+        "id": "integration",
+        "module": "@opencode-ai/protocol/groups/integration",
+        "exportName": "IntegrationGroup"
+      },
+      {
+        "id": "credential",
+        "module": "@opencode-ai/protocol/groups/credential",
+        "exportName": "CredentialGroup"
+      },
+      {
+        "id": "permission",
+        "module": "@opencode-ai/protocol/groups/permission",
+        "exportName": "makePermissionGroup"
+      },
+      {
+        "id": "fs",
+        "module": "@opencode-ai/protocol/groups/fs",
+        "exportName": "FileSystemGroup"
+      },
+      {
+        "id": "command",
+        "module": "@opencode-ai/protocol/groups/command",
+        "exportName": "CommandGroup"
+      },
+      {
+        "id": "skill",
+        "module": "@opencode-ai/protocol/groups/skill",
+        "exportName": "SkillGroup"
+      },
+      {
+        "id": "event",
+        "module": "@opencode-ai/protocol/groups/event",
+        "exportName": "EventGroup"
+      },
+      {
+        "id": "question",
+        "module": "@opencode-ai/protocol/groups/question",
+        "exportName": "makeQuestionGroup"
+      },
+      {
+        "id": "reference",
+        "module": "@opencode-ai/protocol/groups/reference",
+        "exportName": "ReferenceGroup"
+      }
+    ],
+    "protocolHandlers": [
+      {
+        "id": "health",
+        "module": "@opencode-ai/server/handlers/health",
+        "exportName": "HealthHandler"
+      },
+      {
+        "id": "location",
+        "module": "@opencode-ai/server/handlers/location",
+        "exportName": "LocationHandler"
+      },
+      {
+        "id": "agent",
+        "module": "@opencode-ai/server/handlers/agent",
+        "exportName": "AgentHandler"
+      },
+      {
+        "id": "model",
+        "module": "@opencode-ai/server/handlers/model",
+        "exportName": "ModelHandler"
+      },
+      {
+        "id": "provider",
+        "module": "@opencode-ai/server/handlers/provider",
+        "exportName": "ProviderHandler"
+      },
+      {
+        "id": "integration",
+        "module": "@opencode-ai/server/handlers/integration",
+        "exportName": "IntegrationHandler"
+      },
+      {
+        "id": "credential",
+        "module": "@opencode-ai/server/handlers/credential",
+        "exportName": "CredentialHandler"
+      },
+      {
+        "id": "permission",
+        "module": "@opencode-ai/server/handlers/permission",
+        "exportName": "PermissionHandler"
+      },
+      {
+        "id": "fs",
+        "module": "@opencode-ai/server/handlers/fs",
+        "exportName": "FileSystemHandler"
+      },
+      {
+        "id": "command",
+        "module": "@opencode-ai/server/handlers/command",
+        "exportName": "CommandHandler"
+      },
+      {
+        "id": "skill",
+        "module": "@opencode-ai/server/handlers/skill",
+        "exportName": "SkillHandler"
+      },
+      {
+        "id": "event",
+        "module": "@opencode-ai/server/handlers/event",
+        "exportName": "EventHandler"
+      },
+      {
+        "id": "question",
+        "module": "@opencode-ai/server/handlers/question",
+        "exportName": "QuestionHandler"
+      },
+      {
+        "id": "reference",
+        "module": "@opencode-ai/server/handlers/reference",
+        "exportName": "ReferenceHandler"
+      }
+    ],
+    "eventEnvelopes": [
+      {
+        "id": "stable-event-manifest",
+        "module": "@opencode-ai/opencode/event-manifest",
+        "exportName": "EventManifest"
+      },
+      {
+        "id": "protocol-event-envelope",
+        "module": "@opencode-ai/protocol/groups/event",
+        "exportName": "OpenCodeEvent"
+      }
+    ],
+    "sdkClients": [
+      {
+        "id": "generated-combined-client",
+        "module": "@opencode-ai/sdk/v2/gen/sdk.gen",
+        "exportName": "OpencodeClient"
+      },
+      {
+        "id": "official-client-factory",
+        "module": "@opencode-ai/sdk/v2/client",
+        "exportName": "createOpencodeClient"
+      }
+    ],
+    "sdkContractOperations": [
+      {
+        "id": "health",
+        "client": "global.health",
+        "method": "GET",
+        "path": "/global/health"
+      },
+      {
+        "id": "path",
+        "client": "path.get",
+        "method": "GET",
+        "path": "/path"
+      },
+      {
+        "id": "project",
+        "client": "project.current",
+        "method": "GET",
+        "path": "/project/current"
+      },
+      {
+        "id": "configuration",
+        "client": "config.get",
+        "method": "GET",
+        "path": "/config"
+      },
+      {
+        "id": "provider",
+        "client": "provider.list",
+        "method": "GET",
+        "path": "/provider"
+      },
+      {
+        "id": "model",
+        "client": "provider.list",
+        "method": "GET",
+        "path": "/provider"
+      },
+      {
+        "id": "agent",
+        "client": "app.agents",
+        "method": "GET",
+        "path": "/agent"
+      },
+      {
+        "id": "session",
+        "client": "session.create",
+        "method": "POST",
+        "path": "/session"
+      },
+      {
+        "id": "message",
+        "client": "session.messages",
+        "method": "GET",
+        "path": "/session/{sessionID}/message"
+      },
+      {
+        "id": "mcp",
+        "client": "mcp.status",
+        "method": "GET",
+        "path": "/mcp"
+      },
+      {
+        "id": "prompt",
+        "client": "session.prompt",
+        "method": "POST",
+        "path": "/session/{sessionID}/message"
+      },
+      {
+        "id": "cancellation",
+        "client": "session.abort",
+        "method": "POST",
+        "path": "/session/{sessionID}/abort"
+      },
+      {
+        "id": "permission",
+        "client": "permission.list",
+        "method": "GET",
+        "path": "/permission"
+      },
+      {
+        "id": "tool",
+        "client": "tool.list",
+        "method": "GET",
+        "path": "/experimental/tool"
+      },
+      {
+        "id": "event",
+        "client": "event.subscribe",
+        "method": "GET",
+        "path": "/event"
+      },
+      {
+        "id": "capability",
+        "client": "experimental.capabilities.get",
+        "method": "GET",
+        "path": "/experimental/capabilities"
+      }
+    ],
+    "sdkContractNegatives": [
+      {
+        "id": "unsupported-route",
+        "boundary": "official-http",
+        "status": 501,
+        "code": "OPENCODE_CAPABILITY_UNAVAILABLE"
+      },
+      {
+        "id": "stale-generation",
+        "boundary": "loopback-authentication",
+        "status": 401,
+        "code": "HARMONY_AUTH_REQUIRED"
+      },
+      {
+        "id": "missing-credential",
+        "boundary": "loopback-authentication",
+        "status": 401,
+        "code": "HARMONY_AUTH_REQUIRED"
+      },
+      {
+        "id": "invalid-credential",
+        "boundary": "loopback-authentication",
+        "status": 401,
+        "code": "HARMONY_AUTH_REQUIRED"
+      },
+      {
+        "id": "disallowed-origin",
+        "boundary": "loopback-authentication",
+        "status": 403,
+        "code": "HARMONY_ORIGIN_REJECTED"
+      },
+      {
+        "id": "malformed-payload",
+        "boundary": "official-http",
+        "status": 400,
+        "code": "BadRequest"
+      },
+      {
+        "id": "bounded-timeout",
+        "boundary": "network-transport",
+        "code": "HARMONY_NETWORK_TIMEOUT"
+      },
+      {
+        "id": "redacted-error",
+        "boundary": "all-public-boundaries",
+        "code": "REDACTED"
+      }
+    ],
+    "capabilityContracts": [
+      {
+        "id": "platform-capability-schema",
+        "module": "@opencode-ai/protocol/capability",
+        "exportName": "PlatformCapabilities"
+      },
+      {
+        "id": "capability-unavailable-error",
+        "module": "@opencode-ai/protocol/errors",
+        "exportName": "CapabilityUnavailableError"
+      },
+      {
+        "id": "platform-capability-provider",
+        "module": "@opencode-ai/opencode/server/platform-capabilities",
+        "exportName": "createPlatformCapabilityProvider"
+      }
+    ],
+    "platformCapabilities": {
+      "version": 1,
+      "profile": "harmony-tier-a",
+      "gates": [
+        {
+          "capability": "git",
+          "state": "unavailable",
+          "tier": "B",
+          "gate": "packaged-git",
+          "reason": "Packaged Git is rejected: no pinned HAP-owned candidate exists and exact exit status is not preserved."
+        },
+        {
+          "capability": "ripgrep",
+          "state": "unavailable",
+          "tier": "B",
+          "gate": "packaged-ripgrep",
+          "reason": "Native ripgrep is rejected because nonzero exit status collapses to zero; process-free search remains selected."
+        },
+        {
+          "capability": "watcher",
+          "state": "unavailable",
+          "tier": "B",
+          "gate": "watcher",
+          "reason": "No OpenHarmony native watcher binding is accepted; the bounded process-free watcher remains selected."
+        },
+        {
+          "capability": "static-extension",
+          "state": "unavailable",
+          "tier": "B",
+          "gate": "static-extension",
+          "reason": "No HAP-owned executable plugin or formatter candidate passed the packaged-extension gate."
+        },
+        {
+          "capability": "shell",
+          "state": "unavailable",
+          "tier": "C",
+          "gate": "packaged-shell",
+          "reason": "Shell execution is rejected because no packaged shell is accepted and exact child exit status is not preserved."
+        },
+        {
+          "capability": "pty",
+          "state": "unavailable",
+          "tier": "C",
+          "gate": "pty",
+          "reason": "No OpenHarmony PTY binding or HAP-owned replacement passed the device gate."
+        },
+        {
+          "capability": "stdio-mcp",
+          "state": "unavailable",
+          "tier": "C",
+          "gate": "stdio-mcp",
+          "reason": "Local stdio MCP is rejected because no packaged server and exact bidirectional process transport are accepted."
+        },
+        {
+          "capability": "external-lsp",
+          "state": "unavailable",
+          "tier": "C",
+          "gate": "external-lsp",
+          "reason": "External LSP is rejected because no packaged language server and exact process lifecycle are accepted."
+        },
+        {
+          "capability": "worktree",
+          "state": "unavailable",
+          "tier": "C",
+          "gate": "worktree",
+          "reason": "Worktree is rejected because its Git and child-process prerequisites are unavailable."
+        },
+        {
+          "capability": "dynamic-plugin",
+          "state": "unavailable",
+          "tier": "C",
+          "gate": "dynamic-plugin",
+          "reason": "Runtime plugin or npm installation is not accepted by the Tier-A security profile."
+        },
+        {
+          "capability": "external-formatter",
+          "state": "unavailable",
+          "tier": "C",
+          "gate": "external-formatter",
+          "reason": "External formatter execution is rejected because no owned formatter candidate or exact process transport is accepted."
+        },
+        {
+          "capability": "node-fork",
+          "state": "unavailable",
+          "tier": "C",
+          "gate": "node-fork",
+          "reason": "Node fork start and IPC work in isolation, but child exit status is not preserved in the validated HAP process model."
+        }
+      ]
+    },
+    "liveResourceState": "owned-by-existing-provider-mcp-lsp-session-routes",
+    "generatedTypeSources": [
+      {
+        "path": "opencode/packages/sdk/js/script/build.ts",
+        "sha256": "84fa71817a18cb600acf1e156b860f6952edbce16bbacffc335e57234ebab3d3"
+      },
+      {
+        "path": "opencode/packages/sdk/js/src/v2/client.ts",
+        "sha256": "db501c3c775f8d1bea4f150b78188678d4c30dea39e94d2f7d08e9a63010a336"
+      },
+      {
+        "path": "opencode/packages/sdk/js/src/v2/gen/sdk.gen.ts",
+        "sha256": "2bb9c8106f8fc412dc7516b2f25ecc8c090321e631d772356b936d32b9227b5f"
+      },
+      {
+        "path": "opencode/packages/sdk/js/src/v2/gen/types.gen.ts",
+        "sha256": "928c42a7f703ff35828282113b3151077f69b91c908b0bd2b0e368645493c819"
+      },
+      {
+        "path": "opencode/packages/opencode/src/server/routes/instance/httpapi/public.ts",
+        "sha256": "7568a3e67dc6b50da4ce048c0c60ff46571289fe51bdf5fe0b90655b6044ad31"
+      }
+    ],
+    "internalEvents": [
+      "ide.installed"
+    ],
+    "disabledHandlerGroups": [
+      "pty",
+      "tui"
+    ],
+    "harmonyBusinessDispatcher": false
+  },
+  "stablePersistencePlatform": {
+    "version": 1,
+    "authority": "upstream-node-sqlite-schema-migrations",
+    "databasePath": "hap-private-data/opencode.db",
+    "context": "upstream-instance-ref-selected-authorized-project",
+    "sessionProjection": "none"
+  },
+  "stableConfigurationPlatform": {
+    "version": 1,
+    "authority": "upstream-config-instruction",
+    "globalRoot": "hap-private-global-config",
+    "projectRoot": "selected-authorized-project",
+    "precedence": [
+      "application-private-global",
+      "authorized-project-opencode",
+      "authorized-project-dot-opencode"
+    ],
+    "globalInstructions": {
+      "filename": "AGENTS.md",
+      "sha256": "320f2e6575b308644f93494c709870d762dd23b393bb63946b612b9badf6b22f"
+    },
+    "legacyGlobalInstructions": {
+      "filename": "AGENTS.md",
+      "sha256": "c6b65c965fb7fcfd8a39038ffe523e38aba46014748ff6acb5c2e58d890e24b0",
+      "action": "upgrade-known-default-or-copy-user-content"
+    },
+    "projectInstructionsCopied": false
+  },
+  "stableCredentialPlatform": {
+    "version": 1,
+    "authority": "upstream-auth",
+    "target": "hap-private-global-data/auth.json",
+    "fileMode": "0600",
+    "migration": "copy-normalize-preserve-source",
+    "legacySources": [
+      "rollback-spike-application-private-auth"
+    ],
+    "embeddedClientCredentials": false,
+    "publicSecrets": false,
+    "invalidation": "synchronous-global-instance-disposal",
+    "missingCredential": "no-file-no-provider-connection"
+  },
+  "stateMigrationPlatform": {
+    "version": 1,
+    "migrationId": "minimal-v1-to-formal-v1",
+    "sourceRoot": "files/opencode_spike/opencode/opencode",
+    "targetRoot": "files/opencode-formal/vN",
+    "sourceMutation": false,
+    "databaseSnapshot": "node-sqlite-backup",
+    "databaseProjection": "session-message-to-stable-message-part-on-copy",
+    "commitMarker": "migrations/vN/minimal-v1-to-formal-v1/committed.json",
+    "domains": [
+      "sessions",
+      "messages",
+      "tool-history",
+      "provider-config",
+      "catalog",
+      "credentials",
+      "project-authorization"
+    ]
+  },
+  "stableAgentWorkspacePlatform": {
+    "version": 1,
+    "authority": "upstream-agent-instruction-command-skill-question-todo",
+    "services": [
+      "agent",
+      "instruction",
+      "command",
+      "skill",
+      "system-prompt",
+      "question",
+      "session-todo"
+    ],
+    "instructionPrecedence": [
+      "application-private-global",
+      "authorized-project",
+      "configured-sources"
+    ],
+    "staticInputs": [
+      {
+        "path": "formal-runtime/assets/config/AGENTS.md",
+        "sha256": "320f2e6575b308644f93494c709870d762dd23b393bb63946b612b9badf6b22f"
+      },
+      {
+        "path": "opencode/packages/opencode/src/command/template/initialize.txt",
+        "sha256": "64ed410a766491856b2f2b1ee6e62b3d40dd2bc80b233762b81070ff33dd01df"
+      },
+      {
+        "path": "opencode/packages/opencode/src/command/template/review.txt",
+        "sha256": "1f7412b34a7f50581c2e036b7bae6083f4b3910911ec5f4a6e4d31c86018f2b9"
+      },
+      {
+        "path": "opencode/packages/core/src/plugin/skill/customize-opencode.md",
+        "sha256": "50e785d69ff42c24e75103fee9e9a82e240ac7c192a01cc0bd6530d582c0b238"
+      }
+    ],
+    "remoteSkillDiscovery": "unavailable-by-packaged-extension-policy",
+    "capabilityCeiling": "selected-tier-a-profile-and-authorized-filesystem",
+    "projectRulesMayExpandCapabilities": false,
+    "projectInstructionsCopied": false
+  },
+  "stableExtensionPlatform": {
+    "version": 1,
+    "policyId": "harmony-tier-a-packaged-extensions",
+    "manifest": {
+      "path": "openspec/changes/port-upstream-opencode-runtime-to-harmony/manifests/packaged-extensions.json",
+      "sha256": "ddea1ee6c64565fab219f275159db6ffa0c4e3309b426b350aee7235f091d82c"
+    },
+    "selection": "build-time-only",
+    "counts": {
+      "command": 2,
+      "skill": 1,
+      "plugin": 0,
+      "formatter": 0
+    },
+    "executableEntries": 0,
+    "runtimeNpmInstallation": false,
+    "remoteSkillDownloads": false,
+    "downloadedExecution": false,
+    "unlisted": "reject",
+    "projectCommands": "instruction-data-with-capability-ceiling",
+    "projectSkills": "instruction-data-with-capability-ceiling",
+    "projectExtensionScripts": false,
+    "futureExecutableGate": "harmony-exp-static-extensions"
+  },
+  "stableModelCatalogPlatform": {
+    "version": 1,
+    "manifest": {
+      "path": "openspec/changes/port-upstream-opencode-runtime-to-harmony/manifests/model-catalog-snapshot.json",
+      "sha256": "a9e5b12b220f0d6fde0945e05476cb4243811c5696eace910dd00b8fac646944"
+    },
+    "authority": "upstream-models-dev-provider",
+    "source": "https://models.dev",
+    "precedence": [
+      "private-cache",
+      "packaged-snapshot",
+      "bounded-refresh"
+    ],
+    "normalization": "upstream-provider",
+    "customUncatalogedProvider": "upstream-config-merge",
+    "limits": {
+      "maximumBytes": 8388608,
+      "maximumProviders": 512,
+      "maximumModels": 20000,
+      "staleAfterMs": 300000,
+      "refreshIntervalMs": 3600000,
+      "timeoutMs": 10000
+    },
+    "snapshot": {
+      "path": "assets/models-dev-api.json",
+      "sha256": "44aa5327db67ed67890026cac3c13f10af6ccf38e1154880031abf6f296b93f9",
+      "bytes": 3195726,
+      "providers": 167,
+      "models": 5690
+    },
+    "metadata": {
+      "path": "assets/models-dev-api.metadata.json",
+      "sha256": "e0f3c445b717439707944faaa24a8f36dc5a8df39d84fde5ea69067ddf68ba59"
+    }
+  },
+  "stableModelOverridePlatform": {
+    "version": 1,
+    "authority": "upstream-global-config-provider",
+    "productDefaultModel": "none",
+    "catalogLimits": "upstream-models-dev-provider-normalization",
+    "manualOverrides": "upstream-config-provider-merge",
+    "invalidOverride": "schema-rejected-before-write",
+    "activation": "dispose-instance-and-resolve-provider-on-next-turn",
+    "runtimeProcessRestart": false,
+    "legacyMinimalDefaults": "diagnostic-and-rollback-only"
+  },
+  "stableProviderTransportPlatform": {
+    "version": 1,
+    "authority": "upstream-provider-ai-sdk",
+    "bundledTransports": [
+      "@ai-sdk/anthropic",
+      "@ai-sdk/openai",
+      "@ai-sdk/openai-compatible"
+    ],
+    "customEndpoints": "upstream-provider-base-url",
+    "invalidCredentials": "upstream-api-call-error",
+    "modelErrors": "upstream-provider-model-not-found",
+    "timeouts": "upstream-header-and-chunk-timeout",
+    "cancellation": "upstream-abort-signal",
+    "diagnostics": "bounded-redacted-provider-diagnostic",
+    "rawProviderErrorsLogged": false
+  },
+  "stableSessionRecoveryPlatform": {
+    "version": 1,
+    "authority": "upstream-session-prompt-processor",
+    "identifiers": "upstream-session-message-part",
+    "lifecycle": [
+      "create",
+      "list",
+      "get",
+      "update",
+      "delete"
+    ],
+    "persistence": "node-sqlite-instance-reconstruction",
+    "multiTurn": "upstream-authoritative-message-history",
+    "toolContinuation": "upstream-session-prompt-loop",
+    "compaction": "upstream-summary-tail-and-continue",
+    "retryError": "retired-on-success",
+    "eventOrdering": "created-before-message-part-update-delete",
+    "recoveryReadMutationReplay": false
+  },
+  "sources": {
+    "harmony": [
+      {
+        "path": "formal-runtime/src/adapters/authorized-project-filesystem.ts",
+        "sha256": "37381d5d44ea691ffb274c5e391973bfdf96ded4d5d03df09b6e621d9776a6e0"
+      },
+      {
+        "path": "formal-runtime/src/adapters/capability-unavailable.ts",
+        "sha256": "1d15971e1133a7b1c20c73ebfa82f378d867457b57539fffc2e256fccd4cc6c5"
+      },
+      {
+        "path": "formal-runtime/src/adapters/changed-path-host-bridge.ts",
+        "sha256": "b344027006ec45a8238975f66873c6674ae535daf9249b029401769af64fd6bf"
+      },
+      {
+        "path": "formal-runtime/src/adapters/configuration-file-store.node.ts",
+        "sha256": "21c29bbfe8274b709c39d10c0c2bad165ce504cae525f6a0e2007f0546324cae"
+      },
+      {
+        "path": "formal-runtime/src/adapters/loopback-security.ts",
+        "sha256": "15e6633533f5f9dbfa8bddd489964e42230b6a23fed79169c587da76d72054fa"
+      },
+      {
+        "path": "formal-runtime/src/adapters/network-transport.ts",
+        "sha256": "76c7ac25c3a2e6f8269f6c4a28c12380024732ccadfb47e395687b2994d7e513"
+      },
+      {
+        "path": "formal-runtime/src/adapters/private-paths.ts",
+        "sha256": "cb42b1397c8c544ca1f169a6e5e8c0839020c6b8fdc9823b5b6220800b347f6f"
+      },
+      {
+        "path": "formal-runtime/src/adapters/search-watcher.ts",
+        "sha256": "e5d899d9048b42a0a3332bde4926aaa279f0255d6d8aef18b6c0c7d840b147eb"
+      },
+      {
+        "path": "formal-runtime/src/adapters/runtime-lifecycle.ts",
+        "sha256": "e4aafd98c2c60d204ca073685c94a3cee58f6162dc7323539d2434495b5eee9f"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-bundled-providers.ts",
+        "sha256": "5613085ff45a141064a20aeb76ef068f50002f6b55cdc8153a422cbf203fb5c9"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-builtin-tool-loader.ts",
+        "sha256": "f8ff7ac9a5af7f4d41eb7a286ceace0d70d0719b150f22fdaa432e87dffd3937"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-builtin-tool-profile.ts",
+        "sha256": "97b7c50569c5da769a2c230c6887eec049ff25b2ecc48d583a098132289fe869"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-capability-unavailable.ts",
+        "sha256": "8b7d0c676f8994656a972b942c6f096ff0cd9567ed910de3ae18ae3f77d69983"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-child-process-spawner.ts",
+        "sha256": "0b21ce7382a88a957f8654d227c0e3be3771f1d501b51ea9c47575a41e8d05ac"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-core-plugin.ts",
+        "sha256": "0c3d6918767a8a7548229be0885313edb74ee6b7c934a1021bcd7c4718bbadf4"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-config-plugin.ts",
+        "sha256": "868ea144aac4843090a85f408f2a493d38d06a1e6a90f956e24529c25f58f65f"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-dynamic-provider.ts",
+        "sha256": "cb7a6aae183e6dd0623814e05a136de6ca0a3e0f2c50c251bb3b0f65de667211"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-effect-sql-migrator.ts",
+        "sha256": "9484c7d19e9b01c91f11a70809c40506fe58f61b88e9678283db0d3cdbfe0b21"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-external-tools.ts",
+        "sha256": "3a30e3b0288bde3c0f71f386939c36dbef86393eb0bb3865965d344884043f8b"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-format.ts",
+        "sha256": "9347c41769a59d05ddbd8ff839ba4a0764113e0c5a62c657e13e31880b0cdb82"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-gitlab-workflow.ts",
+        "sha256": "4d755e465f7bf372850970e9e9a32c42718d845525fbe356472787c96738f0d7"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-global-configuration.ts",
+        "sha256": "72ecfaad17fdd9ae3439e47d65d66331f46e7b01fbeaab1cb883421b0bc735d1"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-provider-credentials.ts",
+        "sha256": "277a5c37fcf511f7bbd761473612af4a6df635ea237ae51e6d4ff9b861a925a4"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-legacy-config.ts",
+        "sha256": "7ea0b5580e62fcd41cd88f2621aa9d61c2389ad4fa86c1ca82dc549cdb99da5a"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-lsp.ts",
+        "sha256": "631401ca859f94b80b385d53bfd0817f7100f267a5d96641b7675d11490db3db"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-location-services.ts",
+        "sha256": "31624c29a0490614a201e24a0111e6b16b92d0e3dda0f7a4e532023f4f2c051c"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-mcp-browser.ts",
+        "sha256": "25df44f0c391682f213879b8aad8a5059215b92cf61f78d7c298250629066ae8"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-mcp.ts",
+        "sha256": "7cf68fbd63da4ed4ef9d384d7c45ad0247653e27e362b168c7d46e87f2ee078b"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-native-llm-runtime.ts",
+        "sha256": "87b0fbc8a76bde89136296ee27b98dac94c65e4c872bd116fc3da0368e06f3be"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-npm.ts",
+        "sha256": "b70f739f2184b4b474b6c4f7deb5037fd6cb04097b8dd1f33d641361f93b9a17"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-npm-config.ts",
+        "sha256": "45911d6b24bc30bbf1c3dd529aadea1a5e67124974c1910428c38398858aee4c"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-observability.ts",
+        "sha256": "477b8345c2ca1ce929099467fa3e36ea5d25a38004b850559564393729b93743"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-ripgrep.ts",
+        "sha256": "dec2b449c2f9544a7c2d27f98801d85fcfbcee25473105cf522d77a6c71c630c"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-selective-server.ts",
+        "sha256": "2740077471ad08d305a35d3a05069e565cfc94905ea56d0f38e90b3ecb1e9ebd"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-plugin.ts",
+        "sha256": "e7908071f0f8879a21b9a61c7ae164e00eff136b07e66c2371223479ae535a9d"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-skill-discovery.ts",
+        "sha256": "102a8aeb65a1d462c0c4d2ba3b0067bbe2429c4c2943d6500e030dca31db894d"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-tool-filesystem-core.ts",
+        "sha256": "91785a9b33faada21c24db6b23c467ac1333e8241d7d5ae59a7874ca8c5f82df"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-tool-filesystem.ts",
+        "sha256": "b8eb21436e09e2d59502d6d8de21bfbd44f76acf7ea439f1c0cecce13c173176"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-ui.ts",
+        "sha256": "9dedfa38efc650bbe667916f24da60bb7c5f26824f1745353802983ac5a489ee"
+      },
+      {
+        "path": "formal-runtime/src/adapters/stable-watcher.ts",
+        "sha256": "01de99c772aa601cccf46a3241ecdeb018e2e7f9c9a2370f7c4d6e85e0b7d249"
+      },
+      {
+        "path": "formal-runtime/src/bootstrap/native-child-entry.ts",
+        "sha256": "86c0760f33f79c1173f6feb1d7074015acfcafa46fb6017bc422412513857337"
+      },
+      {
+        "path": "formal-runtime/src/bootstrap/runtime.ts",
+        "sha256": "8aa4e30a6dac8efde128cb9990cabcee5885bd1edbf517b1888b907380b588ea"
+      },
+      {
+        "path": "formal-runtime/src/composition/harmony-tier-a.ts",
+        "sha256": "81f20e5603879acefe8c0162e14b02fa13cd08d0680f8e443d10080991e727e5"
+      },
+      {
+        "path": "formal-runtime/src/composition/stable-official-api.ts",
+        "sha256": "79a67e243ac7a1dedb4683f42cdb7cedb31225a3243ddd7f1b4cad36ba807d8e"
+      },
+      {
+        "path": "formal-runtime/src/composition/stable-persistence.ts",
+        "sha256": "079a63ff3f511ec1cecc759ca32ebecb6fcdb9d7da69248079540bc7aa8f177e"
+      },
+      {
+        "path": "formal-runtime/src/composition/stable-model-catalog.ts",
+        "sha256": "52f338a562d282437a8f5a756fa0bfb691342834de30ca83f54da65ce7430a0b"
+      },
+      {
+        "path": "formal-runtime/src/migrations/copy-before-transform.ts",
+        "sha256": "6273f648a0acd79580dc80ea97a20f2e2e5b2707f0dd866ddfd1a69842d92f8c"
+      },
+      {
+        "path": "formal-runtime/src/migrations/copy-before-transform.node.ts",
+        "sha256": "8116c515e7eb78a97379ee3bd5fd09ceefdca9900e7bc22afb1d82f54b46c46f"
+      },
+      {
+        "path": "formal-runtime/src/migrations/legacy-session-message-projection.ts",
+        "sha256": "d045e4444f9e42d85924c6d1a6428ebbbace8836032f28cf906fb873cfc11d60"
+      },
+      {
+        "path": "formal-runtime/assets/config/AGENTS.md",
+        "sha256": "320f2e6575b308644f93494c709870d762dd23b393bb63946b612b9badf6b22f"
+      },
+      {
+        "path": "formal-runtime/assets/config/legacy-harmony-AGENTS-v1.md",
+        "sha256": "c6b65c965fb7fcfd8a39038ffe523e38aba46014748ff6acb5c2e58d890e24b0"
+      },
+      {
+        "path": "openspec/changes/port-upstream-opencode-runtime-to-harmony/manifests/packaged-extensions.json",
+        "sha256": "ddea1ee6c64565fab219f275159db6ffa0c4e3309b426b350aee7235f091d82c"
+      }
+    ],
+    "upstreamComponents": [
+      "@opencode-ai/core/agent",
+      "@opencode-ai/core/command",
+      "@opencode-ai/core/credential",
+      "@opencode-ai/core/database/database",
+      "@opencode-ai/core/effect/app-node-platform",
+      "@opencode-ai/core/effect/layer-node",
+      "@opencode-ai/core/event",
+      "@opencode-ai/core/file-mutation",
+      "@opencode-ai/core/global",
+      "@opencode-ai/core/image",
+      "@opencode-ai/core/integration",
+      "@opencode-ai/core/location",
+      "@opencode-ai/core/location-mutation",
+      "@opencode-ai/core/models-dev",
+      "@opencode-ai/core/permission",
+      "@opencode-ai/core/permission/saved",
+      "@opencode-ai/core/policy",
+      "@opencode-ai/core/question",
+      "@opencode-ai/core/reference",
+      "@opencode-ai/core/reference/guidance",
+      "@opencode-ai/core/session/todo",
+      "@opencode-ai/core/skill",
+      "@opencode-ai/core/skill/guidance",
+      "@opencode-ai/core/system-context/builtins",
+      "@opencode-ai/core/system-context/registry",
+      "@opencode-ai/core/tool-output-store",
+      "@opencode-ai/core/tool/application-tools",
+      "@opencode-ai/core/tool/read-filesystem",
+      "@opencode-ai/core/tool/registry",
+      "@opencode-ai/opencode/agent/agent",
+      "@opencode-ai/opencode/auth/index",
+      "@opencode-ai/opencode/command/index",
+      "@opencode-ai/opencode/config/config",
+      "@opencode-ai/opencode/effect/instance-ref",
+      "@opencode-ai/opencode/event-manifest",
+      "@opencode-ai/opencode/event-v2-bridge",
+      "@opencode-ai/opencode/permission/index",
+      "@opencode-ai/opencode/provider/provider",
+      "@opencode-ai/opencode/provider/transform",
+      "@opencode-ai/opencode/question/index",
+      "@opencode-ai/opencode/server/platform-capabilities",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/config",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/control",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/control-plane",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/event",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/experimental",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/file",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/global",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/instance",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/mcp",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/permission",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/project",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/project-copy",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/provider",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/question",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/session",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/sync",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/groups/workspace",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/config",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/control",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/control-plane",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/experimental",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/file",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/global",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/instance",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/mcp",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/permission",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/project",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/project-copy",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/provider",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/question",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/session",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/sync",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handler-factories/workspace",
+      "@opencode-ai/opencode/server/routes/instance/httpapi/handlers/event",
+      "@opencode-ai/opencode/session/compaction",
+      "@opencode-ai/opencode/session/instruction",
+      "@opencode-ai/opencode/session/llm",
+      "@opencode-ai/opencode/session/message-v2",
+      "@opencode-ai/opencode/session/processor",
+      "@opencode-ai/opencode/session/prompt",
+      "@opencode-ai/opencode/session/retry",
+      "@opencode-ai/opencode/session/revert",
+      "@opencode-ai/opencode/session/run-state",
+      "@opencode-ai/opencode/session/session",
+      "@opencode-ai/opencode/session/status",
+      "@opencode-ai/opencode/session/summary",
+      "@opencode-ai/opencode/session/system",
+      "@opencode-ai/opencode/session/todo",
+      "@opencode-ai/opencode/session/tools",
+      "@opencode-ai/opencode/skill/index",
+      "@opencode-ai/opencode/tool/apply_patch",
+      "@opencode-ai/opencode/tool/edit",
+      "@opencode-ai/opencode/tool/glob",
+      "@opencode-ai/opencode/tool/grep",
+      "@opencode-ai/opencode/tool/question",
+      "@opencode-ai/opencode/tool/read",
+      "@opencode-ai/opencode/tool/registry",
+      "@opencode-ai/opencode/tool/skill",
+      "@opencode-ai/opencode/tool/todo",
+      "@opencode-ai/opencode/tool/webfetch",
+      "@opencode-ai/opencode/tool/websearch",
+      "@opencode-ai/opencode/tool/write",
+      "@opencode-ai/protocol/capability",
+      "@opencode-ai/protocol/errors",
+      "@opencode-ai/protocol/groups/agent",
+      "@opencode-ai/protocol/groups/command",
+      "@opencode-ai/protocol/groups/credential",
+      "@opencode-ai/protocol/groups/event",
+      "@opencode-ai/protocol/groups/fs",
+      "@opencode-ai/protocol/groups/health",
+      "@opencode-ai/protocol/groups/integration",
+      "@opencode-ai/protocol/groups/location",
+      "@opencode-ai/protocol/groups/message",
+      "@opencode-ai/protocol/groups/model",
+      "@opencode-ai/protocol/groups/permission",
+      "@opencode-ai/protocol/groups/provider",
+      "@opencode-ai/protocol/groups/question",
+      "@opencode-ai/protocol/groups/reference",
+      "@opencode-ai/protocol/groups/session",
+      "@opencode-ai/protocol/groups/skill",
+      "@opencode-ai/sdk/v2/client",
+      "@opencode-ai/sdk/v2/gen/sdk.gen",
+      "@opencode-ai/server/handlers/agent",
+      "@opencode-ai/server/handlers/command",
+      "@opencode-ai/server/handlers/credential",
+      "@opencode-ai/server/handlers/event",
+      "@opencode-ai/server/handlers/fs",
+      "@opencode-ai/server/handlers/health",
+      "@opencode-ai/server/handlers/integration",
+      "@opencode-ai/server/handlers/location",
+      "@opencode-ai/server/handlers/model",
+      "@opencode-ai/server/handlers/permission",
+      "@opencode-ai/server/handlers/provider",
+      "@opencode-ai/server/handlers/question",
+      "@opencode-ai/server/handlers/reference",
+      "@opencode-ai/server/handlers/skill"
+    ],
+    "upstreamContractSources": [
+      {
+        "path": "opencode/packages/sdk/js/script/build.ts",
+        "sha256": "84fa71817a18cb600acf1e156b860f6952edbce16bbacffc335e57234ebab3d3"
+      },
+      {
+        "path": "opencode/packages/sdk/js/src/v2/client.ts",
+        "sha256": "db501c3c775f8d1bea4f150b78188678d4c30dea39e94d2f7d08e9a63010a336"
+      },
+      {
+        "path": "opencode/packages/sdk/js/src/v2/gen/sdk.gen.ts",
+        "sha256": "2bb9c8106f8fc412dc7516b2f25ecc8c090321e631d772356b936d32b9227b5f"
+      },
+      {
+        "path": "opencode/packages/sdk/js/src/v2/gen/types.gen.ts",
+        "sha256": "928c42a7f703ff35828282113b3151077f69b91c908b0bd2b0e368645493c819"
+      },
+      {
+        "path": "opencode/packages/opencode/src/server/routes/instance/httpapi/public.ts",
+        "sha256": "7568a3e67dc6b50da4ce048c0c60ff46571289fe51bdf5fe0b90655b6044ad31"
+      }
+    ],
+    "platformModules": [
+      "@opencode-ai/core/effect/app-node",
+      "effect",
+      "effect/unstable/http",
+      "effect/unstable/httpapi"
+    ]
+  },
+  "selectedComponents": 173,
+  "harmonyReplacements": 9,
+  "outputs": [
+    {
+      "path": "assets/models-dev-api.json",
+      "bytes": 3195726,
+      "sha256": "44aa5327db67ed67890026cac3c13f10af6ccf38e1154880031abf6f296b93f9"
+    },
+    {
+      "path": "assets/models-dev-api.metadata.json",
+      "bytes": 207,
+      "sha256": "e0f3c445b717439707944faaa24a8f36dc5a8df39d84fde5ea69067ddf68ba59"
+    },
+    {
+      "path": "assets/node-fetch-harmony.cjs",
+      "bytes": 385070,
+      "sha256": "01262537391ee3e32fc4f53adadb88bc30d7608e2ad96c47f4da713aab6e0980"
+    },
+    {
+      "path": "assets/photon_rs_bg-bq08arze.wasm",
+      "bytes": 1881634,
+      "sha256": "12fb9a326d49c39eebed3712195a34ed9becba8bc9a0a16f60a63ff9af1f3820"
+    },
+    {
+      "path": "opencode-harmony-runtime.mjs",
+      "bytes": 15831136,
+      "sha256": "c4c2289a9f99254a7820aedadd7af92757225841f18342f3afe9186225110959"
+    }
+  ],
+  "output": {
+    "path": "formal-runtime/generated/runtime/opencode-harmony-runtime.mjs",
+    "bytes": 15831136,
+    "sha256": "c4c2289a9f99254a7820aedadd7af92757225841f18342f3afe9186225110959",
+    "format": "esm",
+    "target": "node",
+    "sourceMaps": false,
+    "runtimePackageInstallation": false
+  },
+  "verification": {
+    "deterministicBuilds": 2,
+    "isolatedStaticParse": "pass",
+    "emptyPathStaticParse": "pass",
+    "targetRuntimeExecution": "deferred-to-packaged-libnode-gate",
+    "devNodeOh": "not-used",
+    "globalNode": "not-used"
+  }
+}

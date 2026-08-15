@@ -82,6 +82,15 @@ export function packageOpenCodeAssets() {
   console.log("=========================================");
   console.log(`  Target: ${destination}`);
 
+  if (!existsSync(runtimeRoot) || !existsSync(clientRoot)) {
+    if (existsSync(path.join(destination, "package-manifest.json"))) {
+      console.log("  ✓ Using pre-packaged rawfile/opencode_formal assets from repository.");
+      packageGodotMcpAddon();
+      console.log("=========================================\n");
+      return;
+    }
+  }
+
   if (existsSync(staging)) {
     rmSync(staging, { recursive: true, force: true });
   }

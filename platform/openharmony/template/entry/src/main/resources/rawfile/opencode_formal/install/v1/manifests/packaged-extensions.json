@@ -1,0 +1,65 @@
+{
+  "schemaVersion": 1,
+  "policyId": "harmony-tier-a-packaged-extensions",
+  "upstream": {
+    "revision": "f47684787ad07e5311bd9422c1a9eb70c9966274",
+    "version": "1.17.18",
+    "license": {
+      "spdx": "MIT",
+      "path": "opencode/LICENSE",
+      "sha256": "b5c625d157735f04e1b2b7ceccee849130b554bdb23cd58db55a38a257efbbdd"
+    }
+  },
+  "enforcement": {
+    "selection": "build-time-only",
+    "unlisted": "reject",
+    "runtimeNpmInstallation": false,
+    "remoteSkillDownloads": false,
+    "downloadedExecution": false,
+    "projectCommands": "instruction-data-with-capability-ceiling",
+    "projectSkills": "instruction-data-with-capability-ceiling",
+    "projectExtensionScripts": false
+  },
+  "categories": {
+    "command": 2,
+    "skill": 1,
+    "plugin": 0,
+    "formatter": 0
+  },
+  "extensions": [
+    {
+      "id": "command.init",
+      "kind": "command",
+      "path": "opencode/packages/opencode/src/command/template/initialize.txt",
+      "sha256": "64ed410a766491856b2f2b1ee6e62b3d40dd2bc80b233762b81070ff33dd01df",
+      "format": "prompt-text",
+      "executable": false,
+      "runtimeNetwork": false,
+      "source": "pinned-upstream"
+    },
+    {
+      "id": "command.review",
+      "kind": "command",
+      "path": "opencode/packages/opencode/src/command/template/review.txt",
+      "sha256": "1f7412b34a7f50581c2e036b7bae6083f4b3910911ec5f4a6e4d31c86018f2b9",
+      "format": "prompt-text",
+      "executable": false,
+      "runtimeNetwork": false,
+      "source": "pinned-upstream"
+    },
+    {
+      "id": "skill.customize-opencode",
+      "kind": "skill",
+      "path": "opencode/packages/core/src/plugin/skill/customize-opencode.md",
+      "sha256": "50e785d69ff42c24e75103fee9e9a82e240ac7c192a01cc0bd6530d582c0b238",
+      "format": "markdown-instruction",
+      "executable": false,
+      "runtimeNetwork": false,
+      "source": "pinned-upstream"
+    }
+  ],
+  "futureGates": {
+    "plugin": "harmony-exp-static-extensions",
+    "formatter": "harmony-exp-static-extensions"
+  }
+}

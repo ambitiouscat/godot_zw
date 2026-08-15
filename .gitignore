@@ -67,8 +67,8 @@ tests/data/crypto/out*
 *.Plo
 *.so
 *.so.*
-/platform/openharmony/template/entry/libs/
-/platform/openharmony/template/entry/src/main/resources/rawfile/opencode_formal/
+!/platform/openharmony/template/entry/libs/arm64-v8a/libnode.so.137
+/platform/openharmony/template/entry/libs/**/libgodot.so
 # Binutils tmp linker output of the form "stXXXXXX" where "X" is alphanumeric
 st[A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9][A-Za-z0-9]
 

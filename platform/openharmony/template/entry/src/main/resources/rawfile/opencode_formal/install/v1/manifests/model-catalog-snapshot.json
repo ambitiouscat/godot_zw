@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "source": "https://models.dev/api.json",
+  "snapshot": {
+    "path": "formal-runtime/assets/models-dev/models-dev-api.json",
+    "sha256": "44aa5327db67ed67890026cac3c13f10af6ccf38e1154880031abf6f296b93f9",
+    "bytes": 3195726,
+    "providers": 167,
+    "models": 5690
+  },
+  "metadata": {
+    "path": "formal-runtime/assets/models-dev/models-dev-api.metadata.json",
+    "sha256": "e0f3c445b717439707944faaa24a8f36dc5a8df39d84fde5ea69067ddf68ba59"
+  },
+  "generatedOutputs": {
+    "snapshot": "assets/models-dev-api.json",
+    "metadata": "assets/models-dev-api.metadata.json"
+  },
+  "limits": {
+    "maximumBytes": 8388608,
+    "maximumProviders": 512,
+    "maximumModels": 20000,
+    "staleAfterMs": 300000,
+    "refreshIntervalMs": 3600000,
+    "timeoutMs": 10000
+  },
+  "policy": {
+    "source": "fixed-models-dev",
+    "precedence": ["private-cache", "packaged-snapshot", "bounded-refresh"],
+    "normalization": "upstream-models-dev-provider",
+    "invalidRefresh": "preserve-last-known-good"
+  }
+}

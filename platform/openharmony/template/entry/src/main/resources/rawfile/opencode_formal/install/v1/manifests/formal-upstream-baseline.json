@@ -1,0 +1,482 @@
+{
+  "schemaVersion": 1,
+  "baselineId": "opencode-f4768478-node24.13-sdk6.1.0.105",
+  "capturedOn": "2026-07-22",
+  "upstream": {
+    "repository": "https://github.com/anomalyco/opencode.git",
+    "revision": "f47684787ad07e5311bd9422c1a9eb70c9966274",
+    "tree": "c0d28973357332ef7feb4b08a401fcf2913b2d12",
+    "version": "1.17.18",
+    "packageManager": "bun@1.3.14",
+    "rootPackage": {
+      "path": "opencode/package.json",
+      "bytes": 5777,
+      "sha256": "0761fee47ec9393f8e63b8e55aa89ede8b5b6713af34f14c7fcc8e8d22ebc81b"
+    },
+    "lockfile": {
+      "path": "opencode/bun.lock",
+      "bytes": 872762,
+      "sha256": "2644650fa1e90a3d6412beda4810af9b9260d8886d79fb6ba99f21032ae09e6f"
+    },
+    "workspacePackages": [
+      {
+        "name": "@opencode-ai/app",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/app/package.json",
+        "sha256": "1c4de69e7eef7be4c516d79f17fa404d55d30982f22f6f8077b3abb2c8577e64"
+      },
+      {
+        "name": "@opencode-ai/cli",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/cli/package.json",
+        "sha256": "3fc65891198e01b0d03a7679a3e6abdfdeb53970307006cf11489d4c663b959c"
+      },
+      {
+        "name": "@opencode-ai/client",
+        "version": null,
+        "private": true,
+        "path": "opencode/packages/client/package.json",
+        "sha256": "e0ac56f08f30dc26b336bc728a58310bd8246a430633726c79d5de3e10944a6e"
+      },
+      {
+        "name": "@opencode-ai/codemode",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/codemode/package.json",
+        "sha256": "4694820d487d1a79f9c2f79c60b44f8823698887c4e5aebbccdecfd1c472abbd"
+      },
+      {
+        "name": "@opencode-ai/console-app",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/console/app/package.json",
+        "sha256": "4601d1ce0355a67050438b4469277ff5f68926954c88ae1978cf62b5527bf698"
+      },
+      {
+        "name": "@opencode-ai/console-core",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/console/core/package.json",
+        "sha256": "b85ac20b825d664c3b01eb0cd88445a16563fa63c9068d02ed0de8c47c92671a"
+      },
+      {
+        "name": "@opencode-ai/console-function",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/console/function/package.json",
+        "sha256": "8457057bf8604c638b6b546bf6c8b577731aacb39177b9c81e38fe7f088619c1"
+      },
+      {
+        "name": "@opencode-ai/console-mail",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/console/mail/package.json",
+        "sha256": "217900971d8b680524e11299905b7fc2d9b50d93edb9e147bc9ddfa393c4520d"
+      },
+      {
+        "name": "@opencode-ai/console-resource",
+        "version": null,
+        "private": false,
+        "path": "opencode/packages/console/resource/package.json",
+        "sha256": "31f3495bd790338129a33706eaec70ed04b7b9f543ef5cf5382f73d0f3a58a43"
+      },
+      {
+        "name": "@opencode-ai/console-support",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/console/support/package.json",
+        "sha256": "bbb8a5fb391c583ac6429059b7f6e3db2f3deda5e4575ca83fe7d3f322a4277d"
+      },
+      {
+        "name": "@opencode-ai/core",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/core/package.json",
+        "sha256": "3661fa0f2372d8a65e02a0e1639d716c4c1368fffe982ad8c56aff2a567257df"
+      },
+      {
+        "name": "@opencode-ai/desktop",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/desktop/package.json",
+        "sha256": "d3d4a6f57faf7f831215449b4134ce814a384cd39109345adde7980b57383ea4"
+      },
+      {
+        "name": "@opencode-ai/effect-drizzle-sqlite",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/effect-drizzle-sqlite/package.json",
+        "sha256": "9dca105fbb19330593bb22e86db017b8bc3637e87e4d95c1669bfafcc0edf022"
+      },
+      {
+        "name": "@opencode-ai/effect-sqlite-node",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/effect-sqlite-node/package.json",
+        "sha256": "45fa32cd755b92442f5fe062309876adc31dc1da7914affbd22239b7787f83c4"
+      },
+      {
+        "name": "@opencode-ai/enterprise",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/enterprise/package.json",
+        "sha256": "25f7b3736d568f8ffb5965181e7d1951b50abcf4221db75717d4b748a1f96038"
+      },
+      {
+        "name": "@opencode-ai/function",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/function/package.json",
+        "sha256": "359946399c239be2154423bf736abb52de8523b4e70a9778250e7e9674ee9d18"
+      },
+      {
+        "name": "@opencode-ai/http-recorder",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/http-recorder/package.json",
+        "sha256": "05b75377fee07ba1efdc3343e434fc98fa915a6b473ca65d32f9720bdab271a6"
+      },
+      {
+        "name": "@opencode-ai/httpapi-codegen",
+        "version": null,
+        "private": true,
+        "path": "opencode/packages/httpapi-codegen/package.json",
+        "sha256": "d1cc1bf58b06708839ed9678bfb2f2e23978094a0044af81a63603b9ac3c3bf0"
+      },
+      {
+        "name": "@opencode-ai/llm",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/llm/package.json",
+        "sha256": "6bde331e17e57a6535a05c2ba7f9b5acebca20d8448f499dd9e1c06df492ece2"
+      },
+      {
+        "name": "opencode",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/opencode/package.json",
+        "sha256": "fea4e5056aeee19b2ded81489496d5ba33a9096410981e7b07bd59ad16bfd87a"
+      },
+      {
+        "name": "@opencode-ai/plugin",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/plugin/package.json",
+        "sha256": "62708806d747c7101bde0e88affa3e76910599069be275cca17624e2b8b225f9"
+      },
+      {
+        "name": "@opencode-ai/protocol",
+        "version": null,
+        "private": true,
+        "path": "opencode/packages/protocol/package.json",
+        "sha256": "b8c16e440ed7ae4e39d3c0ea853b0c275ff08790ea9ead4ea7d4a61fe527e5b2"
+      },
+      {
+        "name": "@opencode-ai/schema",
+        "version": null,
+        "private": true,
+        "path": "opencode/packages/schema/package.json",
+        "sha256": "63e65d715d37ff945d9e42a1892e8ce5eeee0128d95ebf335764b100715f6f75"
+      },
+      {
+        "name": "@opencode-ai/script",
+        "version": null,
+        "private": false,
+        "path": "opencode/packages/script/package.json",
+        "sha256": "b7777cf44ac20629270379e9c644ca9b888e34eb6b0ecec6431c5fefaa5fae31"
+      },
+      {
+        "name": "@opencode-ai/sdk-next",
+        "version": null,
+        "private": true,
+        "path": "opencode/packages/sdk-next/package.json",
+        "sha256": "f5196ceae284842a7257ee9f5668560d10eaee91a821cf9a1bbe3bcd4fdc6f0a"
+      },
+      {
+        "name": "@opencode-ai/sdk",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/sdk/js/package.json",
+        "sha256": "7f7975d8807af586ce66a3ad2a7daed81ea28f1fa9e60b5f23de940f4081ca00"
+      },
+      {
+        "name": "@opencode-ai/server",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/server/package.json",
+        "sha256": "c68467857cb8fc8e5b3bbfad9354e009154a5f221234c168ff96f672c1c41f1a"
+      },
+      {
+        "name": "@opencode-ai/session-ui",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/session-ui/package.json",
+        "sha256": "ccba484dfcbad2c25fca79b6d8371745f7c408fbadfc687f2cc327a278b0852d"
+      },
+      {
+        "name": "@opencode-ai/slack",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/slack/package.json",
+        "sha256": "1701163f525f65db0680926947eb2f4389f9a409f5d89cd4a0d37081d9c4a504"
+      },
+      {
+        "name": "@opencode-ai/stats-app",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/stats/app/package.json",
+        "sha256": "c1e7aecfac0f04bf978fce25b3787eeb3177926326df0e79d65c1f1efe089021"
+      },
+      {
+        "name": "@opencode-ai/stats-core",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/stats/core/package.json",
+        "sha256": "71b8161fc3d20613809012ed3e6049d4d824d8847dc65bbb2a2254410df4ee8d"
+      },
+      {
+        "name": "@opencode-ai/stats-server",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/stats/server/package.json",
+        "sha256": "5774e066cc7d697e6f51b8af7b0c9bf3a9a746be0b2468308ebeadab2fdde4b7"
+      },
+      {
+        "name": "@opencode-ai/storybook",
+        "version": null,
+        "private": true,
+        "path": "opencode/packages/storybook/package.json",
+        "sha256": "010180390c175542e3efb29c7a76a2cb37cc35fbf21d588d7ad95ce4c95480de"
+      },
+      {
+        "name": "@opencode-ai/tui",
+        "version": "1.17.18",
+        "private": true,
+        "path": "opencode/packages/tui/package.json",
+        "sha256": "adc9cef7089d67fb5498aab294f9906a8247fe6794cba107ce1408be93bcd727"
+      },
+      {
+        "name": "@opencode-ai/ui",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/ui/package.json",
+        "sha256": "8056512007399a8dc43c71df1e042b0604d46741ce8b38c34f46ac5036782848"
+      },
+      {
+        "name": "@opencode-ai/web",
+        "version": "1.17.18",
+        "private": false,
+        "path": "opencode/packages/web/package.json",
+        "sha256": "599a328d598c99d78b6622cd7807e049a98e99f4db5c61e4de2f427bd5ac5d8f"
+      }
+    ],
+    "dependencyPatches": [
+      {
+        "path": "opencode/patches/@ai-sdk%2Fgoogle@3.0.73.patch",
+        "bytes": 2832,
+        "sha256": "6544eed8731b11ef81f14cea91d0c478948ae08cec560fe3b82a6b086c5b547e"
+      },
+      {
+        "path": "opencode/patches/@ai-sdk%2Fxai@3.0.102.patch",
+        "bytes": 8518,
+        "sha256": "3f53b4ffc2ad98f52a46df30722fe15d064e8feef8c42a5b732422f175014dc7"
+      },
+      {
+        "path": "opencode/patches/@ff-labs%2Ffff-bun@0.9.3.patch",
+        "bytes": 1425,
+        "sha256": "5531d358e62658c5c2e4e74ca0410e14101d0ef0b72f91b98f1c805b3c4860ef"
+      },
+      {
+        "path": "opencode/patches/@modelcontextprotocol%2Fsdk@1.29.0.patch",
+        "bytes": 32379,
+        "sha256": "d08c88c914aa3af6bdb1ddec40d5370f948a032c5030fc073e7f14b240fe1333"
+      },
+      {
+        "path": "opencode/patches/@npmcli%2Fagent@4.0.2.patch",
+        "bytes": 431,
+        "sha256": "9eeb0d8e329c8b182c1eae047d4e0f327972c5ba65540b650124a5a12f52c0e1"
+      },
+      {
+        "path": "opencode/patches/@pierre%2Ftrees@1.0.0-beta.4.patch",
+        "bytes": 5215,
+        "sha256": "c7cb66e7e538c69c07a5245b8a8f335b49acd545d9c3dad05c07277b1d22b75b"
+      },
+      {
+        "path": "opencode/patches/@silvia-odwyer%2Fphoton-node@0.3.4.patch",
+        "bytes": 12503,
+        "sha256": "133936e626d9541bf4c3a9bffca139aa75ff53e49a304023dc7a3e69da99bd0e"
+      },
+      {
+        "path": "opencode/patches/@standard-community%2Fstandard-openapi@0.2.9.patch",
+        "bytes": 712,
+        "sha256": "3cceb3a483fff880c5439629b61303eab5547908505cf0339be1709cf868659d"
+      },
+      {
+        "path": "opencode/patches/@tanstack%2Fsolid-virtual@3.13.28.patch",
+        "bytes": 1676,
+        "sha256": "af3857410293d985f548517bc67dcf2619f784f7f0ceeecc53087d7048de94cb"
+      },
+      {
+        "path": "opencode/patches/@tanstack%2Fvirtual-core@3.17.0.patch",
+        "bytes": 5178,
+        "sha256": "66beda6921d2ef93fbd9423bba52568adf530666aae09d1dfbd9606d15b8d0d6"
+      },
+      {
+        "path": "opencode/patches/effect@4.0.0-beta.83.patch",
+        "bytes": 2623,
+        "sha256": "c2a1b67695b6bfedd6d0e53a5f1948f297dce66a642fc1c3db677401f60f21a8"
+      },
+      {
+        "path": "opencode/patches/gcp-metadata@8.1.2.patch",
+        "bytes": 639,
+        "sha256": "b4fb3bd18735438ac80557539585b365ef32b6be3c7f103f1c8aedfea81ab16d"
+      },
+      {
+        "path": "opencode/patches/pacote@21.5.0.patch",
+        "bytes": 914,
+        "sha256": "0e8c463c31dd31df2093a1ad573e379f89218cb435c42b40ed426adec2c1d558"
+      },
+      {
+        "path": "opencode/patches/solid-js@1.9.10.patch",
+        "bytes": 3194,
+        "sha256": "9ddc876267e7f73a6152f5f4fe94e6391a1e21d7b7538244e70015311e7bdcbc"
+      }
+    ],
+    "formalSharedPatches": []
+  },
+  "nodeSdk": {
+    "manifest": {
+      "path": "third_party/node-openharmony/manifest.json",
+      "bytes": 3734,
+      "sha256": "82e370b12a9f12331506cda7dc8aef18f273a8bac0f89e56413b137baaa86845"
+    },
+    "version": "v24.13.0",
+    "tagCommit": "d3a73a945e6fff8263153d74e6c3d203fb060b6e",
+    "sourceArchiveSha256": "54cb58921b4ce2831c6690ee823a3d39cfbf2b75f4e556c4c2bde90f3d8fd1ca",
+    "targetTriple": "aarch64-linux-ohos20.0.0",
+    "moduleAbi": 137,
+    "libnode": {
+      "path": "third_party/node-openharmony/dist/node-v24.13.0-openharmony-arm64/lib/arm64-v8a/libnode.so.137",
+      "bytes": 100231672,
+      "sha256": "3c1de216394f4b20a94c5727d2d401d2ddab2372bd25dd912a9e8034e69f55cd"
+    }
+  },
+  "harmonySdk": {
+    "version": "6.1.0.105",
+    "packageApi": 23,
+    "projectTargetApi": 20,
+    "metadata": [
+      {
+        "path": "<deveco-sdk>/default/sdk-pkg.json",
+        "bytes": 318,
+        "sha256": "f648ae9da628eeb9380247b6996f708543affe2feed46c1c82ed70f5e672af4b"
+      },
+      {
+        "path": "<deveco-sdk>/default/openharmony/native/oh-uni-package.json",
+        "bytes": 169,
+        "sha256": "ac7d455de9d5a688af1352d00a04d3f664bb20b92ba666ce21f0dd9556611f3b"
+      },
+      {
+        "path": "<deveco-sdk>/default/openharmony/ets/oh-uni-package.json",
+        "bytes": 163,
+        "sha256": "589dd34dd891dfbfe09d3490318136e99f9c0a5a6439c5b07ee6548964213a6d"
+      },
+      {
+        "path": "<deveco-sdk>/default/openharmony/toolchains/oh-uni-package.json",
+        "bytes": 177,
+        "sha256": "7f569f9b9f1e466f49b4faebd7102269ed87d2dbc42289bcbec61d73d55b6ad9"
+      }
+    ]
+  },
+  "buildTools": {
+    "bun": {
+      "requiredVersion": "1.3.14",
+      "observedVersion": "1.3.14",
+      "accepted": true,
+      "binary": {
+        "path": "<user-tools>/bun",
+        "bytes": 98480216,
+        "sha256": "0187f68d843f825a72ada4a7eca60db896ed753759a7f8252edcd31ac1bf1b9c"
+      }
+    },
+    "git": {
+      "version": "git version 2.53.0.windows.2",
+      "binary": {
+        "path": "<user-tools>/git",
+        "bytes": 46464,
+        "sha256": "37c5725818d602e951ba2563b870d62763322956b73373da4c33a0b566a80bc9"
+      }
+    },
+    "devecoCli": {
+      "version": "1.0.0",
+      "launcher": {
+        "path": "<user-tools>/devecocli.cmd",
+        "bytes": 345,
+        "sha256": "c062c3943d75b05d0804bfee919ff9b3478b1af4e0e5bba9edaba4946a2dc29a"
+      },
+      "package": {
+        "path": "<user-tools>/node_modules/@deveco/deveco-cli/package.json",
+        "bytes": 1878,
+        "sha256": "45d7d8349de881b11b8bdeaf69c78793b40b788d0c6778a6be3eb86d35cba791"
+      }
+    },
+    "devecoNode": {
+      "version": "v18.20.1",
+      "binary": {
+        "path": "<deveco>/tools/node/node.exe",
+        "bytes": 69680280,
+        "sha256": "8d36d351b7bc1e21a3f196cc12f3c1dc3ebd54bc8b8b678f254c6589faa8799f"
+      }
+    },
+    "clang": {
+      "version": "OHOS (dev) clang version 15.0.4 (llvm-project b3ff6d5a4891642fe4ab487a8077f076b9f34ea0)",
+      "binary": {
+        "path": "<deveco-sdk>/default/openharmony/native/llvm/bin/clang.exe",
+        "bytes": 106666440,
+        "sha256": "5c1c2926403bcee79a37f45180294e591ae71d41273036d6572d61b8827e6096"
+      }
+    },
+    "cmake": {
+      "version": "cmake version 3.28.2",
+      "binary": {
+        "path": "<deveco-sdk>/default/openharmony/native/build-tools/cmake/bin/cmake.exe",
+        "bytes": 11936736,
+        "sha256": "60513fa0fa68f7a339c0eecf59d903f4207634d624830bf243149dfd3148406e"
+      }
+    },
+    "ninja": {
+      "version": "1.12.0",
+      "binary": {
+        "path": "<deveco-sdk>/default/openharmony/native/build-tools/cmake/bin/ninja.exe",
+        "bytes": 616904,
+        "sha256": "c6423a94d3f2c34b01178f16853265c641640f770a56ce632d2fdf56e8d6852d"
+      }
+    },
+    "hdc": {
+      "binary": {
+        "path": "<deveco-sdk>/default/openharmony/toolchains/hdc.exe",
+        "bytes": 5533128,
+        "sha256": "ebc15568fd7fc1c92e904ab09927ea810b1a569cf87dc8eb18551a4207d44418"
+      }
+    },
+    "hvigor": {
+      "modelVersion": "5.0.5",
+      "config": {
+        "path": "i3d544-harmony/hvigor/hvigor-config.json5",
+        "bytes": 1323,
+        "sha256": "1132cd835274c93ed2cd3c5f64f65cf736ac8d91fedd1ff8cc067539cd248687"
+      },
+      "lockfile": {
+        "path": "i3d544-harmony/oh-package-lock.json5",
+        "bytes": 1401,
+        "sha256": "90a2bc63ee65e447c74581307e5b10d64732f33260444dd809eb4c3dfa16bf5e"
+      }
+    }
+  },
+  "hostObservations": {
+    "packageManagerMismatch": false,
+    "policy": "Pinned package-manager version is active. Formal OpenCode builds remain subject to the complete migration verifier."
+  }
+}

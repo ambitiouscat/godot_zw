@@ -1,0 +1,1088 @@
+{
+  "schemaVersion": 1,
+  "baseline": {
+    "source": "manifests/formal-upstream-baseline.json",
+    "upstreamRevision": "f47684787ad07e5311bd9422c1a9eb70c9966274",
+    "upstreamTree": "c0d28973357332ef7feb4b08a401fcf2913b2d12",
+    "upstreamVersion": "1.17.18"
+  },
+  "policy": {
+    "default": "deny-unclassified-input",
+    "upstreamMutation": "shared-checksum-listed-patch-only",
+    "harmonyBoundary": "platform-adapter-composition-bootstrap-packaging-host-only",
+    "generatedMutation": "generator-only",
+    "businessSemantics": "upstream-owned",
+    "businessSemanticDomains": [
+      "provider",
+      "session",
+      "message-and-tool-projection",
+      "compaction-retry-revert",
+      "tool-name-schema-result",
+      "http-api-and-event-envelope",
+      "generated-sdk-contract",
+      "client-state-machine"
+    ]
+  },
+  "immutableInputs": [
+    {
+      "id": "upstream.opencode",
+      "root": "opencode",
+      "selection": "git-tracked",
+      "revision": "f47684787ad07e5311bd9422c1a9eb70c9966274",
+      "tree": "c0d28973357332ef7feb4b08a401fcf2913b2d12",
+      "lockfile": {
+        "path": "opencode/bun.lock",
+        "sha256": "2644650fa1e90a3d6412beda4810af9b9260d8886d79fb6ba99f21032ae09e6f"
+      },
+      "mutation": "forbidden-except-declared-shared-patch"
+    },
+    {
+      "id": "third-party.node-openharmony",
+      "root": "third_party/node-openharmony",
+      "selection": "manifest-and-distribution",
+      "manifest": {
+        "path": "third_party/node-openharmony/manifest.json",
+        "sha256": "82e370b12a9f12331506cda7dc8aef18f273a8bac0f89e56413b137baaa86845"
+      },
+      "libnode": {
+        "path": "third_party/node-openharmony/dist/node-v24.13.0-openharmony-arm64/lib/arm64-v8a/libnode.so.137",
+        "bytes": 100231672,
+        "sha256": "3c1de216394f4b20a94c5727d2d401d2ddab2372bd25dd912a9e8034e69f55cd"
+      },
+      "mutation": "rebuild-through-pinned-third-party-pipeline-only"
+    },
+    {
+      "id": "third-party.jitless-network-transport",
+      "root": "openspec/changes/port-upstream-opencode-runtime-to-harmony/manifests/jitless-network-transport.json",
+      "selection": "lockfile-integrity-and-source-file-hashes",
+      "lockfile": {
+        "path": "opencode/bun.lock",
+        "sha256": "2644650fa1e90a3d6412beda4810af9b9260d8886d79fb6ba99f21032ae09e6f"
+      },
+      "mutation": "update-through-reviewed-manifest-and-deterministic-generator-only"
+    }
+  ],
+  "sharedPatches": {
+    "root": "formal-runtime/patches/upstream",
+    "state": "active",
+    "items": [
+      {
+        "path": "formal-runtime/patches/upstream/0001-runtime-component-composition-seam.patch",
+        "sha256": "ac8a3a9633fe0caafc85a14c38b7d2577ac811e78cda3638d606be7c2b3bf5eb",
+        "targetFiles": [
+          "packages/server/src/runtime-composition.ts",
+          "packages/server/test/runtime-composition.test.ts"
+        ],
+        "rationale": "Provide a platform-neutral, upstream-owned lazy composition seam that validates complete profile selections before constructing only the selected protocol groups, handlers, location services, integrations, and built-in tools.",
+        "businessSemanticDomains": [
+          "http-api-and-event-envelope",
+          "tool-name-schema-result"
+        ],
+        "crossPlatformTests": [
+          "packages/server/test/runtime-composition.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#1-use-an-upstream-owned-runtime-graph-with-harmony-replacements",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0002-lazy-global-path-initialization.patch",
+        "sha256": "5fd9d39e2069e0ad1775b0248b857eb82b6c6fe5ad3dbebe3db249e5efae39c5",
+        "targetFiles": [
+          "packages/core/src/global.ts",
+          "packages/core/test/global.test.ts"
+        ],
+        "rationale": "Move desktop Global path directory creation from module import to Global service-layer construction so replacement profiles can inject HAP-private paths without eager writes to desktop XDG locations.",
+        "businessSemanticDomains": [
+          "platform-path-initialization"
+        ],
+        "crossPlatformTests": [
+          "packages/core/test/global.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#1-use-an-upstream-owned-runtime-graph-with-harmony-replacements",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0003-direct-location-service-map-import.patch",
+        "sha256": "44e82a1b23f5a2d9accd35f17e137612ca2b054c34df7f0f28f4af0a93e168ca",
+        "targetFiles": [
+          "packages/server/src/location.ts",
+          "packages/server/src/middleware/session-location.ts",
+          "packages/server/test/location-service-map-import.test.ts"
+        ],
+        "rationale": "Import the lightweight LocationServiceMap service tag directly so server middleware can consume an injected location graph without eagerly importing the desktop aggregate containing watcher, PTY, PluginInternal, Npm, and other unselected leaves.",
+        "businessSemanticDomains": [
+          "runtime-service-composition"
+        ],
+        "crossPlatformTests": [
+          "packages/server/test/location-service-map-import.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#1-use-an-upstream-owned-runtime-graph-with-harmony-replacements",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0004-portable-stable-provider-boundaries.patch",
+        "sha256": "34cde959acc0d797f78fc2e1ab2fa1345f8d9bc567020be7cdae0253073aca3e",
+        "targetFiles": [
+          "packages/opencode/src/config/config.ts",
+          "packages/opencode/src/config/legacy.ts",
+          "packages/opencode/src/provider/bundled.ts",
+          "packages/opencode/src/provider/dynamic.ts",
+          "packages/opencode/src/provider/provider.ts",
+          "packages/opencode/src/session/llm/request.ts",
+          "packages/opencode/src/session/prompt/provider.ts",
+          "packages/opencode/src/session/system.ts",
+          "packages/opencode/test/provider/portable-boundaries.test.ts"
+        ],
+        "rationale": "Split executable legacy configuration, runtime-installed Provider packages, bundled Provider selection, and prompt selection behind upstream-owned modules so portable profiles can retain upstream Config/Provider/AI SDK semantics without importing the desktop plugin, npm, native-LLM, location-service, or unrestricted dynamic-loading graphs.",
+        "businessSemanticDomains": [
+          "provider",
+          "runtime-service-composition"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/provider/portable-boundaries.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#1-use-an-upstream-owned-runtime-graph-with-harmony-replacements",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0005-portable-stable-session-boundaries.patch",
+        "sha256": "94a8d0e8f3e76d09d5ca0f5082678df80d4e907d937d239142f94871cfbf3da5",
+        "targetFiles": [
+          "packages/opencode/src/agent/agent.ts",
+          "packages/opencode/src/session/schema.ts",
+          "packages/opencode/src/session/session.ts",
+          "packages/opencode/src/session/system.ts",
+          "packages/opencode/src/tool/external.ts",
+          "packages/opencode/src/tool/registry.ts",
+          "packages/opencode/test/session/portable-session-boundaries.test.ts"
+        ],
+        "rationale": "Remove two unused Session imports that eagerly pull the complete V2 location-service, PTY, native watcher, and plugin graph, and split executable external tool loading behind an upstream-owned module so portable profiles can retain the upstream stable Session state machine without opaque runtime imports.",
+        "businessSemanticDomains": [
+          "session",
+          "runtime-service-composition",
+          "tool-name-schema-result"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/session/portable-session-boundaries.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#1-use-an-upstream-owned-runtime-graph-with-harmony-replacements",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0006-portable-plugin-watcher-leaves.patch",
+        "sha256": "6ab2cdcb5975122f20c28d61c8da773fa366eefe60d496d7d58cfc7a9f44e7a6",
+        "targetFiles": [
+          "packages/core/src/filesystem/watcher-event.ts",
+          "packages/core/src/filesystem/watcher.ts",
+          "packages/core/src/plugin/define.ts",
+          "packages/core/src/plugin/internal.ts",
+          "packages/core/src/plugin/skill.ts",
+          "packages/core/test/portable-leaf-boundaries.test.ts",
+          "packages/opencode/src/tool/apply_patch.ts",
+          "packages/opencode/src/tool/edit.ts",
+          "packages/opencode/src/tool/write.ts"
+        ],
+        "rationale": "Split the platform-neutral plugin definition helper and watcher event contract into lightweight upstream-owned leaves so the stable Session graph can preserve upstream skill and file-tool semantics without eagerly importing runtime npm installation, dynamic plugin execution, observability exporters, or native watcher implementations.",
+        "businessSemanticDomains": [
+          "runtime-service-composition",
+          "tool-name-schema-result"
+        ],
+        "crossPlatformTests": [
+          "packages/core/test/portable-leaf-boundaries.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#1-use-an-upstream-owned-runtime-graph-with-harmony-replacements",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0007-portable-code-mode-loader.patch",
+        "sha256": "e5227b2c0c5b7d9bf4f1f69650369d48b110ef4a16664104d371d5ab37d1b071",
+        "targetFiles": [
+          "packages/opencode/src/tool/code-mode-loader.ts",
+          "packages/opencode/src/tool/registry.ts",
+          "packages/opencode/test/tool/portable-code-mode-loader.test.ts"
+        ],
+        "rationale": "Place the optional TypeScript-backed Code Mode interpreter behind a lightweight upstream-owned loader so portable profiles can keep the authoritative ToolRegistry while explicitly withholding an interpreter whose opaque runtime module loading cannot be included in the deterministic Harmony bundle.",
+        "businessSemanticDomains": [
+          "runtime-service-composition",
+          "tool-name-schema-result"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/tool/portable-code-mode-loader.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#1-use-an-upstream-owned-runtime-graph-with-harmony-replacements",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0008-portable-models-dev-source.patch",
+        "sha256": "3c9681c180f0700686477bd52b040a89c6dda3bbd3560db058012480d7d92527",
+        "targetFiles": [
+          "packages/core/src/models-dev.ts",
+          "packages/core/test/models-dev-portable-source.test.ts"
+        ],
+        "rationale": "Expose the existing upstream ModelsDev service as a configurable layer so portable profiles can inject a private cache, packaged snapshot, bounded refresh limits, and fixed source while retaining upstream Provider normalization and custom configuration semantics.",
+        "businessSemanticDomains": [
+          "provider",
+          "runtime-service-composition",
+          "platform-network-and-cache"
+        ],
+        "crossPlatformTests": [
+          "packages/core/test/models-dev-portable-source.test.ts",
+          "packages/opencode/test/provider/provider.test.ts -t custom provider with npm package"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#7-reuse-upstream-configuration-agents-extensions-and-model-semantics",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0009-portable-model-override-regression.patch",
+        "sha256": "ffa62c48df210202ff3f3ddf500add4a956be8cd93adbe7be5ca1125076a6e57",
+        "targetFiles": [
+          "packages/opencode/test/provider/provider.test.ts"
+        ],
+        "rationale": "Lock the existing upstream global configuration, instance disposal, Provider reconstruction, model-limit override, and invalid-payload preservation semantics with a cross-platform regression without adding Harmony-owned Provider behavior.",
+        "businessSemanticDomains": [
+          "provider",
+          "configuration-lifecycle"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/provider/provider.test.ts -t manual model limits activate"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#7-reuse-upstream-configuration-agents-extensions-and-model-semantics",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0010-redact-provider-failure-diagnostics.patch",
+        "sha256": "0b6827d818d03bf0ffbc4ff803572e2f5a6f6c97f5fdbbbfde154655b39fad76",
+        "targetFiles": [
+          "packages/opencode/src/provider/error.ts",
+          "packages/opencode/src/session/llm.ts",
+          "packages/opencode/src/session/processor.ts",
+          "packages/opencode/test/session/llm.test.ts"
+        ],
+        "rationale": "Keep upstream AI SDK and Session error classification intact while replacing raw Provider error logging, which can retain prompts, echoed credentials, and endpoint secrets, with bounded cross-platform diagnostics. Add a real OpenAI-compatible 401 transport regression and redaction coverage without introducing Harmony-specific Provider behavior.",
+        "businessSemanticDomains": [
+          "provider",
+          "session",
+          "security-and-redaction"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/session/llm.test.ts -t provider diagnostics redact",
+          "packages/opencode/test/session/llm.test.ts -t classifies invalid OpenAI-compatible credentials"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#7-reuse-upstream-configuration-agents-extensions-and-model-semantics",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0011-portable-session-recovery-parity.patch",
+        "sha256": "6b745c4aeafa4c963290ccb9425a9613247a01dd6dd234507415e8a7f3d021b7",
+        "targetFiles": [
+          "packages/opencode/test/session/compaction.test.ts",
+          "packages/opencode/test/session/processor-effect.test.ts",
+          "packages/opencode/test/session/prompt.test.ts",
+          "packages/opencode/test/session/session.test.ts"
+        ],
+        "rationale": "Lock the existing upstream Session authority to stable identifiers, CRUD, multi-turn context, tool continuation, compaction, retry retirement, event ordering, instance reconstruction, and read-only recovery without mutation replay. Explicitly inject the portable location-service layer into focused tests without changing Session production behavior.",
+        "businessSemanticDomains": [
+          "session",
+          "compaction-retry-revert",
+          "event-ordering-and-recovery"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/session/session.test.ts -t stable identifiers and mutations survive",
+          "packages/opencode/test/session/prompt.test.ts -t static loop consumes queued replies across turns",
+          "packages/opencode/test/session/prompt.test.ts -t loop continues when finish is tool-calls",
+          "packages/opencode/test/session/processor-effect.test.ts -t retry recognized structured json errors",
+          "packages/opencode/test/session/compaction.test.ts -t anchors repeated compactions with the previous summary"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#2-gate-the-production-execution-path-with-a-three-way-parity-harness",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0012-portable-config-instruction-precedence.patch",
+        "sha256": "dfe6f11b5557d6f503344d4bb337bfae87614ed6613dc4bd06cc2307343f5a1e",
+        "targetFiles": [
+          "packages/opencode/test/config/config.test.ts",
+          "packages/opencode/test/preload.ts"
+        ],
+        "rationale": "Lock upstream global, project, and local configuration precedence plus instruction-array merge semantics with a focused cross-platform regression. Provision only the isolated test logger sink after lazy Global path initialization; no production configuration behavior is changed.",
+        "businessSemanticDomains": [
+          "configuration-lifecycle",
+          "agent-and-instruction-discovery"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/config/config.test.ts -t layers application-private global and authorized project configuration",
+          "packages/opencode/test/session/instruction.test.ts -t loads both project and global AGENTS.md when both exist"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#7-reuse-upstream-configuration-agents-extensions-and-model-semantics",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0013-portable-agent-workspace-parity.patch",
+        "sha256": "982ed1d7987af7ad574543c2e11b4b81a11828114a6f519b5d106e2ee027fa0b",
+        "targetFiles": [
+          "packages/opencode/test/agent/agent.test.ts",
+          "packages/opencode/test/config/config.test.ts",
+          "packages/opencode/test/session/session.test.ts"
+        ],
+        "rationale": "Lock existing upstream Agent, layered agent/command configuration, and persistent Session Todo behavior with portable focused regressions. Bind the already-required portable LocationServiceMap only in the old Agent test root; no production Agent, Command, or Todo semantics are changed.",
+        "businessSemanticDomains": [
+          "configuration-lifecycle",
+          "agent-and-instruction-discovery",
+          "question-and-todo-state"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/agent/agent.test.ts -t custom agent from config creates new agent",
+          "packages/opencode/test/config/config.test.ts -t layers application-private global and authorized project configuration",
+          "packages/opencode/test/session/session.test.ts -t persists ordered todos and publishes upstream todo state",
+          "packages/opencode/test/skill/skill.test.ts -t discovers skills from .opencode/skill/ directory",
+          "packages/opencode/test/question/question.test.ts -t reply - resolves the pending ask with answers"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#7-reuse-upstream-configuration-agents-extensions-and-model-semantics",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0014-invalidate-provider-auth-state.patch",
+        "sha256": "2ccf61de805cc0df09681c95712ee2df867cba9aa0480becc4329e8f2b3740b9",
+        "targetFiles": [
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/control.ts",
+          "packages/opencode/test/server/httpapi-auth.test.ts"
+        ],
+        "rationale": "Invalidate upstream instance-scoped Provider state synchronously after the authoritative Auth service sets or removes credentials, so the next request cannot race against cached Provider keys. Lock the real typed HTTP routes, global disposal event, and secret-free response with a cross-platform regression.",
+        "businessSemanticDomains": [
+          "provider",
+          "configuration-lifecycle",
+          "security-and-redaction"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/server/httpapi-auth.test.ts -t invalidates Provider instance state after setting and removing credentials"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#7-reuse-upstream-configuration-agents-extensions-and-model-semantics",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0015-refactor-make-built-in-tool-profile-selectable.patch",
+        "sha256": "f8577862282bc4c8a56a328d9821523182ba9aeb21066a54c5546d910c6daaf2",
+        "targetFiles": [
+          "packages/opencode/src/tool/builtin-profile.ts",
+          "packages/opencode/src/tool/registry.ts",
+          "packages/opencode/test/tool/builtin-profile.test.ts"
+        ],
+        "rationale": "Place only the built-in ToolRegistry selection and ordering behind a platform-neutral module so embedded profiles can select a strict capability subset while retaining upstream tool names, schemas, permissions, results, and Session lifecycle behavior; the default implementation preserves the complete desktop selection.",
+        "businessSemanticDomains": [
+          "tool-name-schema-result"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/tool/builtin-profile.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#7-reuse-upstream-configuration-agents-extensions-and-model-semantics",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0016-refactor-load-built-in-tools-by-runtime-profile.patch",
+        "sha256": "0cf0575b5111d42ff881f7396a52736b3d84cf6e1c1d904746169297e4cbdbce",
+        "targetFiles": [
+          "packages/opencode/src/tool/builtins.ts",
+          "packages/opencode/src/tool/code-mode-loader.ts",
+          "packages/opencode/src/tool/registry.ts",
+          "packages/opencode/test/tool/builtin-loader-boundary.test.ts",
+          "packages/opencode/test/tool/registry.test.ts"
+        ],
+        "rationale": "Move stable built-in definition loading and its desktop process/native service nodes behind one platform-neutral boundary. The default loader preserves desktop behavior, while embedded profiles can omit unsupported definitions and their eager dependencies without cloning upstream names, schemas, permissions, results, or Session lifecycle behavior.",
+        "businessSemanticDomains": [
+          "tool-name-schema-result",
+          "runtime-composition"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/tool/builtin-loader-boundary.test.ts",
+          "packages/opencode/test/tool/builtin-profile.test.ts",
+          "packages/opencode/test/tool/registry.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-select-upstream-services-through-an-explicit-capability-profile",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0017-refactor-isolate-workspace-tool-filesystem.patch",
+        "sha256": "07d2566300b55777af88609df8cc9b220b20b643ba012df52a81e1f747728962",
+        "targetFiles": [
+          "packages/opencode/src/tool/filesystem.ts",
+          "packages/opencode/src/tool/builtins.ts",
+          "packages/opencode/src/tool/read.ts",
+          "packages/opencode/src/tool/write.ts",
+          "packages/opencode/src/tool/edit.ts",
+          "packages/opencode/src/tool/apply_patch.ts",
+          "packages/opencode/src/tool/glob.ts",
+          "packages/opencode/src/tool/grep.ts",
+          "packages/opencode/src/util/bom.ts",
+          "packages/opencode/test/tool/tool-filesystem-boundary.test.ts",
+          "packages/opencode/test/tool/read.test.ts",
+          "packages/opencode/test/tool/write.test.ts",
+          "packages/opencode/test/tool/edit.test.ts",
+          "packages/opencode/test/tool/apply_patch.test.ts",
+          "packages/opencode/test/tool/glob.test.ts",
+          "packages/opencode/test/tool/grep.test.ts"
+        ],
+        "rationale": "Route only the accepted upstream workspace tool definitions through a replaceable, narrowly scoped filesystem service. The desktop default delegates to FSUtil, while embedded profiles can enforce an authorized project root, stale mutation preconditions, atomic writes, and changed-path reporting without restricting application-private configuration or cloning official tool schemas and results.",
+        "businessSemanticDomains": [
+          "tool-name-schema-result",
+          "authorized-filesystem"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/tool/tool-filesystem-boundary.test.ts",
+          "packages/opencode/test/tool/read.test.ts",
+          "packages/opencode/test/tool/write.test.ts",
+          "packages/opencode/test/tool/edit.test.ts",
+          "packages/opencode/test/tool/apply_patch.test.ts",
+          "packages/opencode/test/tool/glob.test.ts",
+          "packages/opencode/test/tool/grep.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#6-reuse-upstream-tools-above-an-authorized-filesystem-adapter",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0018-fix-exclude-display-only-tools-from-model-context.patch",
+        "sha256": "12117e1577273ee9bc278d044820391925735a615953b7d18b99a79dc51a3307",
+        "targetFiles": [
+          "packages/opencode/src/session/message-v2.ts",
+          "packages/opencode/test/session/message-v2.test.ts"
+        ],
+        "rationale": "Keep explicitly marked migrated tool parts available to history APIs and generic client rendering while excluding them from later Provider model requests. This is a platform-neutral display-only history contract; it neither recognizes Harmony-private tool names nor registers a compatibility tool.",
+        "businessSemanticDomains": [
+          "session-message-projection",
+          "tool-name-schema-result"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/session/message-v2.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#6-reuse-upstream-tools-above-an-authorized-filesystem-adapter",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0019-fix-make-skill-discovery-deterministic.patch",
+        "sha256": "fe2bd6d2c02aa7dcb30d04f8c1f9a2f5b62ff6e2762daa921d13ae3b515fa658",
+        "targetFiles": [
+          "packages/opencode/src/skill/index.ts",
+          "packages/opencode/test/skill/skill.test.ts"
+        ],
+        "rationale": "Sort filesystem matches within each configured discovery root, load them sequentially to preserve declared precedence for duplicate names, and return the final skill set by name. Commands derived from Skill.all therefore have stable order across filesystems and restarts without changing configuration scope precedence.",
+        "businessSemanticDomains": [
+          "agent-command-skill",
+          "configuration-precedence"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/skill/skill.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#7-reuse-upstream-configuration-agents-extensions-and-model-semantics",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0020-refactor-isolate-public-http-contracts.patch",
+        "sha256": "fc69b9f27f608edb67abc84dcb347b4fc40f24320a4cc0c13eb24057ee498ad7",
+        "targetFiles": [
+          "packages/opencode/src/control-plane/workspace-schema.ts",
+          "packages/opencode/src/control-plane/workspace.ts",
+          "packages/opencode/src/format/index.ts",
+          "packages/opencode/src/format/schema.ts",
+          "packages/opencode/src/lsp/lsp.ts",
+          "packages/opencode/src/lsp/schema.ts",
+          "packages/opencode/src/project/vcs-schema.ts",
+          "packages/opencode/src/project/vcs.ts",
+          "packages/opencode/src/provider/provider.ts",
+          "packages/opencode/src/provider/schema.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/api.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/config.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/event.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/experimental.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/file.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/instance.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/mcp.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/permission.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/project-copy.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/project.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/provider.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/pty.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/question.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/session.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/sync.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/tui.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/workspace.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/config.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/control-plane.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/control.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/experimental.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/file.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/global.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/instance.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/permission.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/project-copy.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/project.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/provider.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/question.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/session.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/sync.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/workspace.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/control-plane.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/control.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/config.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/experimental.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/file.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/global.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/instance.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/permission.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/project-copy.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/project.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/provider.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/question.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/session.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/sync.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/workspace.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/middleware/authorization-contract.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/middleware/authorization.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/middleware/instance-context-contract.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/middleware/instance-context.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/middleware/workspace-routing-contract.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/middleware/workspace-routing.ts",
+          "packages/opencode/test/provider/schema.test.ts"
+        ],
+        "rationale": "Separate public HttpApi middleware tags, routing query schemas, Provider response schemas, and portable handler factories from their live desktop composition while preserving the existing exports and desktop layers. Route construction can then consume the authoritative upstream contract and handler logic without eagerly loading Provider plugins, workspace proxying, runtime package installation, PTY, or unrelated native services.",
+        "businessSemanticDomains": [
+          "official-api-contract",
+          "provider-schema",
+          "http-middleware-contract"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/provider/schema.test.ts",
+          "packages/opencode/test/provider/provider.test.ts",
+          "packages/opencode/test/format/format.test.ts",
+          "packages/opencode/test/lsp/index.test.ts",
+          "packages/opencode/test/control-plane/workspace.test.ts",
+          "packages/opencode/test/server/httpapi-config.test.ts",
+          "packages/opencode/test/server/httpapi-control-plane.test.ts",
+          "packages/opencode/test/server/httpapi-event.test.ts",
+          "packages/opencode/test/server/httpapi-experimental.test.ts",
+          "packages/opencode/test/server/httpapi-file.test.ts",
+          "packages/opencode/test/server/httpapi-global.test.ts",
+          "packages/opencode/test/server/httpapi-instance.test.ts",
+          "packages/opencode/test/server/httpapi-provider.test.ts",
+          "packages/opencode/test/server/httpapi-session.test.ts",
+          "packages/opencode/test/server/httpapi-sync.test.ts",
+          "packages/opencode/test/server/httpapi-workspace.test.ts",
+          "packages/opencode/test/project/vcs.test.ts",
+          "packages/opencode/test/server/httpapi-authorization.test.ts",
+          "packages/opencode/test/server/httpapi-instance-context.test.ts",
+          "packages/opencode/test/server/httpapi-workspace-routing.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-use-the-official-api-generated-sdk-and-upstream-solidjs-application",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0021-feat-add-platform-capability-contract.patch",
+        "sha256": "a444083017da2dfca28dc90bf0e7e81c5426b6984d1e23d5ce11f3973a6c1fed",
+        "targetFiles": [
+          "packages/opencode/src/server/platform-capabilities.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/errors.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/experimental.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/experimental.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/experimental.ts",
+          "packages/opencode/test/server/httpapi-experimental.test.ts",
+          "packages/opencode/test/server/platform-capabilities.test.ts",
+          "packages/protocol/src/capability.ts",
+          "packages/protocol/src/errors.ts",
+          "packages/sdk/js/src/v2/gen/types.gen.ts"
+        ],
+        "rationale": "Add a versioned platform-capability extension to the existing experimental capabilities route, derive structured 501 responses from the same immutable gate snapshot, inject that provider into portable handlers, and expose the same response and error types through the generated official SDK. The extension records acceptance gates only and deliberately does not duplicate live Provider, MCP, LSP, session, or connection resource state.",
+        "businessSemanticDomains": [
+          "official-api-contract",
+          "platform-capability-contract",
+          "generated-sdk-error-contract"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/server/platform-capabilities.test.ts",
+          "packages/opencode/test/server/httpapi-experimental.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-use-the-official-api-generated-sdk-and-upstream-solidjs-application",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0022-refactor-isolate-MCP-resource-schema.patch",
+        "sha256": "7f5b6093987464c079f88c6681753f7e50ff7059cbdadd90a3fe08d72b63bcb6",
+        "targetFiles": [
+          "packages/opencode/src/mcp/index.ts",
+          "packages/opencode/src/mcp/schema.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/groups/experimental.ts",
+          "packages/opencode/test/mcp/schema.test.ts"
+        ],
+        "rationale": "Move the public MCP resource schema into a process-free upstream module and make the experimental route consume that module directly. Desktop MCP re-exports the same schema, while Harmony route construction no longer has to load the stdio-capable MCP service merely to describe its official response.",
+        "businessSemanticDomains": [
+          "official-api-contract",
+          "mcp-resource-schema",
+          "platform-capability-contract"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/mcp/schema.test.ts",
+          "packages/opencode/test/server/httpapi-experimental.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-use-the-official-api-generated-sdk-and-upstream-solidjs-application",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0023-test-complete-official-SDK-operation-matrix.patch",
+        "sha256": "c6add4600bc76044284d93f42e9559dbeec06b0973c2b4c1b29058efdd46e04a",
+        "targetFiles": [
+          "packages/opencode/test/server/httpapi-sdk.test.ts"
+        ],
+        "rationale": "Extend the upstream generated-client contract suite with explicit Provider, nested model, agent, MCP status, permission, tool definition, cancellation, and versioned capability operations. This closes the previously implicit portions of the Tier-A SDK matrix without adding a Harmony-only client or test server.",
+        "businessSemanticDomains": [
+          "official-sdk-contract",
+          "provider-model-agent",
+          "permission-tool-cancellation-capability"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/server/httpapi-sdk.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-use-the-official-api-generated-sdk-and-upstream-solidjs-application",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0024-test-cover-official-api-contract-negatives.patch",
+        "sha256": "14ccc18d48df444546494d1f952b2155f079c9b861c327c061c16ea832e26d27",
+        "targetFiles": [
+          "packages/opencode/src/server/routes/instance/httpapi/server.ts",
+          "packages/opencode/test/server/httpapi-layer.ts",
+          "packages/opencode/test/server/httpapi-sdk.test.ts"
+        ],
+        "rationale": "Allow the existing upstream route composition to receive the versioned platform-capability provider while preserving the desktop default, and exercise structured unavailable results through the real generated SDK and HttpApi service graph. The seam avoids a Harmony-only dispatcher and makes unsupported-route behavior a cross-platform upstream contract.",
+        "businessSemanticDomains": [
+          "official-sdk-contract-negatives",
+          "platform-capability-injection",
+          "structured-unavailable-route"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/server/httpapi-sdk.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-use-the-official-api-generated-sdk-and-upstream-solidjs-application",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0025-feat-gate-unavailable-client-controls.patch",
+        "sha256": "6714b735328bc697589a7da0e82a0ff6784104619802cfe55585d4310b0399d7",
+        "clientPatchCategory": "capability-aware-controls",
+        "targetFiles": [
+          "packages/app/src/components/dialog-edit-project.tsx",
+          "packages/app/src/components/dialog-select-mcp.tsx",
+          "packages/app/src/components/prompt-input.tsx",
+          "packages/app/src/components/prompt-input/submit.test.ts",
+          "packages/app/src/components/prompt-input/submit.ts",
+          "packages/app/src/components/prompt-workspace-selector.tsx",
+          "packages/app/src/components/session/session-header.tsx",
+          "packages/app/src/components/settings-general.tsx",
+          "packages/app/src/components/settings-v2/general.tsx",
+          "packages/app/src/components/status-popover-body.tsx",
+          "packages/app/src/context/global-sync/bootstrap.test.ts",
+          "packages/app/src/context/global-sync/bootstrap.ts",
+          "packages/app/src/context/global-sync/child-store.test.ts",
+          "packages/app/src/context/global-sync/child-store.ts",
+          "packages/app/src/context/platform-capabilities.tsx",
+          "packages/app/src/context/server-sync.tsx",
+          "packages/app/src/context/terminal.tsx",
+          "packages/app/src/i18n/ar.ts",
+          "packages/app/src/i18n/br.ts",
+          "packages/app/src/i18n/bs.ts",
+          "packages/app/src/i18n/da.ts",
+          "packages/app/src/i18n/de.ts",
+          "packages/app/src/i18n/en.ts",
+          "packages/app/src/i18n/es.ts",
+          "packages/app/src/i18n/fr.ts",
+          "packages/app/src/i18n/ja.ts",
+          "packages/app/src/i18n/ko.ts",
+          "packages/app/src/i18n/no.ts",
+          "packages/app/src/i18n/pl.ts",
+          "packages/app/src/i18n/ru.ts",
+          "packages/app/src/i18n/th.ts",
+          "packages/app/src/i18n/tr.ts",
+          "packages/app/src/i18n/uk.ts",
+          "packages/app/src/i18n/zh.ts",
+          "packages/app/src/i18n/zht.ts",
+          "packages/app/src/pages/layout.tsx",
+          "packages/app/src/pages/session/terminal-panel-v2.tsx",
+          "packages/app/src/pages/session/terminal-panel.tsx",
+          "packages/app/src/pages/session/use-session-commands.tsx",
+          "packages/app/src/utils/platform-capabilities.ts",
+          "packages/app/test-browser/platform-capabilities.test.tsx"
+        ],
+        "rationale": "Consume the versioned platform capability profile in the upstream SolidJS client and fail closed before terminal, worktree, MCP, LSP, plugin, or external-process queries and mutations. Unavailable controls are disabled or replaced with an explicit bounded explanation, background capability refresh retains the last accepted description, and worktree/process submission guards run before session creation or busy-state mutation.",
+        "businessSemanticDomains": [
+          "client-state-machine",
+          "platform-capability-controls",
+          "official-sdk-contract"
+        ],
+        "crossPlatformTests": [
+          "packages/app/test-browser/platform-capabilities.test.tsx",
+          "packages/app/src/components/prompt-input/submit.test.ts",
+          "packages/app/src/context/global-sync/bootstrap.test.ts",
+          "packages/app/src/context/global-sync/child-store.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-use-the-official-api-generated-sdk-and-upstream-solidjs-application",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0026-feat-add-portable-server-runtime-options.patch",
+        "sha256": "2de54913917c1ab1ae3f5e181f7f1dc678ed9217d3105d2741f0cb8f4081f84a",
+        "targetFiles": [
+          "packages/core/src/global.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/middleware/workspace-routing.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/server.ts",
+          "packages/opencode/src/server/server.ts"
+        ],
+        "rationale": "Allow a portable server bootstrap to select explicit global paths, force every instance route onto one host-authorized project, inject already-reviewed platform service replacements into the upstream application graph, and retain the upstream listener, route, Session, Provider, event, and generated-SDK authorities.",
+        "businessSemanticDomains": [
+          "platform-path-initialization",
+          "authorized-project-routing",
+          "runtime-service-composition",
+          "official-http-server"
+        ],
+        "crossPlatformTests": [
+          "packages/core/test/global.test.ts",
+          "packages/opencode/test/server/httpapi-sdk.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#1-use-an-upstream-owned-runtime-graph-with-harmony-replacements",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0027-isolate-remote-mcp-from-process-services.patch",
+        "sha256": "07da81e129476447cb89e6686c66a3b647de6647f827b0a904df0c87ddb0ac99",
+        "targetFiles": [
+          "packages/opencode/src/mcp/index.ts",
+          "packages/opencode/test/mcp/portable-remote-mcp.test.ts"
+        ],
+        "rationale": "Retain the upstream MCP service, Streamable HTTP and SSE transports, catalog, tool conversion, authentication, reconnect, notification, and disposal semantics while isolating the unavailable local stdio process transport behind an explicit fail-closed result.",
+        "businessSemanticDomains": [
+          "runtime-service-composition",
+          "tool-name-schema-result",
+          "official-http-server"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/mcp/portable-remote-mcp.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#1-use-an-upstream-owned-runtime-graph-with-harmony-replacements",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0028-enable-remote-mcp-client-controls.patch",
+        "sha256": "a43b2590ff6bc056de0a05c5f8d22c9dfaf327e531a0af6b7d97a0c419916b2f",
+        "clientPatchCategory": "capability-aware-controls",
+        "targetFiles": [
+          "packages/app/src/utils/platform-capabilities.ts",
+          "packages/app/test-browser/platform-capabilities.test.tsx"
+        ],
+        "rationale": "Allow the upstream SolidJS MCP surface when the accepted remote MCP capability is present while continuing to ignore and fail closed for the independently unavailable local stdio MCP transport.",
+        "businessSemanticDomains": [
+          "client-state-machine",
+          "platform-capability-controls",
+          "official-sdk-contract"
+        ],
+        "crossPlatformTests": [
+          "packages/app/test-browser/platform-capabilities.test.tsx"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-use-the-official-api-generated-sdk-and-upstream-solidjs-application",
+        "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0029-refactor-mcp-handler-factory.patch",
+        "sha256": "5d74c674bd2755bb13ee8925beac87236f51f5b23a0544f8fffcca5cd7ea51bf",
+        "targetFiles": [
+          "packages/opencode/src/server/routes/instance/httpapi/handler-factories/mcp.ts",
+          "packages/opencode/src/server/routes/instance/httpapi/handlers/mcp.ts"
+        ],
+        "rationale": "Factor the existing upstream MCP HttpApi handlers over an injected instance API so portable compositions can select the MCP group without importing the desktop aggregate that also owns PTY and TUI routes.",
+        "businessSemanticDomains": [
+          "official-http-server",
+          "runtime-service-composition"
+        ],
+        "crossPlatformTests": [
+          "formal-runtime/test/composition/stable-official-api-contract.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-use-the-official-api-generated-sdk-and-upstream-solidjs-application",
+        "owner": "formal-upstream-runtime-migration"
+      }
+    ],
+    "requiredFields": [
+      "path",
+      "sha256",
+      "targetFiles",
+      "rationale",
+      "businessSemanticDomains",
+      "crossPlatformTests",
+      "upstreamIssueOrProposal",
+      "owner"
+    ],
+    "acceptance": "No shared patch may be applied or packaged unless every required field is present and the checksum matches. Platform-only changes belong in Harmony-owned roots."
+  },
+  "harmonyOwnedSources": [
+    {
+      "id": "formal.adapters",
+      "root": "formal-runtime/src/adapters",
+      "state": "active",
+      "allowed": [
+        "authorized filesystem",
+        "changed-path host notification",
+        "private paths",
+        "network compatibility",
+        "credential storage",
+        "watch/search fallback",
+        "structured unavailable services",
+        "harmony models refresh extension (experimental endpoint backed by upstream ModelsDev)"
+      ]
+    },
+    {
+      "id": "formal.composition",
+      "root": "formal-runtime/src/composition",
+      "state": "active",
+      "allowed": [
+        "runtime profile selection",
+        "upstream service wiring",
+        "capability dependency injection"
+      ]
+    },
+    {
+      "id": "formal.bootstrap",
+      "root": "formal-runtime/src/bootstrap",
+      "state": "active",
+      "allowed": [
+        "bounded startup inputs",
+        "authenticated loopback startup",
+        "readiness",
+        "graceful disposal",
+        "fatal-error reporting"
+      ]
+    },
+    {
+      "id": "formal.migrations",
+      "root": "formal-runtime/src/migrations",
+      "state": "active",
+      "allowed": [
+        "copy-only state migration",
+        "provenance",
+        "integrity validation",
+        "historical compatibility reader"
+      ]
+    },
+    {
+      "id": "formal.packaging-scripts",
+      "root": "formal-runtime/scripts",
+      "state": "active",
+      "allowed": [
+        "deterministic build",
+        "bundle generation",
+        "asset copying",
+        "manifest generation",
+        "HAP verification"
+      ]
+    },
+    {
+      "id": "formal.catalog-assets",
+      "root": "formal-runtime/assets",
+      "state": "active",
+      "allowed": [
+        "pinned models.dev snapshot",
+        "snapshot metadata",
+        "deterministic application-global instruction assets",
+        "legacy instruction migration fixtures"
+      ]
+    },
+    {
+      "id": "formal.tests",
+      "root": "formal-runtime/test",
+      "state": "active",
+      "allowed": [
+        "contract tests",
+        "parity fixtures",
+        "security tests",
+        "lifecycle tests",
+        "ownership verifiers"
+      ]
+    },
+    {
+      "id": "engine.native-host",
+      "root": "i3d544-harmony/hap_editor/src/main/cpp/opencode_spike",
+      "state": "existing-noncompliant-until-ledger-gates-pass",
+      "allowed": [
+        "libnode loading",
+        "child lifecycle",
+        "bounded path/port/credential/capability inputs",
+        "runtime status",
+        "allowlisted editor bridge"
+      ],
+      "forbiddenTargetState": [
+        "HTTP business routes",
+        "Provider behavior",
+        "Session behavior",
+        "tool schemas",
+        "client state"
+      ]
+    },
+    {
+      "id": "engine.arkts-host",
+      "root": "i3d544-harmony/hap_editor/src/main/ets/opencode_spike",
+      "state": "existing",
+      "allowed": [
+        "UIAbility lifecycle",
+        "project authorization",
+        "runtime controller",
+        "ArkWeb bootstrap/geometry",
+        "versioned allowlisted Godot bridge"
+      ]
+    },
+    {
+      "id": "engine.verifiers",
+      "root": "i3d544-harmony/hap_editor/scripts",
+      "selection": "opencode-*.mjs and verify-opencode-*.mjs",
+      "state": "existing",
+      "allowed": [
+        "static verification",
+        "packaging verification",
+        "host boundary tests"
+      ]
+    },
+    {
+      "id": "engine.packaging-config",
+      "root": "i3d544-harmony/hap_editor/src/main/cpp/cmake_conf",
+      "selection": "opencode_spike.cmake",
+      "state": "existing",
+      "allowed": [
+        "native target wiring",
+        "libnode packaging",
+        "feature flags"
+      ]
+    },
+    {
+      "id": "h5.host-panel",
+      "root": "h5-ui/src/opencode",
+      "state": "existing",
+      "allowed": [
+        "editor tab/panel shell",
+        "versioned host bridge",
+        "official-client mount/bootstrap",
+        "compact layout host events"
+      ]
+    }
+  ],
+  "generatedAssets": [
+    {
+      "id": "formal.generated",
+      "root": "formal-runtime/generated",
+      "state": "active",
+      "mutation": "generator-only",
+      "requiredMetadata": [
+        "generator",
+        "inputManifestSha256",
+        "outputSha256",
+        "bytes"
+      ]
+    },
+    {
+      "id": "engine.formal-rawfiles",
+      "root": "i3d544-harmony/hap_editor/src/main/resources/rawfile/opencode_formal",
+      "state": "active",
+      "mutation": "copy-from-formal-generated-only"
+    },
+    {
+      "id": "rollback.spike-generated",
+      "root": "tmp/harmony-node-runtime-spike/opencode-harmony/generated",
+      "state": "existing-rollback-control",
+      "mutation": "legacy-generator-only"
+    },
+    {
+      "id": "rollback.engine-spike-rawfiles",
+      "root": "i3d544-harmony/hap_editor/src/main/resources/rawfile/opencode_spike",
+      "state": "existing-rollback-control",
+      "mutation": "legacy-copy-only"
+    },
+    {
+      "id": "rollback.h5-sdk-client-dist",
+      "root": "h5-ui/dist-opencode-sdk",
+      "state": "existing-diagnostic-client",
+      "mutation": "legacy-generator-only"
+    }
+  ],
+  "rollbackEvidence": [
+    {
+      "id": "spike.patch-series",
+      "roots": [
+        "tmp/harmony-node-runtime-spike/opencode-harmony/manifest.json",
+        "tmp/harmony-node-runtime-spike/opencode-harmony/initialization-audit.json",
+        "tmp/harmony-node-runtime-spike/opencode-harmony/sdk-client-contract.json",
+        "tmp/harmony-node-runtime-spike/opencode-harmony/patches"
+      ],
+      "mutation": "preserve-until-rollback-window-expires"
+    },
+    {
+      "id": "h5.custom-sdk-client-source",
+      "roots": [
+        "h5-ui/src/opencode-sdk",
+        "h5-ui/scripts"
+      ],
+      "selection": "OpenCode SDK-composed client source and related build/verifier scripts",
+      "mutation": "diagnostic-and-rollback-only"
+    }
+  ],
+  "excludedInputs": [
+    {
+      "id": "untracked-analysis-caches",
+      "roots": [
+        "opencode/.agents",
+        "opencode/.learnings",
+        ".agents",
+        ".codex",
+        ".claude",
+        ".gemini",
+        ".codewhale"
+      ],
+      "reason": "Agent caches, skills, and local analysis are not runtime source inputs."
+    },
+    {
+      "id": "spike-worktrees",
+      "roots": [
+        "tmp/harmony-node-runtime-spike/opencode-harmony/work"
+      ],
+      "reason": "Intermediate patch worktrees are not formal build inputs."
+    },
+    {
+      "id": "build-outputs",
+      "roots": [
+        "i3d544-harmony/hap_editor/build",
+        "i3d544-harmony/hap_editor/.cxx",
+        "h5-ui/node_modules",
+        "opencode/node_modules"
+      ],
+      "reason": "Local build caches and installed dependency trees are regenerated and never source-owned."
+    },
+    {
+      "id": "local-machine-configuration",
+      "roots": [
+        "i3d544-harmony/local.properties"
+      ],
+      "fields": [
+        "signingConfigs",
+        "local credentials",
+        "absolute SDK paths",
+        "proxy settings"
+      ],
+      "reason": "Machine paths, signing material, credentials, and proxies may select tools but cannot enter manifests or runtime bundles."
+    },
+    {
+      "id": "device-global-runtime",
+      "external": [
+        "DevNode-OH",
+        "device-global node",
+        "global PATH",
+        "runtime npm installation"
+      ],
+      "reason": "The product HAP must package and start its own pinned runtime and dependencies."
+    },
+    {
+      "id": "unrelated-dirty-h5-source",
+      "root": "h5-ui",
+      "selection": "all paths outside explicitly declared h5.host-panel and rollback client roots",
+      "reason": "The existing H5 worktree has substantial user-owned changes and is not normalized by this migration."
+    }
+  ]
+}
