@@ -43,7 +43,12 @@ var _auth_token: String = ""  # empty when the token requirement is off
 var _running: bool = false
 
 
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
+
 func start_server() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
 	_running = true
 	_auth_token = _prepare_auth_token()
 	for p in range(BASE_PORT, MAX_PORT + 1):
