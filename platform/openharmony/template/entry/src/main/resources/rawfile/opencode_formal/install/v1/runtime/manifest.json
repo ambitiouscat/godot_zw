@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "generator": "formal-runtime/scripts/build-formal-runtime.mjs",
   "inputManifestSha256": "e3dbc6098f2ea8f1492ed654e8dca308e19d6fe8b241240dade035a989bc366d",
-  "outputSha256": "6d2d53e99939df9bc5c55218d5f46d6879dbcf9069e05770f65cc6405b74db4c",
-  "bytes": 21569164,
+  "outputSha256": "e3b5ea9e596520fb7d60f5d4817014f8b5927a9d979efd158290cb53defef341",
+  "bytes": 21562481,
   "baselineManifestSha256": "ade3e7905a59774fb2996d9ee083ad3604618284461c4b360b256c20be6328b7",
   "upstream": {
     "revision": "f47684787ad07e5311bd9422c1a9eb70c9966274",
@@ -198,8 +198,8 @@
     ],
     "output": {
       "path": "assets/node-fetch-harmony.cjs",
-      "bytes": 385070,
-      "sha256": "01262537391ee3e32fc4f53adadb88bc30d7608e2ad96c47f4da713aab6e0980"
+      "bytes": 384935,
+      "sha256": "fc032eb23b653bc9effa89d96fdf73c8662f436b2d06010031e532fb19b89910"
     },
     "fetchInjection": "effect/unstable/http FetchHttpClient.Fetch",
     "webSocketInjection": "HarmonyWebSocketFactory",
@@ -1413,7 +1413,7 @@
       },
       {
         "path": "formal-runtime/src/adapters/godot-engine-tool.ts",
-        "sha256": "d05de3c35c647bee329fb2214bab203177a7b738011cb6873f2f8e6befbdb205"
+        "sha256": "a6226d35e0b37955027d3c2239083bd02c0f2a9cd2b15470575d53dad9c7092c"
       },
       {
         "path": "formal-runtime/src/adapters/godot-mcp-provider.ts",
@@ -1759,8 +1759,8 @@
     },
     {
       "path": "assets/node-fetch-harmony.cjs",
-      "bytes": 385070,
-      "sha256": "01262537391ee3e32fc4f53adadb88bc30d7608e2ad96c47f4da713aab6e0980"
+      "bytes": 384935,
+      "sha256": "fc032eb23b653bc9effa89d96fdf73c8662f436b2d06010031e532fb19b89910"
     },
     {
       "path": "assets/photon_rs_bg-bq08arze.wasm",
@@ -1769,14 +1769,14 @@
     },
     {
       "path": "opencode-harmony-runtime.mjs",
-      "bytes": 16106527,
-      "sha256": "32ef956a2edb77b37d8d6b79871377bc849bf8dcb69f5409b19bb7e9ebf666f5"
+      "bytes": 16099979,
+      "sha256": "06b78de176964047a5e17c491237df1144de54111ccd59dd46f2b6decfc02e03"
     }
   ],
   "output": {
     "path": "formal-runtime/generated/runtime/opencode-harmony-runtime.mjs",
-    "bytes": 16106527,
-    "sha256": "32ef956a2edb77b37d8d6b79871377bc849bf8dcb69f5409b19bb7e9ebf666f5",
+    "bytes": 16099979,
+    "sha256": "06b78de176964047a5e17c491237df1144de54111ccd59dd46f2b6decfc02e03",
     "format": "esm",
     "target": "node",
     "sourceMaps": false,
