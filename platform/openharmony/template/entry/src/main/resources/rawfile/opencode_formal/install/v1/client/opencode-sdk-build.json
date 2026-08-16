@@ -10,19 +10,19 @@
   "sourceMaps": false,
   "files": [
     {
-      "path": "css/app.bd516e26.css",
-      "bytes": 21884,
-      "sha256": "41e3dc7b87a6ac2e2afc24e4317e4164a6a53dee52af3822ac4325f6d62d5d5b"
+      "path": "css/app.8e606892.css",
+      "bytes": 22275,
+      "sha256": "87b0e6744f0fa6262fba1ea45aadf3501be3132c089f3115f631b49d9965feec"
     },
     {
       "path": "index.html",
       "bytes": 516,
-      "sha256": "c4c078148bb42d3156a34d0947d64c190ddfb6caef20f63fc944c2e4f93a5e43"
+      "sha256": "f041a2d0e26d2bc0e406eb137b6a643b9810c5f0f30d17be80517b498bcc3d60"
     },
     {
-      "path": "js/app.2a5bd695.js",
-      "bytes": 82934,
-      "sha256": "039763e4695430b21475f18079cac3ff4256e796719dcbd22ea82d227099ac1e"
+      "path": "js/app.202e9862.js",
+      "bytes": 83643,
+      "sha256": "b46aa03282c416a070e93fb74b9ef62c8393235b8effba361065cc0051064907"
     },
     {
       "path": "js/chunk-vendors.c21a8b2e.js",
