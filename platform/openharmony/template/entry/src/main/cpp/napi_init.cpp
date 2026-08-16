@@ -1393,6 +1393,25 @@ static napi_value NAPI_Global_applyScriptChanges(napi_env env, napi_callback_inf
 	return result;
 }
 
+static napi_value NAPI_Global_updateResourceFile(napi_env env, napi_callback_info info) {
+	size_t argc = 1;
+	napi_value args[1] = { nullptr };
+	if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr) || argc < 1) {
+		napi_value false_val;
+		napi_get_boolean(env, false, &false_val);
+		return false_val;
+	}
+	size_t path_len = 0;
+	napi_get_value_string_utf8(env, args[0], nullptr, 0, &path_len);
+	std::string path(path_len, '\0');
+	napi_get_value_string_utf8(env, args[0], &path[0], path_len + 1, &path_len);
+
+	bool ok = godot_update_resource_file(path.c_str());
+	napi_value result;
+	napi_get_boolean(env, ok, &result);
+	return result;
+}
+
 struct OpenCodeDockGeometryData {
 	float x;
 	float y;
@@ -1501,6 +1520,7 @@ static napi_value Init(napi_env env, napi_value exports) {
 		{ "setCcToggleCallback", nullptr, NAPI_Global_setCcToggleCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "getEditorContext", nullptr, NAPI_Global_getEditorContext, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "applyScriptChanges", nullptr, NAPI_Global_applyScriptChanges, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "updateResourceFile", nullptr, NAPI_Global_updateResourceFile, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "setOpenCodeDockGeometryCallback", nullptr, NAPI_Global_setOpenCodeDockGeometryCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "requestOpenCodeEditorContext", nullptr, NAPI_Global_requestOpenCodeEditorContext, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "requestOpenCodeEditorAction", nullptr, NAPI_Global_requestOpenCodeEditorAction, nullptr, nullptr, nullptr, napi_default, nullptr }

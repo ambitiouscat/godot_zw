@@ -45,6 +45,7 @@
 #include "editor/editor_node.h"
 #include "editor/editor_interface.h"
 #include "editor/editor_data.h"
+#include "editor/file_system/editor_file_system.h"
 #include "editor/script/script_editor_plugin.h"
 #include "editor/run/editor_run_bar.h"
 #include "core/io/file_access.h"
@@ -997,6 +998,33 @@ bool godot_apply_script_changes(const char *p_path, const char *p_content) {
 	fa->close();
 
 	// Notify ScriptEditor to reload/update buffer if currently open
+	ScriptEditor *se = ScriptEditor::get_singleton();
+	if (se) {
+		se->reload_scripts();
+	}
+	return true;
+#else
+	return false;
+#endif
+}
+
+bool godot_update_resource_file(const char *p_path) {
+#ifdef TOOLS_ENABLED
+	if (!p_path) {
+		return false;
+	}
+	String path = String::utf8(p_path);
+	if (!path.begins_with("res://") && !path.begins_with("/")) {
+		path = "res://" + path;
+	}
+
+	// 1. Single-file surgical reindexing in EditorFileSystem
+	EditorFileSystem *efs = EditorFileSystem::get_singleton();
+	if (efs) {
+		efs->update_file(path);
+	}
+
+	// 2. If it's a script open in ScriptEditor, reload buffer
 	ScriptEditor *se = ScriptEditor::get_singleton();
 	if (se) {
 		se->reload_scripts();

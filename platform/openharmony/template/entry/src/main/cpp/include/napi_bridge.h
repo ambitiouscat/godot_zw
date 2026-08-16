@@ -213,6 +213,7 @@ void godot_set_locale(const char *p_locale);
 // OpenCode bridge - Editor context query & code patch application & Dock geometry synchronization
 const char *godot_get_editor_context_json();
 bool godot_apply_script_changes(const char *p_path, const char *p_content);
+bool godot_update_resource_file(const char *p_path);
 typedef void (*GodotOpenCodeDockGeometryCallback)(float p_x, float p_y, float p_width, float p_height, bool p_is_visible);
 void godot_set_opencode_dock_geometry_callback(GodotOpenCodeDockGeometryCallback p_callback);
 void godot_notify_opencode_dock_geometry(float p_x, float p_y, float p_width, float p_height, bool p_is_visible);

@@ -211,6 +211,15 @@ struct GameWindow {
           ok = false;
           errStr = `,"error":{"code":"MCP_COMMAND_FAILED","summary":${JSON.stringify(String(e))},"retryable":false}`;
         }
+      } else if (method === 'editor.refresh-resource' || method === 'editor.file-updated') {
+        try {
+          const payload = (req['payload'] as Record<string, string>) || {};
+          const targetPath: string = payload['path'] || '';
+          const success: boolean = plugin.updateResourceFile(targetPath);
+          resultJson = `{"updated":${success}}`;
+        } catch (e) {
+          resultJson = '{"updated":false}';
+        }
       } else if (method === 'runtime.status') {
         const isMcpConnected = GodotMcpServerGateway.getInstance().isGodotConnected();
         resultJson = `{"phase":"ready","visible":true,"ready":true,"generation":1,"errorCode":"","errorSummary":"","retryable":false,"mcp":{"available":true,"connected":${isMcpConnected},"ports":"6505-6514","toolCount":179}}`;

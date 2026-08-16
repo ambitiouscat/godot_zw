@@ -4,8 +4,8 @@
   "generator": "godot_zw/scripts/package-opencode-assets.mjs",
   "installRoot": "opencode-formal/install/v1",
   "rawfileRoot": "opencode_formal",
-  "outputSha256": "ef83713f6f853250871673fabbbae5ac265ae9a456436967699631706f1ee0b2",
-  "bytes": 23564472,
+  "outputSha256": "8e6535dc20b46699878e2c807d5c7037164bb6fabe9f87206597e79ff7f3f62a",
+  "bytes": 23840020,
   "selections": {
     "runtime": "formal-upstream",
     "client": "sdk-composed",
@@ -25,7 +25,12 @@
     {
       "path": "install/v1/client/index.html",
       "bytes": 516,
-      "sha256": "cdd76a2293b1911282664b73617bbc614cfa8063d234889f27ed67b45ccc1786"
+      "sha256": "c9e122ac55c57c709ee39e00c4b0bd2989bb491167a90be1f638ab8adca5b31f"
+    },
+    {
+      "path": "install/v1/client/js/app.17b6e037.js",
+      "bytes": 84612,
+      "sha256": "c3fcfff252e8912fa68b529ff68f90956c9b818370bbed9936f445a4febdda0e"
     },
     {
       "path": "install/v1/client/js/app.202e9862.js",
@@ -53,6 +58,11 @@
       "sha256": "df243202eac29b242c6413affd82189b8c4651043b2c2cd93ce2d1449aa96c8b"
     },
     {
+      "path": "install/v1/client/js/chunk-vendors.5fd5b1e1.js",
+      "bytes": 190936,
+      "sha256": "8a5d3f313354653f8d94758ea9b34b42689bd4e67c6424cb6e8750df2710f007"
+    },
+    {
       "path": "install/v1/client/js/chunk-vendors.c21a8b2e.js",
       "bytes": 190926,
       "sha256": "02ddd729e4799598ad3cd2ac2d2d30419f63c34191f19a52b156f451d73aa62c"
@@ -60,7 +70,7 @@
     {
       "path": "install/v1/client/opencode-sdk-build.json",
       "bytes": 922,
-      "sha256": "e545a1f9d175b318e2d97243a577fbd4ac34b6c110b1980a53989819b298cc51"
+      "sha256": "8162da54d987ee795952c25c85c38239e8bd2ee5bfe73199f54dbcd0de6819df"
     },
     {
       "path": "install/v1/config/AGENTS.md",

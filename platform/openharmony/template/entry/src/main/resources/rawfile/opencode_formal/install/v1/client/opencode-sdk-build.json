@@ -17,17 +17,17 @@
     {
       "path": "index.html",
       "bytes": 516,
-      "sha256": "cdd76a2293b1911282664b73617bbc614cfa8063d234889f27ed67b45ccc1786"
+      "sha256": "c9e122ac55c57c709ee39e00c4b0bd2989bb491167a90be1f638ab8adca5b31f"
     },
     {
-      "path": "js/app.40195da9.js",
-      "bytes": 84379,
-      "sha256": "4ebb1ee7d777000ffcceaa80eaf9ae14e003bc4f0dd4ba2d5c10794ac41686bf"
+      "path": "js/app.17b6e037.js",
+      "bytes": 84612,
+      "sha256": "c3fcfff252e8912fa68b529ff68f90956c9b818370bbed9936f445a4febdda0e"
     },
     {
-      "path": "js/chunk-vendors.c21a8b2e.js",
-      "bytes": 190926,
-      "sha256": "02ddd729e4799598ad3cd2ac2d2d30419f63c34191f19a52b156f451d73aa62c"
+      "path": "js/chunk-vendors.5fd5b1e1.js",
+      "bytes": 190936,
+      "sha256": "8a5d3f313354653f8d94758ea9b34b42689bd4e67c6424cb6e8750df2710f007"
     }
   ]
 }
