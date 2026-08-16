@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "generator": "formal-runtime/scripts/build-formal-runtime.mjs",
   "inputManifestSha256": "e3dbc6098f2ea8f1492ed654e8dca308e19d6fe8b241240dade035a989bc366d",
-  "outputSha256": "5818fa0d4554e322d1f6470cdc631198fe4234b569dabe1531dccc226959ffb3",
-  "bytes": 21293773,
+  "outputSha256": "6d2d53e99939df9bc5c55218d5f46d6879dbcf9069e05770f65cc6405b74db4c",
+  "bytes": 21569164,
   "baselineManifestSha256": "ade3e7905a59774fb2996d9ee083ad3604618284461c4b360b256c20be6328b7",
   "upstream": {
     "revision": "f47684787ad07e5311bd9422c1a9eb70c9966274",
@@ -20,11 +20,11 @@
   "buildSources": [
     {
       "path": "formal-runtime/scripts/build-formal-runtime.ps1",
-      "sha256": "a2722bb3e2637572deb1e4efada9067e404af727e33367bcc4b905d7b022f72e"
+      "sha256": "71be731e1ec5c0dd25fdc2d34daa3692bc58bf8f1efc579f89ae28a96481f62b"
     },
     {
       "path": "formal-runtime/scripts/build-formal-runtime.mjs",
-      "sha256": "1bc7311536bbbd536ef8e9830756c3e6a4d04ae1c07f32a9eda569bdd65b9f05"
+      "sha256": "6edac1f3da22d5d6d2ba713425ff562757dc0c661840c41ea7ec44dc76e78ab3"
     },
     {
       "path": "formal-runtime/scripts/verify-packaged-extensions.mjs",
@@ -32,7 +32,7 @@
     },
     {
       "path": "formal-runtime/test/packaging/verify-formal-runtime-bundle.mjs",
-      "sha256": "5cea03a99795b72f25658175ad2b82b956ba355bf6f4c5d49a665ca11e87d4b5"
+      "sha256": "3b01bfd45135a2bc051a8027815c4c3b48aefa69a3b70946ed702f75daa76c7b"
     },
     {
       "path": "formal-runtime/test/packaging/verify-formal-runtime-node-load.mjs",
@@ -167,7 +167,7 @@
   "networkTransport": {
     "id": "node-fetch-2.7.0-jitless-http",
     "manifest": {
-      "path": "openspec/changes/port-upstream-opencode-runtime-to-harmony/manifests/jitless-network-transport.json",
+      "path": "manifests/jitless-network-transport.json",
       "sha256": "1ad6f78cc6de3745d485a5fae60964f5e589ceaad8a8e41e6603cefa083ac0be"
     },
     "packages": [
@@ -289,12 +289,12 @@
       {
         "id": "builtinTools",
         "path": "formal-runtime/src/adapters/stable-builtin-tool-loader.ts",
-        "sha256": "f8ff7ac9a5af7f4d41eb7a286ceace0d70d0719b150f22fdaa432e87dffd3937"
+        "sha256": "3aef4e2670532d0732dd91c92168ea6d8b145ee44633574a08cb475185be193a"
       },
       {
         "id": "bundledProviders",
         "path": "formal-runtime/src/adapters/stable-bundled-providers.ts",
-        "sha256": "5613085ff45a141064a20aeb76ef068f50002f6b55cdc8153a422cbf203fb5c9"
+        "sha256": "b987f1d42560ba92d330ead80142e6bfb8abb4a864798392a931d632966a842a"
       },
       {
         "id": "childProcessSpawner",
@@ -349,7 +349,7 @@
       {
         "id": "mcp",
         "path": "formal-runtime/src/adapters/stable-mcp.ts",
-        "sha256": "7cf68fbd63da4ed4ef9d384d7c45ad0247653e27e362b168c7d46e87f2ee078b"
+        "sha256": "04706e6f03fbefab1d76518b5f79a8f578bf49f3cd6aeceb0dc3b399b06ee120"
       },
       {
         "id": "mcpBrowser",
@@ -483,7 +483,7 @@
     "staleMutationPreconditions": true,
     "substitution": {
       "path": "formal-runtime/src/adapters/stable-builtin-tool-loader.ts",
-      "sha256": "f8ff7ac9a5af7f4d41eb7a286ceace0d70d0719b150f22fdaa432e87dffd3937"
+      "sha256": "3aef4e2670532d0732dd91c92168ea6d8b145ee44633574a08cb475185be193a"
     }
   },
   "stableMcpPlatform": {
@@ -1170,7 +1170,7 @@
     ],
     "globalInstructions": {
       "filename": "AGENTS.md",
-      "sha256": "320f2e6575b308644f93494c709870d762dd23b393bb63946b612b9badf6b22f"
+      "sha256": "3654365d28fcc921c2b233d61f7003b06f3dd7b97a47bc7b4208b89be801018f"
     },
     "legacyGlobalInstructions": {
       "filename": "AGENTS.md",
@@ -1232,7 +1232,7 @@
     "staticInputs": [
       {
         "path": "formal-runtime/assets/config/AGENTS.md",
-        "sha256": "320f2e6575b308644f93494c709870d762dd23b393bb63946b612b9badf6b22f"
+        "sha256": "3654365d28fcc921c2b233d61f7003b06f3dd7b97a47bc7b4208b89be801018f"
       },
       {
         "path": "opencode/packages/opencode/src/command/template/initialize.txt",
@@ -1256,7 +1256,7 @@
     "version": 1,
     "policyId": "harmony-tier-a-packaged-extensions",
     "manifest": {
-      "path": "openspec/changes/port-upstream-opencode-runtime-to-harmony/manifests/packaged-extensions.json",
+      "path": "manifests/packaged-extensions.json",
       "sha256": "ddea1ee6c64565fab219f275159db6ffa0c4e3309b426b350aee7235f091d82c"
     },
     "selection": "build-time-only",
@@ -1279,7 +1279,7 @@
   "stableModelCatalogPlatform": {
     "version": 1,
     "manifest": {
-      "path": "openspec/changes/port-upstream-opencode-runtime-to-harmony/manifests/model-catalog-snapshot.json",
+      "path": "manifests/model-catalog-snapshot.json",
       "sha256": "a9e5b12b220f0d6fde0945e05476cb4243811c5696eace910dd00b8fac646944"
     },
     "authority": "upstream-models-dev-provider",
@@ -1397,11 +1397,11 @@
       },
       {
         "path": "formal-runtime/src/adapters/stable-bundled-providers.ts",
-        "sha256": "5613085ff45a141064a20aeb76ef068f50002f6b55cdc8153a422cbf203fb5c9"
+        "sha256": "b987f1d42560ba92d330ead80142e6bfb8abb4a864798392a931d632966a842a"
       },
       {
         "path": "formal-runtime/src/adapters/stable-builtin-tool-loader.ts",
-        "sha256": "f8ff7ac9a5af7f4d41eb7a286ceace0d70d0719b150f22fdaa432e87dffd3937"
+        "sha256": "3aef4e2670532d0732dd91c92168ea6d8b145ee44633574a08cb475185be193a"
       },
       {
         "path": "formal-runtime/src/adapters/stable-builtin-tool-profile.ts",
@@ -1410,6 +1410,14 @@
       {
         "path": "formal-runtime/src/adapters/stable-capability-unavailable.ts",
         "sha256": "8b7d0c676f8994656a972b942c6f096ff0cd9567ed910de3ae18ae3f77d69983"
+      },
+      {
+        "path": "formal-runtime/src/adapters/godot-engine-tool.ts",
+        "sha256": "d05de3c35c647bee329fb2214bab203177a7b738011cb6873f2f8e6befbdb205"
+      },
+      {
+        "path": "formal-runtime/src/adapters/godot-mcp-provider.ts",
+        "sha256": "974eb55400a4fd931674d2306fd72ea05a3e6cd96dd6ea9688d288398654c139"
       },
       {
         "path": "formal-runtime/src/adapters/stable-child-process-spawner.ts",
@@ -1469,7 +1477,7 @@
       },
       {
         "path": "formal-runtime/src/adapters/stable-mcp.ts",
-        "sha256": "7cf68fbd63da4ed4ef9d384d7c45ad0247653e27e362b168c7d46e87f2ee078b"
+        "sha256": "04706e6f03fbefab1d76518b5f79a8f578bf49f3cd6aeceb0dc3b399b06ee120"
       },
       {
         "path": "formal-runtime/src/adapters/stable-native-llm-runtime.ts",
@@ -1557,14 +1565,14 @@
       },
       {
         "path": "formal-runtime/assets/config/AGENTS.md",
-        "sha256": "320f2e6575b308644f93494c709870d762dd23b393bb63946b612b9badf6b22f"
+        "sha256": "3654365d28fcc921c2b233d61f7003b06f3dd7b97a47bc7b4208b89be801018f"
       },
       {
         "path": "formal-runtime/assets/config/legacy-harmony-AGENTS-v1.md",
         "sha256": "c6b65c965fb7fcfd8a39038ffe523e38aba46014748ff6acb5c2e58d890e24b0"
       },
       {
-        "path": "openspec/changes/port-upstream-opencode-runtime-to-harmony/manifests/packaged-extensions.json",
+        "path": "manifests/packaged-extensions.json",
         "sha256": "ddea1ee6c64565fab219f275159db6ffa0c4e3309b426b350aee7235f091d82c"
       }
     ],
@@ -1761,14 +1769,14 @@
     },
     {
       "path": "opencode-harmony-runtime.mjs",
-      "bytes": 15831136,
-      "sha256": "c4c2289a9f99254a7820aedadd7af92757225841f18342f3afe9186225110959"
+      "bytes": 16106527,
+      "sha256": "32ef956a2edb77b37d8d6b79871377bc849bf8dcb69f5409b19bb7e9ebf666f5"
     }
   ],
   "output": {
     "path": "formal-runtime/generated/runtime/opencode-harmony-runtime.mjs",
-    "bytes": 15831136,
-    "sha256": "c4c2289a9f99254a7820aedadd7af92757225841f18342f3afe9186225110959",
+    "bytes": 16106527,
+    "sha256": "32ef956a2edb77b37d8d6b79871377bc849bf8dcb69f5409b19bb7e9ebf666f5",
     "format": "esm",
     "target": "node",
     "sourceMaps": false,

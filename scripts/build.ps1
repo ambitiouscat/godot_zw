@@ -36,6 +36,7 @@ param (
 
     [switch]$Package,
     [switch]$Install,
+    [switch]$SkipEngine,
 
     [int]$Jobs = [System.Environment]::ProcessorCount,
     [string]$SdkPath = ""
@@ -207,19 +208,23 @@ $sconsArgs = @(
     "module_zip_enabled=yes"
 )
 
-Write-Host "[1/3] Compiling engine libgodot.so..." -ForegroundColor Cyan
-Write-Host "  scons $($sconsArgs -join ' ')`n"
+if (-not $SkipEngine) {
+    Write-Host "[1/3] Compiling engine libgodot.so..." -ForegroundColor Cyan
+    Write-Host "  scons $($sconsArgs -join ' ')`n"
 
-$sw = [System.Diagnostics.Stopwatch]::StartNew()
-python -m SCons @sconsArgs
-$sw.Stop()
+    $sw = [System.Diagnostics.Stopwatch]::StartNew()
+    python -m SCons @sconsArgs
+    $sw.Stop()
 
-if ($LASTEXITCODE -ne 0) {
-    Write-Error "SCons compilation failed with code $LASTEXITCODE"
-    exit $LASTEXITCODE
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "SCons compilation failed with code $LASTEXITCODE"
+        exit $LASTEXITCODE
+    }
+
+    Write-Host "`n  Engine compilation finished in $([math]::Round($sw.Elapsed.TotalSeconds, 1))s" -ForegroundColor Green
+} else {
+    Write-Host "[1/3] Skipping engine compilation (-SkipEngine specified)" -ForegroundColor Yellow
 }
-
-Write-Host "`n  Engine compilation finished in $([math]::Round($sw.Elapsed.TotalSeconds, 1))s" -ForegroundColor Green
 
 # Locate output .so
 $soPatterns = @(
