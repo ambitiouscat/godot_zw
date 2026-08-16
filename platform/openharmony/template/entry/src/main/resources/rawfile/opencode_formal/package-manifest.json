@@ -4,8 +4,8 @@
   "generator": "godot_zw/scripts/package-opencode-assets.mjs",
   "installRoot": "opencode-formal/install/v1",
   "rawfileRoot": "opencode_formal",
-  "outputSha256": "8e6535dc20b46699878e2c807d5c7037164bb6fabe9f87206597e79ff7f3f62a",
-  "bytes": 23840020,
+  "outputSha256": "0ce1385f4e8bc9dc17cb35afeaad7af94982ae162b69579f8f17b32bdeab3eb6",
+  "bytes": 23842931,
   "selections": {
     "runtime": "formal-upstream",
     "client": "sdk-composed",
@@ -74,8 +74,8 @@
     },
     {
       "path": "install/v1/config/AGENTS.md",
-      "bytes": 1334,
-      "sha256": "89083d3eb5c739f4f021e180ea15ccf003ef6fbc27707a05c95074be2c4bedda"
+      "bytes": 4245,
+      "sha256": "3654365d28fcc921c2b233d61f7003b06f3dd7b97a47bc7b4208b89be801018f"
     },
     {
       "path": "install/v1/config/opencode.json",
