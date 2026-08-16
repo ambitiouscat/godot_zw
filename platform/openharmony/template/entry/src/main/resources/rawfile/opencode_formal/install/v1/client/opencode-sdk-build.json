@@ -17,12 +17,12 @@
     {
       "path": "index.html",
       "bytes": 516,
-      "sha256": "f041a2d0e26d2bc0e406eb137b6a643b9810c5f0f30d17be80517b498bcc3d60"
+      "sha256": "cdd76a2293b1911282664b73617bbc614cfa8063d234889f27ed67b45ccc1786"
     },
     {
-      "path": "js/app.202e9862.js",
-      "bytes": 83643,
-      "sha256": "b46aa03282c416a070e93fb74b9ef62c8393235b8effba361065cc0051064907"
+      "path": "js/app.40195da9.js",
+      "bytes": 84379,
+      "sha256": "4ebb1ee7d777000ffcceaa80eaf9ae14e003bc4f0dd4ba2d5c10794ac41686bf"
     },
     {
       "path": "js/chunk-vendors.c21a8b2e.js",

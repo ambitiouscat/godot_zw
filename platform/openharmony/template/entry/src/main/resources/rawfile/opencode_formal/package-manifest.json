@@ -4,8 +4,8 @@
   "generator": "godot_zw/scripts/package-opencode-assets.mjs",
   "installRoot": "opencode-formal/install/v1",
   "rawfileRoot": "opencode_formal",
-  "outputSha256": "352c187df6568a7e1b0f0d8ece4505a1a780660afcf38a77f12154567eb50611",
-  "bytes": 23480093,
+  "outputSha256": "ef83713f6f853250871673fabbbae5ac265ae9a456436967699631706f1ee0b2",
+  "bytes": 23564472,
   "selections": {
     "runtime": "formal-upstream",
     "client": "sdk-composed",
@@ -25,7 +25,7 @@
     {
       "path": "install/v1/client/index.html",
       "bytes": 516,
-      "sha256": "f041a2d0e26d2bc0e406eb137b6a643b9810c5f0f30d17be80517b498bcc3d60"
+      "sha256": "cdd76a2293b1911282664b73617bbc614cfa8063d234889f27ed67b45ccc1786"
     },
     {
       "path": "install/v1/client/js/app.202e9862.js",
@@ -36,6 +36,11 @@
       "path": "install/v1/client/js/app.2a5bd695.js",
       "bytes": 82934,
       "sha256": "039763e4695430b21475f18079cac3ff4256e796719dcbd22ea82d227099ac1e"
+    },
+    {
+      "path": "install/v1/client/js/app.40195da9.js",
+      "bytes": 84379,
+      "sha256": "4ebb1ee7d777000ffcceaa80eaf9ae14e003bc4f0dd4ba2d5c10794ac41686bf"
     },
     {
       "path": "install/v1/client/js/app.64ba3260.js",
@@ -55,7 +60,7 @@
     {
       "path": "install/v1/client/opencode-sdk-build.json",
       "bytes": 922,
-      "sha256": "053554fb503de5949fe997ed0c443ebedb6cbffa68e876bc9a92752087d3060d"
+      "sha256": "e545a1f9d175b318e2d97243a577fbd4ac34b6c110b1980a53989819b298cc51"
     },
     {
       "path": "install/v1/config/AGENTS.md",
