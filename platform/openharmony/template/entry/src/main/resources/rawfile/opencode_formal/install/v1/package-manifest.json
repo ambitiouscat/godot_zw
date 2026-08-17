@@ -4,8 +4,8 @@
   "generator": "godot_zw/scripts/package-opencode-assets.mjs",
   "installRoot": "opencode-formal/install/v1",
   "rawfileRoot": "opencode_formal",
-  "outputSha256": "0703f824ad740dcc58ff506f64f01dcca53c19cb0d861e8544691afc9629bdaf",
-  "bytes": 24112909,
+  "outputSha256": "996fedcfbb9e5413c91e1c4952ae566d6c3384252ade158a6d7d9d75aeac5b18",
+  "bytes": 24119898,
   "selections": {
     "runtime": "formal-upstream",
     "client": "sdk-composed",
@@ -124,8 +124,8 @@
     },
     {
       "path": "install/v1/runtime/assets/node-fetch-harmony.cjs",
-      "bytes": 384935,
-      "sha256": "fc032eb23b653bc9effa89d96fdf73c8662f436b2d06010031e532fb19b89910"
+      "bytes": 385070,
+      "sha256": "01262537391ee3e32fc4f53adadb88bc30d7608e2ad96c47f4da713aab6e0980"
     },
     {
       "path": "install/v1/runtime/assets/photon_rs_bg-bq08arze.wasm",
@@ -135,12 +135,12 @@
     {
       "path": "install/v1/runtime/manifest.json",
       "bytes": 65515,
-      "sha256": "819e5ecbb82e3d255d2faf4d5a416302e0bb27975543ba8e157d20a143ffc6d3"
+      "sha256": "6990359bf65e80617d6d8225fce8791e8e4fbc06de5afb4f2cf8d99b1e8ccc96"
     },
     {
       "path": "install/v1/runtime/opencode-harmony-runtime.mjs",
-      "bytes": 16101144,
-      "sha256": "e975ffe9edf7290ce1abcd48e09652a46cc67d2e878f3ad342970bc618d33456"
+      "bytes": 16107998,
+      "sha256": "0b95d91f3a33ac85476a9cd107c1c33cf6cdba91b0fa052044d6781975db1932"
     }
   ]
 }

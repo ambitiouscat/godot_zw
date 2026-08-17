@@ -14,7 +14,7 @@ import { BridgeCallbacks } from '../core/BridgeCallbacks';
 import { InputDialogContent } from '../core/InputDialog';
 import { Logger } from '../core/Logger';
 import { injectStandardDirs } from '../core/StandardDirProvider';
-import { getProjectPath } from '../core/AbilityState';
+import { getProjectPath, getGodotMode } from '../core/AbilityState';
 import { GodotMcpInstaller } from '../core/GodotMcpInstaller';
 import { GodotMcpServerGateway } from '../core/GodotMcpServerGateway';
 import { HarmonyOpenCodeBridgeProxy } from '../opencode/OpenCodePanelBridgeHost';
@@ -106,7 +106,15 @@ struct GameWindow {
       this.dockWidth = width
       this.dockHeight = height
       this.dockVisible = isVisible && width > 0 && height > 0
+      if (this.dockVisible && !this.panelReady && !this.isStartingRuntime && getGodotMode() === 'editor') {
+        this.startOpenCodePanel()
+      }
     })
+
+    if (getGodotMode() !== 'editor') {
+      logger.info(`Skipping OpenCode and MCP initialization in non-editor mode: ${getGodotMode()}`)
+      return
+    }
 
     try {
       let initialProjectDir = getProjectPath()
@@ -151,9 +159,14 @@ struct GameWindow {
     }
     BridgeCallbacks.showInputDialog = null
     this.inputDialogController = null
+    try {
+      if (this.panelController) {
+        void this.panelController.shutdown()
+      }
+    } catch (_) {}
   }
 
-  private async startOpenCodePanel() {
+  private async startOpenCodePanel(retryCount: number = 0) {
     if (!this.panelController || this.panelReady || this.isStartingRuntime) {
       return
     }
@@ -164,7 +177,14 @@ struct GameWindow {
       this.panelReady = true
       logger.info(`OpenCode formal panel activated at: ${target.url}`)
     } catch (e) {
-      logger.error('Failed to activate OpenCode panel', e)
+      logger.error(`Failed to activate OpenCode panel (attempt ${retryCount + 1})`, e)
+      if (retryCount < 4) {
+        const delayMs = (retryCount + 1) * 800
+        logger.info(`Scheduling OpenCode panel retry ${retryCount + 1}/4 in ${delayMs}ms...`)
+        setTimeout(() => {
+          this.startOpenCodePanel(retryCount + 1)
+        }, delayMs)
+      }
     } finally {
       this.isStartingRuntime = false
     }
