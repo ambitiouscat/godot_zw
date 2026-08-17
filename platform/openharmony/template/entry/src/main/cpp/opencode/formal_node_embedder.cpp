@@ -323,9 +323,28 @@ Object.assign(process.env, {
   OPENCODE_CLIENT: 'harmony',
   OPENCODE_DISABLE_AUTOUPDATE: '1',
   OPENCODE_DISABLE_PRUNE: '1',
-  OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: '1'
+  OPENCODE_EXPERIMENTAL_DISABLE_FILEWATCHER: '1',
+  OPENCODE_DISABLE_MODELS_FETCH: '1'
 });
 const fs = require('node:fs');
+const logDir = path.posix.join(formalRoot, 'data', 'log');
+const consoleLogPath = path.posix.join(logDir, 'console.log');
+try { fs.mkdirSync(logDir, { recursive: true }); } catch (_) {}
+const originalLog = console.log;
+const originalError = console.error;
+const originalWarn = console.warn;
+function writeConsoleLog(level, args) {
+  try {
+    const text = '[' + new Date().toISOString() + '] [' + level + '] ' + args.map(a => typeof a === 'object' ? JSON.stringify(a) : String(a)).join(' ') + '\n';
+    fs.appendFileSync(consoleLogPath, text);
+  } catch (_) {}
+}
+console.log = (...args) => { writeConsoleLog('INFO', args); originalLog(...args); };
+console.error = (...args) => { writeConsoleLog('ERROR', args); originalError(...args); };
+console.warn = (...args) => { writeConsoleLog('WARN', args); originalWarn(...args); };
+process.on('uncaughtException', (err) => { writeConsoleLog('FATAL_UNCAUGHT', [err && err.stack ? err.stack : err]); });
+process.on('unhandledRejection', (reason) => { writeConsoleLog('FATAL_REJECTION', [reason && reason.stack ? reason.stack : reason]); });
+
 try {
   fs.mkdirSync(bootstrap.projectRoot, { recursive: true });
   process.chdir(bootstrap.projectRoot);

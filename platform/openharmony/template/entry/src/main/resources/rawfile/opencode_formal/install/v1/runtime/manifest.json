@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "generator": "formal-runtime/scripts/build-formal-runtime.mjs",
   "inputManifestSha256": "e3dbc6098f2ea8f1492ed654e8dca308e19d6fe8b241240dade035a989bc366d",
-  "outputSha256": "e3b5ea9e596520fb7d60f5d4817014f8b5927a9d979efd158290cb53defef341",
-  "bytes": 21562481,
+  "outputSha256": "09b5e22cfa0574a009c828270ec65b92ba5fa88906722d1479c3201396763bbb",
+  "bytes": 21570635,
   "baselineManifestSha256": "ade3e7905a59774fb2996d9ee083ad3604618284461c4b360b256c20be6328b7",
   "upstream": {
     "revision": "f47684787ad07e5311bd9422c1a9eb70c9966274",
@@ -198,8 +198,8 @@
     ],
     "output": {
       "path": "assets/node-fetch-harmony.cjs",
-      "bytes": 384935,
-      "sha256": "fc032eb23b653bc9effa89d96fdf73c8662f436b2d06010031e532fb19b89910"
+      "bytes": 385070,
+      "sha256": "01262537391ee3e32fc4f53adadb88bc30d7608e2ad96c47f4da713aab6e0980"
     },
     "fetchInjection": "effect/unstable/http FetchHttpClient.Fetch",
     "webSocketInjection": "HarmonyWebSocketFactory",
@@ -289,7 +289,7 @@
       {
         "id": "builtinTools",
         "path": "formal-runtime/src/adapters/stable-builtin-tool-loader.ts",
-        "sha256": "3aef4e2670532d0732dd91c92168ea6d8b145ee44633574a08cb475185be193a"
+        "sha256": "5e78101d5a380c04a6e4dad9724309a40e8f48072511c3c3b549018414afd530"
       },
       {
         "id": "bundledProviders",
@@ -483,7 +483,7 @@
     "staleMutationPreconditions": true,
     "substitution": {
       "path": "formal-runtime/src/adapters/stable-builtin-tool-loader.ts",
-      "sha256": "3aef4e2670532d0732dd91c92168ea6d8b145ee44633574a08cb475185be193a"
+      "sha256": "5e78101d5a380c04a6e4dad9724309a40e8f48072511c3c3b549018414afd530"
     }
   },
   "stableMcpPlatform": {
@@ -1381,7 +1381,7 @@
       },
       {
         "path": "formal-runtime/src/adapters/network-transport.ts",
-        "sha256": "76c7ac25c3a2e6f8269f6c4a28c12380024732ccadfb47e395687b2994d7e513"
+        "sha256": "2baa3b3d2093f396f06a4d31c90101ad874f05b7a7082d51469e97701961fcbe"
       },
       {
         "path": "formal-runtime/src/adapters/private-paths.ts",
@@ -1401,7 +1401,7 @@
       },
       {
         "path": "formal-runtime/src/adapters/stable-builtin-tool-loader.ts",
-        "sha256": "3aef4e2670532d0732dd91c92168ea6d8b145ee44633574a08cb475185be193a"
+        "sha256": "5e78101d5a380c04a6e4dad9724309a40e8f48072511c3c3b549018414afd530"
       },
       {
         "path": "formal-runtime/src/adapters/stable-builtin-tool-profile.ts",
@@ -1417,7 +1417,7 @@
       },
       {
         "path": "formal-runtime/src/adapters/godot-mcp-provider.ts",
-        "sha256": "974eb55400a4fd931674d2306fd72ea05a3e6cd96dd6ea9688d288398654c139"
+        "sha256": "dc4d99f94a26879c4af0ec53ba4f627bbf2abde662f601a6ed7ee0196324d2f2"
       },
       {
         "path": "formal-runtime/src/adapters/stable-child-process-spawner.ts",
@@ -1549,7 +1549,7 @@
       },
       {
         "path": "formal-runtime/src/composition/stable-model-catalog.ts",
-        "sha256": "52f338a562d282437a8f5a756fa0bfb691342834de30ca83f54da65ce7430a0b"
+        "sha256": "bb593369059d6de2e192ee1b14e16a7e559a9dbe321af98fce7ef223ca22115c"
       },
       {
         "path": "formal-runtime/src/migrations/copy-before-transform.ts",
@@ -1759,8 +1759,8 @@
     },
     {
       "path": "assets/node-fetch-harmony.cjs",
-      "bytes": 384935,
-      "sha256": "fc032eb23b653bc9effa89d96fdf73c8662f436b2d06010031e532fb19b89910"
+      "bytes": 385070,
+      "sha256": "01262537391ee3e32fc4f53adadb88bc30d7608e2ad96c47f4da713aab6e0980"
     },
     {
       "path": "assets/photon_rs_bg-bq08arze.wasm",
@@ -1769,14 +1769,14 @@
     },
     {
       "path": "opencode-harmony-runtime.mjs",
-      "bytes": 16099979,
-      "sha256": "06b78de176964047a5e17c491237df1144de54111ccd59dd46f2b6decfc02e03"
+      "bytes": 16107998,
+      "sha256": "0b95d91f3a33ac85476a9cd107c1c33cf6cdba91b0fa052044d6781975db1932"
     }
   ],
   "output": {
     "path": "formal-runtime/generated/runtime/opencode-harmony-runtime.mjs",
-    "bytes": 16099979,
-    "sha256": "06b78de176964047a5e17c491237df1144de54111ccd59dd46f2b6decfc02e03",
+    "bytes": 16107998,
+    "sha256": "0b95d91f3a33ac85476a9cd107c1c33cf6cdba91b0fa052044d6781975db1932",
     "format": "esm",
     "target": "node",
     "sourceMaps": false,
