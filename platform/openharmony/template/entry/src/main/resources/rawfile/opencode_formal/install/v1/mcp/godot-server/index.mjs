@@ -25901,9 +25901,9 @@ function sessionIsCurrent(session) {
   }
 }
 function ensurePrivateDirectory(directory) {
-  mkdirSync(directory, { recursive: true, mode: 448 });
+  mkdirSync(directory, { recursive: true, mode: 493 });
   if (process.platform !== "win32")
-    chmodSync(directory, 448);
+    chmodSync(directory, 493);
 }
 function fsyncDirectory(directory) {
   if (process.platform === "win32")
@@ -38396,9 +38396,9 @@ function canonicalExistingPath(path, name) {
   }
 }
 function privateDirectory(path) {
-  mkdirSync2(path, { recursive: true, mode: 448 });
+  mkdirSync2(path, { recursive: true, mode: 493 });
   if (process.platform !== "win32")
-    chmodSync2(path, 448);
+    chmodSync2(path, 493);
 }
 function fsyncDirectory2(path) {
   if (process.platform === "win32")

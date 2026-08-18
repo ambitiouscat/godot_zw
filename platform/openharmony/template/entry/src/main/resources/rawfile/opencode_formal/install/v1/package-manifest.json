@@ -4,7 +4,7 @@
   "generator": "godot_zw/scripts/package-opencode-assets.mjs",
   "installRoot": "opencode-formal/install/v1",
   "rawfileRoot": "opencode_formal",
-  "outputSha256": "ed8cf505d55e0327a4ba0daf2889f7133091ab85f903e81782d00a0f6663efd0",
+  "outputSha256": "d778209448792bf6a38688d2a8fd41abfc1a7ac36faa5d2df6a0c7c639b5b2db",
   "bytes": 24131278,
   "selections": {
     "runtime": "formal-upstream",
@@ -105,7 +105,7 @@
     {
       "path": "install/v1/mcp/godot-server/index.mjs",
       "bytes": 1468056,
-      "sha256": "7c950cfcded52a5c08e136d5e1b80499ac203d9db6f1a791dd9aa1ae11a0f898"
+      "sha256": "74c06e042f96eee564a27d346316ed618ff0be13504ae2a4d1f722253468bdbc"
     },
     {
       "path": "install/v1/mcp/godot-server/package.json",

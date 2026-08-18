@@ -220,6 +220,11 @@ void godot_finalize() {
 	godot_engine_running = false;
 	vsync_frame_cv.notify_all();
 
+	if (godot_engine_thread != 0 && !pthread_equal(godot_engine_thread, pthread_self())) {
+		pthread_join(godot_engine_thread, nullptr);
+		godot_engine_thread = 0;
+	}
+
 	if (os_openharmony) {
 		os_openharmony->main_loop_end();
 		Main::cleanup();
@@ -347,10 +352,13 @@ static void *godot_engine_thread_func(void *p_arg) {
 
 		godot_step_internal();
 	}
+
+	Thread::release_main_thread();
 	return nullptr;
 }
 
 int64_t godot_init(NativeResourceManager *p_resource_manager, void *p_native_window, int32_t window_id, int64_t window_width, int64_t window_height, const char *p_allowed_permissions) {
+	step = STEP_SETUP;
 	OHNativeWindow *window = static_cast<OHNativeWindow *>(p_native_window);
 
 	FileAccessOpenHarmony::setup(p_resource_manager);
