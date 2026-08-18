@@ -21,13 +21,16 @@
     },
     {
       "path": "js/app.17b6e037.js",
-      "bytes": 84612,
-      "sha256": "c3fcfff252e8912fa68b529ff68f90956c9b818370bbed9936f445a4febdda0e"
+      "bytes": 85899,
+      "sha256": "b8a2e7fa407532a05c5fa63eefe06d89c9cecbd3d0c5c76abd87099382acaadb"
     },
     {
       "path": "js/chunk-vendors.5fd5b1e1.js",
       "bytes": 190936,
       "sha256": "8a5d3f313354653f8d94758ea9b34b42689bd4e67c6424cb6e8750df2710f007"
     }
-  ]
+  ],
+  "sha256": "58244ad64d0a98be0c6be1b504dbe382e97c2d62f9e1da65828681af13511c82",
+  "sizeBytes": 86112,
+  "updatedAt": "2026-08-18T07:05:07.898Z"
 }

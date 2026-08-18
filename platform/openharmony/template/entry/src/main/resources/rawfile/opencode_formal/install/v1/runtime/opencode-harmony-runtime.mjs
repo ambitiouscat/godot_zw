@@ -110486,6 +110486,9 @@ var init_config2 = __esm(async () => {
         for (const file4 of yield* exports_paths.files("opencode", ctx.directory, ctx.worktree).pipe(exports_Effect.orDie)) {
           yield* merge12(file4, yield* loadFile(file4, authEnv), "local");
         }
+        for (const file4 of yield* exports_paths.files("config", ctx.directory, ctx.worktree).pipe(exports_Effect.orDie)) {
+          yield* merge12(file4, yield* loadFile(file4, authEnv), "local");
+        }
       }
       result7.agent = result7.agent || {};
       result7.mode = result7.mode || {};
@@ -110646,6 +110649,10 @@ var init_config2 = __esm(async () => {
       const file4 = path22.join(dir3, "config.json");
       const existing = yield* loadFile(file4);
       yield* fs4.writeFileString(file4, JSON.stringify(D2(writable(existing), writable(config2)), null, 2)).pipe(exports_Effect.orDie);
+      const opencodeFile = path22.join(dir3, "opencode.json");
+      const existingOpencode = yield* loadFile(opencodeFile);
+      yield* fs4.writeFileString(opencodeFile, JSON.stringify(D2(writable(existingOpencode), writable(config2)), null, 2)).pipe(exports_Effect.orDie);
+      yield* invalidate8();
     });
     const invalidate8 = exports_Effect.fn("Config.invalidate")(function* () {
       yield* invalidateGlobal;
@@ -138214,6 +138221,24 @@ var import_api, import_api2, __defProp2, __export2 = (target, all8) => {
 }) => {
   var _a21;
   const urlText = url3.toString();
+  if (urlText.startsWith("data:")) {
+    const commaIdx = urlText.indexOf(",");
+    if (commaIdx !== -1) {
+      const meta = urlText.substring(5, commaIdx);
+      const raw = urlText.substring(commaIdx + 1);
+      const isBase64 = meta.endsWith(";base64");
+      const mediaType = isBase64 ? meta.substring(0, meta.length - 7) : (meta || "application/octet-stream");
+      const buffer = isBase64 ? Buffer.from(raw, "base64") : Buffer.from(decodeURIComponent(raw), "utf8");
+      return { data: new Uint8Array(buffer), mediaType: mediaType || undefined };
+    }
+  }
+  if (urlText.startsWith("file://") || urlText.startsWith("/")) {
+    try {
+      const fsPath = urlText.startsWith("file://") ? (new URL(urlText)).pathname : urlText;
+      const buffer = fs.readFileSync(fsPath);
+      return { data: new Uint8Array(buffer), mediaType: "image/png" };
+    } catch (_e) {}
+  }
   validateDownloadUrl(urlText);
   try {
     const response2 = await fetch(urlText, {
@@ -201365,9 +201390,48 @@ var init_provider5 = __esm(async () => {
           providers2[providerID] = D2(existing, provider);
           return;
         }
-        const match17 = database[providerID];
-        if (!match17)
-          return;
+        let match17 = database[providerID];
+        if (!match17) {
+          const fallbackModelID = exports_model2.ID.make(providerID);
+          const customModel = {
+            id: fallbackModelID,
+            api: {
+              id: providerID,
+              npm: provider.options?.npm ?? "@ai-sdk/openai-compatible",
+              url: provider.options?.baseURL ?? ""
+            },
+            status: "active",
+            name: provider.name ?? providerID,
+            providerID,
+            capabilities: {
+              temperature: true,
+              reasoning: false,
+              attachment: false,
+              toolcall: true,
+              input: { text: true, audio: false, image: false, video: false, pdf: false },
+              output: { text: true, audio: false, image: false, video: false, pdf: false },
+              interleaved: false
+            },
+            cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+            options: {},
+            limit: { context: 128000, output: 8192 },
+            headers: {},
+            family: providerID,
+            release_date: "",
+            variants: {}
+          };
+          match17 = {
+            id: providerID,
+            name: provider.name ?? providerID,
+            env: provider.env ?? [],
+            options: provider.options ?? {},
+            source: provider.source ?? "custom",
+            models: {
+              [fallbackModelID]: customModel
+            }
+          };
+          database[providerID] = match17;
+        }
         providers2[providerID] = D2(match17, provider);
       }
       const plugins2 = yield* plugin.list();
@@ -201714,17 +201778,87 @@ var init_provider5 = __esm(async () => {
     const getProvider = exports_Effect.fn("Provider.getProvider")((providerID) => exports_instance_state.use(state2, (s6) => s6.providers[providerID]));
     const getModel = exports_Effect.fn("Provider.getModel")(function* (providerID, modelID) {
       const s6 = yield* exports_instance_state.get(state2);
-      const provider = s6.providers[providerID];
+      let provider = s6.providers[providerID];
       if (!provider) {
-        const catalogProvider = s6.catalog[providerID];
-        const suggestions = catalogProvider ? modelSuggestions(catalogProvider, modelID, runtimeFlags.enableExperimentalModels) : import_fuzzysort.default.go(providerID, Object.keys({ ...s6.catalog, ...s6.providers }), { limit: 3, threshold: -1e4 }).map((m4) => m4.target);
-        return yield* new ModelNotFoundError({ providerID, modelID, suggestions });
+        const storedAuth = yield* auth3.get(providerID).pipe(exports_Effect.orDie);
+        if (storedAuth) {
+          const fallbackModel = {
+            id: modelID,
+            api: {
+              id: modelID,
+              npm: "@ai-sdk/openai-compatible",
+              url: ""
+            },
+            status: "active",
+            name: modelID,
+            providerID,
+            capabilities: {
+              temperature: true,
+              reasoning: false,
+              attachment: false,
+              toolcall: true,
+              input: { text: true, audio: false, image: false, video: false, pdf: false },
+              output: { text: true, audio: false, image: false, video: false, pdf: false },
+              interleaved: false
+            },
+            cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+            options: storedAuth.type === "api" && storedAuth.key ? { apiKey: storedAuth.key } : {},
+            limit: { context: 128000, output: 8192 },
+            headers: {},
+            family: modelID,
+            release_date: "",
+            variants: {}
+          };
+          provider = {
+            id: providerID,
+            name: providerID,
+            env: [],
+            options: storedAuth.type === "api" && storedAuth.key ? { apiKey: storedAuth.key } : {},
+            source: "api",
+            models: {
+              [modelID]: fallbackModel
+            },
+            key: storedAuth.type === "api" ? storedAuth.key : undefined
+          };
+          s6.providers[providerID] = provider;
+        } else {
+          const catalogProvider = s6.catalog[providerID];
+          const suggestions = catalogProvider ? modelSuggestions(catalogProvider, modelID, runtimeFlags.enableExperimentalModels) : import_fuzzysort.default.go(providerID, Object.keys({ ...s6.catalog, ...s6.providers }), { limit: 3, threshold: -1e4 }).map((m4) => m4.target);
+          return yield* new ModelNotFoundError({ providerID, modelID, suggestions });
+        }
       }
-      const info2 = provider.models[modelID];
+      let info2 = provider.models[modelID];
       if (!info2) {
-        const current2 = modelSuggestions(provider, modelID, runtimeFlags.enableExperimentalModels);
-        const suggestions = current2.length ? current2 : modelSuggestions(s6.catalog[providerID], modelID, runtimeFlags.enableExperimentalModels);
-        return yield* new ModelNotFoundError({ providerID, modelID, suggestions });
+        const fallbackNpm = provider.options?.npm ?? "@ai-sdk/openai-compatible";
+        const fallbackURL = provider.options?.baseURL ?? "";
+        info2 = {
+          id: modelID,
+          api: {
+            id: modelID,
+            npm: fallbackNpm,
+            url: fallbackURL
+          },
+          status: "active",
+          name: modelID,
+          providerID,
+          capabilities: {
+            temperature: true,
+            reasoning: false,
+            attachment: false,
+            toolcall: true,
+            input: { text: true, audio: false, image: false, video: false, pdf: false },
+            output: { text: true, audio: false, image: false, video: false, pdf: false },
+            interleaved: false
+          },
+          cost: { input: 0, output: 0, cache: { read: 0, write: 0 } },
+          options: {},
+          limit: { context: 128000, output: 8192 },
+          headers: {},
+          family: modelID,
+          release_date: "",
+          variants: {}
+        };
+        provider.models[modelID] = info2;
       }
       return info2;
     });
@@ -261343,34 +261477,29 @@ ${result7.stderr}`);
 });
 
 // formal-runtime/src/adapters/godot-mcp-provider.ts
-function getWebSocketClass() {
-  if (typeof globalThis.WebSocket !== "undefined") {
-    return globalThis.WebSocket;
+import net from "node:net";
+function ensureConnected() {
+  if (activeSocket && !activeSocket.destroyed) {
+    return Promise.resolve(activeSocket);
   }
-  try {
-    return (()=>{throw new Error("Cannot require module "+"ws");})();
-  } catch (_3) {
-    return null;
-  }
-}
-function ensureWebSocketConnected() {
-  if (activeWs && (activeWs.readyState === 1 || activeWs.readyState === (activeWs.OPEN || 1))) {
-    return Promise.resolve(activeWs);
-  }
-  const WS = getWebSocketClass();
-  if (WS) {
-    return new Promise((resolve15, reject) => {
-      try {
-        const ws2 = new WS("ws://127.0.0.1:6505");
-        ws2.onopen = () => {
-          activeWs = ws2;
-          resolve15(ws2);
-        };
-        ws2.onmessage = (event2) => {
+  return new Promise((resolve15, reject) => {
+    try {
+      const socket = net.createConnection({ port: 6505, host: "127.0.0.1" }, () => {
+        activeSocket = socket;
+        rxBuffer = "";
+        resolve15(socket);
+      });
+      socket.on("data", (data2) => {
+        rxBuffer += data2.toString("utf8");
+        let newlineIdx;
+        while ((newlineIdx = rxBuffer.indexOf(`
+`)) !== -1) {
+          const line2 = rxBuffer.substring(0, newlineIdx).trim();
+          rxBuffer = rxBuffer.substring(newlineIdx + 1);
+          if (!line2)
+            continue;
           try {
-            const rawData = event2.data;
-            const text9 = typeof rawData === "string" ? rawData : Buffer.isBuffer(rawData) ? rawData.toString("utf8") : new TextDecoder().decode(rawData);
-            const msg = JSON.parse(text9);
+            const msg = JSON.parse(line2);
             const id3 = String(msg.id || "");
             if (id3 && pendingRequests.has(id3)) {
               const req = pendingRequests.get(id3);
@@ -261383,42 +261512,47 @@ function ensureWebSocketConnected() {
               }
             }
           } catch (_e2) {}
-        };
-        ws2.onerror = (err) => {
-          if (!activeWs || activeWs.readyState !== 1) {
-            reject(err);
-          }
-        };
-        ws2.onclose = () => {
-          if (activeWs === ws2)
-            activeWs = null;
-        };
-      } catch (e3) {
-        reject(e3);
-      }
-    });
-  }
-  return Promise.reject(new Error("WebSocket client unavailable in runtime"));
+        }
+      });
+      socket.on("error", (err) => {
+        activeSocket = null;
+        reject(new Error(`Failed to connect to Godot MCP gateway at 127.0.0.1:6505: ${err?.message || String(err)}`));
+      });
+      socket.on("close", () => {
+        if (activeSocket === socket)
+          activeSocket = null;
+        pendingRequests.forEach((req) => {
+          clearTimeout(req.timeout);
+          req.reject(new Error("Godot MCP connection closed unexpectedly"));
+        });
+        pendingRequests.clear();
+      });
+    } catch (e3) {
+      reject(new Error(`Failed to initialize TCP socket to 127.0.0.1:6505: ${e3?.message || String(e3)}`));
+    }
+  });
 }
 async function executeGodotMcpTool(name27, params2 = {}) {
-  const ws2 = await ensureWebSocketConnected();
+  const socket = await ensureConnected();
   const id3 = `opencode_${++msgCounter}`;
   return new Promise((resolve15, reject) => {
+    const timeoutMs = (name27 === "run_project" || name27 === "play_main_scene" || name27 === "play_scene" || name27 === "save_scene") ? 60000 : 30000;
     const timeout4 = setTimeout(() => {
       pendingRequests.delete(id3);
-      reject(new Error(`Godot MCP Tool ${name27} timed out after 30s`));
-    }, 30000);
+      reject(new Error(`Godot MCP Tool ${name27} timed out after ${timeoutMs / 1000}s`));
+    }, timeoutMs);
     pendingRequests.set(id3, { resolve: resolve15, reject, timeout: timeout4 });
     const payload = JSON.stringify({
       jsonrpc: "2.0",
       id: id3,
       method: name27,
       params: params2
-    });
-    ws2.send(payload);
+    }) + `
+`;
+    socket.write(payload);
   });
 }
-var GODOT_CORE_MCP_TOOLS, activeWs = null, msgCounter = 1000, pendingRequests;
+var GODOT_CORE_MCP_TOOLS, activeSocket = null, msgCounter = 1000, pendingRequests, rxBuffer = "";
 var init_godot_mcp_provider = __esm(() => {
   init_dist();
   GODOT_CORE_MCP_TOOLS = Object.freeze([
@@ -261459,7 +261593,7 @@ var init_godot_mcp_provider = __esm(() => {
 });
 
 // formal-runtime/src/adapters/godot-engine-tool.ts
-var GodotGetSceneTreeParameters, GodotGetSceneTreeTool, GodotGetNodePropertiesParameters, GodotGetNodePropertiesTool, GodotCreateNodeParameters, GodotCreateNodeTool, GodotSetNodePropertyParameters, GodotSetNodePropertyTool, GodotDeleteNodeParameters, GodotDeleteNodeTool, GodotRunProjectParameters, GodotRunProjectTool, GodotStopProjectParameters, GodotStopProjectTool, GodotGetEditorErrorsParameters, GodotGetEditorErrorsTool, GodotExecuteParameters, GodotExecuteTool, allGodotToolDefinitions;
+var GodotGetSceneTreeParameters, GodotGetSceneTreeTool, GodotGetNodePropertiesParameters, GodotGetNodePropertiesTool, GodotCreateNodeParameters, GodotCreateNodeTool, GodotSetNodePropertyParameters, GodotSetNodePropertyTool, GodotDeleteNodeParameters, GodotDeleteNodeTool, GodotRunProjectParameters, GodotRunProjectTool, GodotStopProjectParameters, GodotStopProjectTool, GodotGetEditorErrorsParameters, GodotGetEditorErrorsTool, GodotExecuteParameters, GodotExecuteTool, GodotSetMainSceneParameters, GodotSetMainSceneTool, GodotSaveSceneParameters, GodotSaveSceneTool, allGodotToolDefinitions;
 var init_godot_engine_tool = __esm(async () => {
   init_dist();
   init_godot_mcp_provider();
@@ -261478,12 +261612,14 @@ var init_godot_engine_tool = __esm(async () => {
           const res = await executeGodotMcpTool("get_scene_tree", params2);
           return {
             title: "godot: get_scene_tree",
-            output: typeof res === "string" ? res : JSON.stringify(res, null, 2)
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
           };
         } catch (err) {
           return {
             title: "godot: get_scene_tree error",
-            output: `Failed to query Godot scene tree: ${err?.message || String(err)}`
+            output: `Failed to query Godot scene tree: ${err?.message || String(err)}`,
+            metadata: {}
           };
         }
       })
@@ -261503,12 +261639,14 @@ var init_godot_engine_tool = __esm(async () => {
           const res = await executeGodotMcpTool("get_node_properties", params2);
           return {
             title: `godot: get_node_properties (${params2.node_path})`,
-            output: typeof res === "string" ? res : JSON.stringify(res, null, 2)
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
           };
         } catch (err) {
           return {
             title: `godot: get_node_properties error (${params2.node_path})`,
-            output: `Failed to get node properties: ${err?.message || String(err)}`
+            output: `Failed to get node properties: ${err?.message || String(err)}`,
+            metadata: {}
           };
         }
       })
@@ -261534,15 +261672,22 @@ var init_godot_engine_tool = __esm(async () => {
       parameters: GodotCreateNodeParameters,
       execute: (params2) => exports_Effect.tryPromise(async () => {
         try {
-          const res = await executeGodotMcpTool("create_node", params2);
+          const res = await executeGodotMcpTool("add_node", {
+            type: params2.class_name,
+            parent_path: params2.parent || ".",
+            name: params2.name || "",
+            properties: params2.properties || {}
+          });
           return {
             title: `godot: create_node (${params2.class_name})`,
-            output: typeof res === "string" ? res : JSON.stringify(res, null, 2)
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
           };
         } catch (err) {
           return {
             title: `godot: create_node error (${params2.class_name})`,
-            output: `Failed to create node: ${err?.message || String(err)}`
+            output: `Failed to create node: ${err?.message || String(err)}`,
+            metadata: {}
           };
         }
       })
@@ -261565,15 +261710,21 @@ var init_godot_engine_tool = __esm(async () => {
       parameters: GodotSetNodePropertyParameters,
       execute: (params2) => exports_Effect.tryPromise(async () => {
         try {
-          const res = await executeGodotMcpTool("set_node_property", params2);
+          const res = await executeGodotMcpTool("update_property", {
+            node_path: params2.node_path,
+            property: params2.property,
+            value: params2.value
+          });
           return {
             title: `godot: set_node_property (${params2.node_path}.${params2.property})`,
-            output: typeof res === "string" ? res : JSON.stringify(res, null, 2)
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
           };
         } catch (err) {
           return {
             title: `godot: set_node_property error (${params2.node_path}.${params2.property})`,
-            output: `Failed to set node property: ${err?.message || String(err)}`
+            output: `Failed to set node property: ${err?.message || String(err)}`,
+            metadata: {}
           };
         }
       })
@@ -261593,12 +261744,14 @@ var init_godot_engine_tool = __esm(async () => {
           const res = await executeGodotMcpTool("delete_node", params2);
           return {
             title: `godot: delete_node (${params2.node_path})`,
-            output: typeof res === "string" ? res : JSON.stringify(res, null, 2)
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
           };
         } catch (err) {
           return {
             title: `godot: delete_node error (${params2.node_path})`,
-            output: `Failed to delete node: ${err?.message || String(err)}`
+            output: `Failed to delete node: ${err?.message || String(err)}`,
+            metadata: {}
           };
         }
       })
@@ -261618,12 +261771,14 @@ var init_godot_engine_tool = __esm(async () => {
           const res = await executeGodotMcpTool("run_project", params2);
           return {
             title: "godot: run_project",
-            output: typeof res === "string" ? res : JSON.stringify(res, null, 2)
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
           };
         } catch (err) {
           return {
             title: "godot: run_project error",
-            output: `Failed to run project: ${err?.message || String(err)}`
+            output: `Failed to run project: ${err?.message || String(err)}`,
+            metadata: {}
           };
         }
       })
@@ -261639,12 +261794,14 @@ var init_godot_engine_tool = __esm(async () => {
           const res = await executeGodotMcpTool("stop_project", params2);
           return {
             title: "godot: stop_project",
-            output: typeof res === "string" ? res : JSON.stringify(res, null, 2)
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
           };
         } catch (err) {
           return {
             title: "godot: stop_project error",
-            output: `Failed to stop project: ${err?.message || String(err)}`
+            output: `Failed to stop project: ${err?.message || String(err)}`,
+            metadata: {}
           };
         }
       })
@@ -261664,12 +261821,14 @@ var init_godot_engine_tool = __esm(async () => {
           const res = await executeGodotMcpTool("get_editor_errors", params2);
           return {
             title: "godot: get_editor_errors",
-            output: typeof res === "string" ? res : JSON.stringify(res, null, 2)
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
           };
         } catch (err) {
           return {
             title: "godot: get_editor_errors error",
-            output: `Failed to get editor errors: ${err?.message || String(err)}`
+            output: `Failed to get editor errors: ${err?.message || String(err)}`,
+            metadata: {}
           };
         }
       })
@@ -261692,12 +261851,68 @@ var init_godot_engine_tool = __esm(async () => {
           const res = await executeGodotMcpTool(input.method, input.params || {});
           return {
             title: `godot: execute (${input.method})`,
-            output: typeof res === "string" ? res : JSON.stringify(res, null, 2)
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
           };
         } catch (err) {
           return {
             title: `godot: execute error (${input.method})`,
-            output: `Failed to execute Godot MCP command '${input.method}': ${err?.message || String(err)}`
+            output: `Failed to execute Godot MCP command '${input.method}': ${err?.message || String(err)}`,
+            metadata: {}
+          };
+        }
+      })
+    };
+  }));
+  GodotSetMainSceneParameters = exports_Schema.Struct({
+    scene_path: exports_Schema.String.annotate({
+      description: "Project path to the main scene file (e.g. 'res://scenes/main.tscn' or 'res://main.tscn')."
+    })
+  });
+  GodotSetMainSceneTool = define5("godot_set_main_scene", exports_Effect.gen(function* () {
+    return {
+      description: "Set the project main scene live in the Godot engine. ALWAYS use this instead of modifying project.godot with edit/write, ensuring the editor immediately recognizes the main scene without requiring file reloads.",
+      parameters: GodotSetMainSceneParameters,
+      execute: (params2) => exports_Effect.tryPromise(async () => {
+        try {
+          const res = await executeGodotMcpTool("set_main_scene", { scene: params2.scene_path, path: params2.scene_path });
+          return {
+            title: `godot: set_main_scene (${params2.scene_path})`,
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
+          };
+        } catch (err) {
+          return {
+            title: `godot: set_main_scene error (${params2.scene_path})`,
+            output: `Failed to set main scene: ${err?.message || String(err)}`,
+            metadata: {}
+          };
+        }
+      })
+    };
+  }));
+  GodotSaveSceneParameters = exports_Schema.Struct({
+    path: exports_Schema.optional(exports_Schema.String).annotate({
+      description: "Target scene path (e.g. 'res://scenes/main.tscn'). Defaults to saving active edited scene."
+    })
+  });
+  GodotSaveSceneTool = define5("godot_save_scene", exports_Effect.gen(function* () {
+    return {
+      description: "Save the currently active or edited scene to disk in the Godot engine.",
+      parameters: GodotSaveSceneParameters,
+      execute: (params2) => exports_Effect.tryPromise(async () => {
+        try {
+          const res = await executeGodotMcpTool("save_scene", params2);
+          return {
+            title: "godot: save_scene",
+            output: typeof res === "string" ? res : JSON.stringify(res, null, 2),
+            metadata: {}
+          };
+        } catch (err) {
+          return {
+            title: "godot: save_scene error",
+            output: `Failed to save scene: ${err?.message || String(err)}`,
+            metadata: {}
           };
         }
       })
@@ -261709,6 +261924,8 @@ var init_godot_engine_tool = __esm(async () => {
     createNode: GodotCreateNodeTool,
     setNodeProperty: GodotSetNodePropertyTool,
     deleteNode: GodotDeleteNodeTool,
+    setMainScene: GodotSetMainSceneTool,
+    saveScene: GodotSaveSceneTool,
     runProject: GodotRunProjectTool,
     stopProject: GodotStopProjectTool,
     getEditorErrors: GodotGetEditorErrorsTool,
@@ -272319,13 +272536,10 @@ async function migrateGlobalInstructions(input) {
   if (current !== undefined) {
     if (sameInstructions(current, input.packaged))
       return "current-default-preserved";
-    if (input.knownLegacy.some((item) => sameInstructions(current, item))) {
-      const replaced = await input.store.replaceIfUnchanged(input.target, current, input.packaged);
-      if (replaced)
-        return "legacy-default-upgraded";
-      return classifyExisting(await requiredInstructions(input.store, input.target), input.packaged);
-    }
-    return "existing-user-content-preserved";
+    const replaced = await input.store.replaceIfUnchanged(input.target, current, input.packaged);
+    if (replaced)
+      return "legacy-default-upgraded";
+    return classifyExisting(await requiredInstructions(input.store, input.target), input.packaged);
   }
   const legacy2 = input.legacy ? await readInstructionsIfPresent(input.store, input.legacy, "legacyGlobalInstructions") : undefined;
   const knownLegacyDefault = legacy2 !== undefined && input.knownLegacy.some((item) => sameInstructions(legacy2, item));
@@ -281985,7 +282199,7 @@ var import_lib = __toESM(require_lib4(), 1);
 // formal-runtime/src/bootstrap/native-child-entry.ts
 init_authorized_project_filesystem();
 import { readFile as readFile11, realpath as realpath4 } from "node:fs/promises";
-import net from "node:net";
+import net2 from "node:net";
 import path66 from "node:path";
 
 // formal-runtime/src/adapters/loopback-security.ts
@@ -282867,7 +283081,7 @@ async function requireRegularFiles(files4) {
 }
 function probeLoopback(port2) {
   return new Promise((resolve17) => {
-    const socket = net.createConnection({ host: "127.0.0.1", port: port2 });
+    const socket = net2.createConnection({ host: "127.0.0.1", port: port2 });
     const timer2 = setTimeout(() => {
       socket.destroy();
       resolve17(false);
@@ -292345,23 +292559,26 @@ This OpenCode runtime is embedded in the Godot 4.7 (GDAI) application on OpenHar
 
 ---
 
-## 2. Tool Priority & Dual-Track Workflow
+## 2. Tool-First Execution Principle & Escalation Strategy
 
-### Track A: Real-Time In-Engine Operations (Preferred for Scenes & Nodes)
-- When creating, querying, modifying, or inspecting nodes, scene tree hierarchies, transforms, and node properties:
-  **ALWAYS prioritize using live Godot MCP Pro tools**:
-  - \`get_scene_tree\`: Inspect the currently active live scene graph.
-  - \`get_node_properties\`: Read properties of any node in the scene.
-  - \`create_node\`: Create and attach nodes directly in the live scene.
-  - \`set_node_property\`: Modify transforms, materials, exported variables.
-  - \`attach_script\`: Link GDScript files to scene nodes.
-  - \`run_project\`: Launch and test the game project in-engine.
-- **Why**: Direct in-memory engine manipulation renders immediately in the 3D/2D viewport, retains full Godot Undo/Redo history, and eliminates manual \`.tscn\` text parsing syntax bugs.
+### Core Rule: Always Try Engine MCP Tools First
+- **Step 1 (First Choice — In-Engine Live Tools)**:
+  Before touching text files on disk, ALWAYS first attempt to use the specialized live Godot MCP tools:
+  - **Scene & Node Operations**: \`godot_get_scene_tree\`, \`godot_get_node_properties\`, \`godot_create_node\`, \`godot_set_node_property\`, \`godot_delete_node\`.
+  - **Resources & Materials**: \`godot_execute\` with \`create_resource\`, \`edit_resource\`, \`create_standard_material_3d\`, \`create_shader\`.
+  - **Project Configuration & Main Scene**: \`godot_execute\` with \`set_project_setting\` or \`set_main_scene\` (e.g., \`params: {"key": "application/run/main_scene", "value": "res://main.tscn"}\`).
+  - **Scene Persistence & Playback**: \`godot_execute\` with \`save_scene\`, \`godot_run_project\`, \`godot_execute\` with \`run_scene\` or \`run_current_scene\`.
+  - **Error Diagnostics**: \`godot_get_editor_errors\`, \`godot_execute\` with \`get_output_log\`.
+  - **Why**: Direct in-engine manipulation renders immediately in the viewport, records undo/redo history, and updates live editor memory state with zero external reload prompts.
 
-### Track B: Code & Asset File Creation (For GDScript, Shaders, Resources)
-- Use \`write\` and \`edit\` for writing GDScript (\`.gd\`), Shaders (\`.gdshader\`), and configuration (\`project.godot\`).
-- Always read (\`read\`) the existing file before mutating it to ensure line accuracy.
-- When creating a new runnable scene, ensure \`project.godot\` (\`run/main_scene="res://..."\`) points to the valid scene path.
+- **Step 2 (Fallback — General File Operations)**:
+  ONLY when:
+  1. No matching in-engine MCP tool exists for the specific task;
+  2. You are writing pure script code (\`.gd\`) or custom shader code (\`.gdshader\`);
+  3. Or an in-engine tool is unavailable after attempting \`godot_execute\`;
+  THEN use general file tools (\`write\`, \`edit\`, \`read\`) to accomplish the goal.
+  - When editing existing files, always read (\`read\`) the file first to ensure line accuracy.
+  - Avoid modifying \`project.godot\` with raw file tools when the editor is active unless \`set_project_setting\` is explicitly unavailable.
 
 ---
 

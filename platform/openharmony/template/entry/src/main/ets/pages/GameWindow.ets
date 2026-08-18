@@ -271,6 +271,7 @@ struct GameWindow {
         type: XComponentType.SURFACE,
         controller: this.controller,
       })
+        .id("godot_surface")
         .onLoad(() => {
           try {
             const win = this.mainWindow

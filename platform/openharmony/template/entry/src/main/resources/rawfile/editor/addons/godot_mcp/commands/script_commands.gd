@@ -481,34 +481,34 @@ func _collect_parse_errors(path: String, since_line: int) -> Array:
 
 
 func _output_label() -> RichTextLabel:
-	var base: Control = get_editor().get_base_control()
-	if base == null:
-		return null
-	var editor_log: Node = base.find_child("Output", true, false)
-	if editor_log == null:
-		return null
-	return _find_rtl_node(editor_log)
+	return null
 
 
-## Index where the next appended line will land. Output entries end with a
-## newline, so split() leaves a trailing empty element — counting elements
-## would point one past the new line and skip it.
+## Index where the next appended line will land.
 func _output_line_count() -> int:
-	var rtl := _output_label()
-	if rtl == null:
-		return 0
-	var text := rtl.get_parsed_text()
-	var count := text.split("\n").size()
-	if text.ends_with("\n"):
-		count -= 1
-	return maxi(0, count)
+	var log_paths: Array[String] = [
+		"user://logs/godot.log",
+		"user://logs/editor.log",
+		"user://godot.log"
+	]
+	for log_path in log_paths:
+		if FileAccess.file_exists(log_path):
+			var file := FileAccess.open(log_path, FileAccess.READ)
+			if file != null:
+				var content := file.get_as_text()
+				file.close()
+				var lines := content.split("\n")
+				return lines.size()
+	return 0
 
 
-func _find_rtl_node(node: Node) -> RichTextLabel:
+func _find_rtl_node(node: Node, depth: int = 0) -> RichTextLabel:
+	if depth > 6 or node == null:
+		return null
 	if node is RichTextLabel:
-		return node
+		return node as RichTextLabel
 	for child in node.get_children():
-		var found := _find_rtl_node(child)
+		var found := _find_rtl_node(child, depth + 1)
 		if found:
 			return found
 	return null

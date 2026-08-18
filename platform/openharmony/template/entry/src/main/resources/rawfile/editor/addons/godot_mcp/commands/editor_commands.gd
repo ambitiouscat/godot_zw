@@ -8,6 +8,10 @@ func get_commands() -> Dictionary:
 		"get_output_log": _get_output_log,
 		"get_editor_screenshot": _get_editor_screenshot,
 		"get_game_screenshot": _get_game_screenshot,
+		"take_screenshot": _get_editor_screenshot,
+		"capture_screenshot": _get_editor_screenshot,
+		"get_screenshot": _get_editor_screenshot,
+		"capture_game_screenshot": _get_game_screenshot,
 		"execute_editor_script": _execute_editor_script,
 		"clear_output": _clear_output,
 		"reload_plugin": _reload_plugin,
@@ -17,27 +21,34 @@ func get_commands() -> Dictionary:
 		"set_auto_dismiss": _set_auto_dismiss,
 		"get_editor_camera": _get_editor_camera,
 		"set_editor_camera": _set_editor_camera,
+		"run_project": _run_project,
+		"run_main_scene": _run_project,
+		"run_scene": _run_scene,
+		"run_current_scene": _run_current_scene,
+		"stop_project": _stop_project,
+		"stop_playing_scene": _stop_project,
 	}
 
 
 func _get_editor_errors(params: Dictionary) -> Dictionary:
 	var errors: Array = []
 	var max_lines: int = optional_int(params, "max_lines", 50)
-	var base: Control = get_editor().get_base_control()
 
-	# 1. Read from the editor's Output panel (EditorLog RichTextLabel)
-	#    This captures runtime errors, warnings, and print output
-	var editor_log: Node = base.find_child("Output", true, false)
-	if editor_log:
-		var rtl: RichTextLabel = _find_rtl(editor_log)
-		if rtl:
-			var content: String = rtl.get_parsed_text()
-			var lines: PackedStringArray = content.split("\n")
-			var start: int = maxi(0, lines.size() - max_lines)
-			for i in range(start, lines.size()):
-				var line: String = lines[i]
-				if line.contains("ERROR") or line.contains("SCRIPT ERROR") or line.contains("Parse Error") or line.contains("WARNING"):
-					errors.append(line.strip_edges())
+	# 1. Read from log files without touching UI hierarchy
+	var log_paths: Array[String] = ["user://logs/godot.log", "user://logs/editor.log", "user://godot.log"]
+	for log_path in log_paths:
+		if FileAccess.file_exists(log_path):
+			var file := FileAccess.open(log_path, FileAccess.READ)
+			if file != null:
+				var content := file.get_as_text()
+				file.close()
+				var lines := content.split("\n")
+				var start: int = maxi(0, lines.size() - max_lines)
+				for i in range(start, lines.size()):
+					var line: String = lines[i]
+					if line.contains("ERROR") or line.contains("SCRIPT ERROR") or line.contains("Parse Error") or line.contains("WARNING"):
+						errors.append(line.strip_edges())
+				break
 
 	# 2. Check the script editor for compile errors (red background lines)
 	#    These don't appear in the Output panel
@@ -170,42 +181,29 @@ func _get_editor_errors(params: Dictionary) -> Dictionary:
 func _get_output_log(params: Dictionary) -> Dictionary:
 	var max_lines: int = optional_int(params, "max_lines", 100)
 	var filter: String = optional_string(params, "filter", "")
-	var base: Control = get_editor().get_base_control()
 
-	var editor_log: Node = base.find_child("Output", true, false)
-	if editor_log == null:
-		# Fallback: read from log file
-		var log_path := "user://logs/godot.log"
-		if not FileAccess.file_exists(log_path):
-			return error_internal("Output panel not found and no log file available")
-		var file := FileAccess.open(log_path, FileAccess.READ)
-		if file == null:
-			return error_internal("Cannot read log file")
-		var content := file.get_as_text()
-		file.close()
-		var lines := content.split("\n")
-		var start: int = maxi(0, lines.size() - max_lines)
-		var output_lines: Array = []
-		for i in range(start, lines.size()):
-			var line: String = lines[i]
-			if filter.is_empty() or line.contains(filter):
-				output_lines.append(line)
-		return success({"lines": output_lines, "count": output_lines.size(), "source": "log_file"})
+	# Read safely from log file without touching live UI scene tree
+	var log_paths: Array[String] = [
+		"user://logs/godot.log",
+		"user://logs/editor.log",
+		"user://godot.log"
+	]
+	for log_path in log_paths:
+		if FileAccess.file_exists(log_path):
+			var file := FileAccess.open(log_path, FileAccess.READ)
+			if file != null:
+				var content := file.get_as_text()
+				file.close()
+				var lines := content.split("\n")
+				var start: int = maxi(0, lines.size() - max_lines)
+				var output_lines: Array = []
+				for i in range(start, lines.size()):
+					var line: String = lines[i]
+					if filter.is_empty() or line.contains(filter):
+						output_lines.append(line)
+				return success({"lines": output_lines, "count": output_lines.size(), "source": "log_file"})
 
-	var rtl: RichTextLabel = _find_rtl(editor_log)
-	if rtl == null:
-		return error_internal("Could not find RichTextLabel in Output panel")
-
-	var content: String = rtl.get_parsed_text()
-	var all_lines: PackedStringArray = content.split("\n")
-	var start: int = maxi(0, all_lines.size() - max_lines)
-	var output_lines: Array = []
-	for i in range(start, all_lines.size()):
-		var line: String = all_lines[i]
-		if filter.is_empty() or line.contains(filter):
-			output_lines.append(line)
-
-	return success({"lines": output_lines, "count": output_lines.size(), "source": "output_panel"})
+	return success({"lines": [], "count": 0, "source": "none"})
 
 
 func _find_code_edit(node: Node, depth: int = 0) -> CodeEdit:
@@ -250,14 +248,16 @@ func _get_editor_screenshot(params: Dictionary) -> Dictionary:
 	if image == null:
 		return error_internal("Could not get image from viewport")
 
-	var save_path: String = params.get("save_path", "")
+	var save_path: String = params.get("save_path", params.get("path", ""))
 	if save_path != "":
 		var abs_path := _resolve_save_path(save_path)
 		var err := image.save_png(abs_path)
 		if err != OK:
 			return error_internal("Failed to save screenshot: %s" % error_string(err))
 		return success({
+			"path": save_path,
 			"saved_path": save_path,
+			"global_path": abs_path,
 			"width": image.get_width(),
 			"height": image.get_height(),
 			"format": "png",
@@ -694,3 +694,43 @@ func _set_auto_dismiss(params: Dictionary) -> Dictionary:
 		"auto_dismiss": enabled,
 		"message": "Auto-dismiss dialogs %s" % ("enabled" if enabled else "disabled"),
 	})
+
+
+func _run_project(params: Dictionary = {}) -> Dictionary:
+	EditorInterface.call_deferred("play_main_scene")
+	return success({
+		"action": "play_main_scene",
+		"running": true,
+	})
+
+
+func _run_scene(params: Dictionary) -> Dictionary:
+	var scene_path: String = optional_string(params, "path", "")
+	if scene_path.is_empty():
+		scene_path = optional_string(params, "scene_path", "")
+	if scene_path.is_empty():
+		return _run_current_scene(params)
+	EditorInterface.call_deferred("play_custom_scene", scene_path)
+	return success({
+		"action": "play_custom_scene",
+		"path": scene_path,
+		"running": true,
+	})
+
+
+func _run_current_scene(params: Dictionary = {}) -> Dictionary:
+	EditorInterface.call_deferred("play_current_scene")
+	return success({
+		"action": "play_current_scene",
+		"running": true,
+	})
+
+
+func _stop_project(params: Dictionary = {}) -> Dictionary:
+	EditorInterface.call_deferred("stop_playing_scene")
+	return success({
+		"action": "stop_playing_scene",
+		"running": false,
+	})
+
+

@@ -1,9 +1,9 @@
 {
   "schemaVersion": 1,
   "generator": "formal-runtime/scripts/build-formal-runtime.mjs",
-  "inputManifestSha256": "e3dbc6098f2ea8f1492ed654e8dca308e19d6fe8b241240dade035a989bc366d",
-  "outputSha256": "09b5e22cfa0574a009c828270ec65b92ba5fa88906722d1479c3201396763bbb",
-  "bytes": 21570635,
+  "inputManifestSha256": "7f8a14c08db882b6e2e0e1b70f8683fd9f1ffa3473902bdb991c9bf46dc8e523",
+  "outputSha256": "d2d3176792ee4aeafd242fcaa6154c8ff8fdf201fd713af5769fd7893ad343eb",
+  "bytes": 21578679,
   "baselineManifestSha256": "ade3e7905a59774fb2996d9ee083ad3604618284461c4b360b256c20be6328b7",
   "upstream": {
     "revision": "f47684787ad07e5311bd9422c1a9eb70c9966274",
@@ -155,6 +155,10 @@
     {
       "path": "formal-runtime/patches/upstream/0029-refactor-mcp-handler-factory.patch",
       "sha256": "5d74c674bd2755bb13ee8925beac87236f51f5b23a0544f8fffcca5cd7ea51bf"
+    },
+    {
+      "path": "formal-runtime/patches/upstream/0030-fix-custom-provider-and-model-resolution.patch",
+      "sha256": "72b5d25a0a8a332748753bfb4557d64da3f75fab97cc599b91e265a331e39df9"
     }
   ],
   "platformInputs": {
@@ -1170,7 +1174,7 @@
     ],
     "globalInstructions": {
       "filename": "AGENTS.md",
-      "sha256": "3654365d28fcc921c2b233d61f7003b06f3dd7b97a47bc7b4208b89be801018f"
+      "sha256": "a40f70a612fc1fe6331b608d93d6a0a1d3d45b0736c4a55cb6b814f446c130c7"
     },
     "legacyGlobalInstructions": {
       "filename": "AGENTS.md",
@@ -1232,7 +1236,7 @@
     "staticInputs": [
       {
         "path": "formal-runtime/assets/config/AGENTS.md",
-        "sha256": "3654365d28fcc921c2b233d61f7003b06f3dd7b97a47bc7b4208b89be801018f"
+        "sha256": "a40f70a612fc1fe6331b608d93d6a0a1d3d45b0736c4a55cb6b814f446c130c7"
       },
       {
         "path": "opencode/packages/opencode/src/command/template/initialize.txt",
@@ -1413,11 +1417,11 @@
       },
       {
         "path": "formal-runtime/src/adapters/godot-engine-tool.ts",
-        "sha256": "a6226d35e0b37955027d3c2239083bd02c0f2a9cd2b15470575d53dad9c7092c"
+        "sha256": "30958e45c0e73ef2330dec2e532c619e87c516fa008dc6e17e0d78694f628c27"
       },
       {
         "path": "formal-runtime/src/adapters/godot-mcp-provider.ts",
-        "sha256": "dc4d99f94a26879c4af0ec53ba4f627bbf2abde662f601a6ed7ee0196324d2f2"
+        "sha256": "8d21c6207d3a30866046749eb3abd74d87618178dcd3029b5feb19ae2d6a863d"
       },
       {
         "path": "formal-runtime/src/adapters/stable-child-process-spawner.ts",
@@ -1453,7 +1457,7 @@
       },
       {
         "path": "formal-runtime/src/adapters/stable-global-configuration.ts",
-        "sha256": "72ecfaad17fdd9ae3439e47d65d66331f46e7b01fbeaab1cb883421b0bc735d1"
+        "sha256": "2cd778e622919d1230d8f8d28f6a1bd3b887f0c572f07dea52535b8392289eda"
       },
       {
         "path": "formal-runtime/src/adapters/stable-provider-credentials.ts",
@@ -1565,7 +1569,7 @@
       },
       {
         "path": "formal-runtime/assets/config/AGENTS.md",
-        "sha256": "3654365d28fcc921c2b233d61f7003b06f3dd7b97a47bc7b4208b89be801018f"
+        "sha256": "a40f70a612fc1fe6331b608d93d6a0a1d3d45b0736c4a55cb6b814f446c130c7"
       },
       {
         "path": "formal-runtime/assets/config/legacy-harmony-AGENTS-v1.md",
@@ -1769,14 +1773,14 @@
     },
     {
       "path": "opencode-harmony-runtime.mjs",
-      "bytes": 16107998,
-      "sha256": "0b95d91f3a33ac85476a9cd107c1c33cf6cdba91b0fa052044d6781975db1932"
+      "bytes": 16116042,
+      "sha256": "84df7a49ddde71b0eb7ce186dceda06b53e013f5f3fcde71b6e806cacf71ee97"
     }
   ],
   "output": {
     "path": "formal-runtime/generated/runtime/opencode-harmony-runtime.mjs",
-    "bytes": 16107998,
-    "sha256": "0b95d91f3a33ac85476a9cd107c1c33cf6cdba91b0fa052044d6781975db1932",
+    "bytes": 16116042,
+    "sha256": "84df7a49ddde71b0eb7ce186dceda06b53e013f5f3fcde71b6e806cacf71ee97",
     "format": "esm",
     "target": "node",
     "sourceMaps": false,

@@ -802,6 +802,24 @@
         ],
         "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#5-use-the-official-api-generated-sdk-and-upstream-solidjs-application",
         "owner": "formal-upstream-runtime-migration"
+      },
+      {
+        "path": "formal-runtime/patches/upstream/0030-fix-custom-provider-and-model-resolution.patch",
+        "sha256": "72b5d25a0a8a332748753bfb4557d64da3f75fab97cc599b91e265a331e39df9",
+        "targetFiles": [
+          "packages/opencode/src/config/config.ts",
+          "packages/opencode/src/provider/provider.ts"
+        ],
+        "rationale": "Synthesize valid custom OpenAI-compatible provider entries and fallback model descriptors so custom providers configured through auth or config are retained in the provider catalog and do not fail with ModelNotFoundError.",
+        "businessSemanticDomains": [
+          "provider",
+          "configuration-lifecycle"
+        ],
+        "crossPlatformTests": [
+          "packages/opencode/test/provider/provider.test.ts"
+        ],
+        "upstreamIssueOrProposal": "openspec/changes/port-upstream-opencode-runtime-to-harmony/design.md#7-reuse-upstream-configuration-agents-extensions-and-model-semantics",
+        "owner": "formal-upstream-runtime-migration"
       }
     ],
     "requiredFields": [

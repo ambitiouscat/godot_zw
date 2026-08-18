@@ -355,17 +355,26 @@ void CallQueue::statistics() {
 		uint32_t offset = 0;
 		while (offset < page_bytes[i]) {
 			Page *page = pages[i];
-
-			//lock on each iteration, so a call can re-add itself to the message queue
+			if (!page) {
+				break;
+			}
 
 			Message *message = (Message *)&page->data[offset];
 
 			uint32_t advance = sizeof(Message);
 			if ((message->type & FLAG_MASK) != TYPE_NOTIFICATION) {
+				if (message->args < 0 || message->args > 1024) {
+					break;
+				}
 				advance += sizeof(Variant) * message->args;
 			}
 
-			Object *target = message->callable.get_object();
+			if (offset + advance > page_bytes[i]) {
+				break;
+			}
+
+			ObjectID obj_id = message->callable.get_object_id();
+			Object *target = obj_id.is_valid() ? ObjectDB::get_instance(obj_id) : nullptr;
 
 			bool null_target = true;
 			switch (message->type & FLAG_MASK) {
@@ -402,22 +411,10 @@ void CallQueue::statistics() {
 				} break;
 			}
 			if (null_target) {
-				// Object was deleted.
-				fprintf(stdout, "Object was deleted while awaiting a callback.\n");
-
 				null_count++;
 			}
 
 			offset += advance;
-
-			if ((message->type & FLAG_MASK) != TYPE_NOTIFICATION) {
-				Variant *args = (Variant *)(message + 1);
-				for (int k = 0; k < message->args; k++) {
-					args[k].~Variant();
-				}
-			}
-
-			message->~Message();
 		}
 	}
 
@@ -503,7 +500,7 @@ void MessageQueue::set_thread_singleton_override(CallQueue *p_thread_singleton) 
 
 MessageQueue::MessageQueue() :
 		CallQueue(nullptr,
-				int(GLOBAL_DEF_RST(PropertyInfo(Variant::INT, "memory/limits/message_queue/max_size_mb", PROPERTY_HINT_RANGE, "1,512,1,or_greater"), 32)) * 1024 * 1024 / PAGE_SIZE_BYTES,
+				int(GLOBAL_DEF_RST(PropertyInfo(Variant::INT, "memory/limits/message_queue/max_size_mb", PROPERTY_HINT_RANGE, "1,512,1,or_greater"), 128)) * 1024 * 1024 / PAGE_SIZE_BYTES,
 				"Message queue out of memory. Try increasing 'memory/limits/message_queue/max_size_mb' in project settings.") {
 	ERR_FAIL_COND_MSG(main_singleton != nullptr, "A MessageQueue singleton already exists.");
 	main_singleton = this;

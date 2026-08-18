@@ -15,23 +15,26 @@ This OpenCode runtime is embedded in the Godot 4.7 (GDAI) application on OpenHar
 
 ---
 
-## 2. Tool Priority & Dual-Track Workflow
+## 2. Tool-First Execution Principle & Escalation Strategy
 
-### Track A: Real-Time In-Engine Operations (Preferred for Scenes & Nodes)
-- When creating, querying, modifying, or inspecting nodes, scene tree hierarchies, transforms, and node properties:
-  **ALWAYS prioritize using live Godot MCP Pro tools**:
-  - `get_scene_tree`: Inspect the currently active live scene graph.
-  - `get_node_properties`: Read properties of any node in the scene.
-  - `create_node`: Create and attach nodes directly in the live scene.
-  - `set_node_property`: Modify transforms, materials, exported variables.
-  - `attach_script`: Link GDScript files to scene nodes.
-  - `run_project`: Launch and test the game project in-engine.
-- **Why**: Direct in-memory engine manipulation renders immediately in the 3D/2D viewport, retains full Godot Undo/Redo history, and eliminates manual `.tscn` text parsing syntax bugs.
+### Core Rule: Always Try Engine MCP Tools First
+- **Step 1 (First Choice — In-Engine Live Tools)**:
+  Before touching text files on disk, ALWAYS first attempt to use the specialized live Godot MCP tools:
+  - **Scene & Node Operations**: `godot_get_scene_tree`, `godot_get_node_properties`, `godot_create_node`, `godot_set_node_property`, `godot_delete_node`.
+  - **Resources & Materials**: `godot_execute` with `create_resource`, `edit_resource`, `create_standard_material_3d`, `create_shader`.
+  - **Project Configuration & Main Scene**: `godot_execute` with `set_project_setting` or `set_main_scene` (e.g., `params: {"key": "application/run/main_scene", "value": "res://main.tscn"}`).
+  - **Scene Persistence & Playback**: `godot_execute` with `save_scene`, `godot_run_project`, `godot_execute` with `run_scene` or `run_current_scene`.
+  - **Error Diagnostics**: `godot_get_editor_errors`, `godot_execute` with `get_output_log`.
+  - **Why**: Direct in-engine manipulation renders immediately in the viewport, records undo/redo history, and updates live editor memory state with zero external reload prompts.
 
-### Track B: Code & Asset File Creation (For GDScript, Shaders, Resources)
-- Use `write` and `edit` for writing GDScript (`.gd`), Shaders (`.gdshader`), and configuration (`project.godot`).
-- Always read (`read`) the existing file before mutating it to ensure line accuracy.
-- When creating a new runnable scene, ensure `project.godot` (`run/main_scene="res://..."`) points to the valid scene path.
+- **Step 2 (Fallback — General File Operations)**:
+  ONLY when:
+  1. No matching in-engine MCP tool exists for the specific task;
+  2. You are writing pure script code (`.gd`) or custom shader code (`.gdshader`);
+  3. Or an in-engine tool is unavailable after attempting `godot_execute`;
+  THEN use general file tools (`write`, `edit`, `read`) to accomplish the goal.
+  - When editing existing files, always read (`read`) the file first to ensure line accuracy.
+  - Avoid modifying `project.godot` with raw file tools when the editor is active unless `set_project_setting` is explicitly unavailable.
 
 ---
 

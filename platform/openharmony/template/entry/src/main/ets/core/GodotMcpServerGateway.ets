@@ -1,5 +1,9 @@
 import { socket } from '@kit.NetworkKit';
 import { util } from '@kit.ArkTS';
+import { componentSnapshot } from '@kit.ArkUI';
+import { image } from '@kit.ImageKit';
+import { fileIo as fs } from '@kit.CoreFileKit';
+import { getProjectPath } from './AbilityState';
 import { Logger } from './Logger';
 
 const logger = new Logger('GodotMcpServerGateway');
@@ -11,8 +15,8 @@ const WS_GUID = '258EAFA5-E914-47DA-95CA-C5AB0DC85B11';
  * Self-contained without platform/SDK API variance.
  */
 function sha1(input: string): Uint8Array {
-  const utf8 = new util.TextEncoder().encodeInto(input);
-  const msgLen = utf8.length;
+  const utf8: Uint8Array = new util.TextEncoder().encodeInto(input);
+  const msgLen: number = utf8.length;
   const wordCount = ((msgLen + 8) >> 6) + 1;
   const words = new Int32Array(wordCount * 16);
 
@@ -122,18 +126,63 @@ interface JsonRpcPingPong {
   result?: JsonRpcPongResult;
 }
 
+interface JsonRpcAuthParams {
+  token: string;
+}
+
+interface JsonRpcAuthMessage {
+  jsonrpc: string;
+  id: string;
+  method: string;
+  params: JsonRpcAuthParams;
+}
+
+interface JsonRpcErrorPayload {
+  code: number;
+  message: string;
+}
+
+interface JsonRpcErrorResponse {
+  jsonrpc: string;
+  id: string;
+  error: JsonRpcErrorPayload;
+}
+
+interface JsonRpcScreenshotResult {
+  path: string;
+  global_path: string;
+  width: number;
+  height: number;
+  size_bytes: number;
+  source: string;
+}
+
+interface JsonRpcSuccessResponse {
+  jsonrpc: string;
+  id: string;
+  result: JsonRpcScreenshotResult;
+}
+
+interface ClientConnectionState {
+  client: socket.TCPSocketConnection;
+  isHandshakeComplete: boolean;
+  isEngine: boolean;
+  isRawTcp: boolean;
+}
+
 /**
- * Dedicated local 6505 WebSocket server gateway.
- * Serves as the middle bridge between Godot's websocket_server.gd client and OpenCode's AI engine.
+ * Dedicated local 6505 WebSocket server gateway hub.
+ * Serves as the multi-client middle bridge between Godot's websocket_server.gd client and OpenCode's AI engine.
  */
 export class GodotMcpServerGateway {
   private static instance: GodotMcpServerGateway | null = null;
   private tcpServer: socket.TCPSocketServer | null = null;
-  private activeClient: socket.TCPSocketConnection | null = null;
-  private isHandshakeComplete: boolean = false;
+  private clients: Map<socket.TCPSocketConnection, ClientConnectionState> = new Map();
+  private engineClient: socket.TCPSocketConnection | null = null;
   private isRunning: boolean = false;
   private requestIdCounter: number = 1000;
   private pendingCommands: Map<string, PendingCommand> = new Map();
+  private forwardedRequests: Map<string, socket.TCPSocketConnection> = new Map();
   private textDecoder = new util.TextDecoder();
   private textEncoder = new util.TextEncoder();
 
@@ -147,7 +196,9 @@ export class GodotMcpServerGateway {
   }
 
   public isGodotConnected(): boolean {
-    return this.activeClient !== null && this.isHandshakeComplete;
+    if (!this.engineClient) return false;
+    const state = this.clients.get(this.engineClient);
+    return state !== undefined && state.isHandshakeComplete;
   }
 
   public async start(port: number = 6505): Promise<void> {
@@ -177,13 +228,15 @@ export class GodotMcpServerGateway {
   public async stop(): Promise<void> {
     this.isRunning = false;
     this.stopHeartbeat();
-    if (this.activeClient) {
+    this.clients.forEach((_state: ClientConnectionState, conn: socket.TCPSocketConnection) => {
       try {
-        this.activeClient.close();
+        conn.close();
       } catch (_e) {}
-      this.activeClient = null;
-      this.isHandshakeComplete = false;
-    }
+    });
+    this.clients.clear();
+    this.engineClient = null;
+    this.forwardedRequests.clear();
+    this.pendingCommands.clear();
     if (this.tcpServer) {
       try {
         this.tcpServer.close();
@@ -196,13 +249,13 @@ export class GodotMcpServerGateway {
   private startHeartbeat(): void {
     this.stopHeartbeat();
     this.heartbeatTimerId = setInterval(() => {
-      if (this.isGodotConnected()) {
+      if (this.engineClient && this.isGodotConnected()) {
         const pingObj: JsonRpcPingPong = {
           jsonrpc: '2.0',
           method: 'ping'
         };
-        const pingBytes = this.textEncoder.encodeInto(JSON.stringify(pingObj));
-        this.sendWebSocketFrame(0x01, pingBytes);
+        const pingBytes: Uint8Array = this.textEncoder.encodeInto(JSON.stringify(pingObj));
+        this.sendWebSocketFrame(this.engineClient, 0x01, pingBytes);
       }
     }, 10000);
   }
@@ -215,40 +268,94 @@ export class GodotMcpServerGateway {
   }
 
   private handleNewConnection(client: socket.TCPSocketConnection): void {
-    logger.info('Godot client connected to 6505 gateway, awaiting WS handshake');
-    this.stopHeartbeat();
-    if (this.activeClient && this.activeClient !== client) {
-      try {
-        this.activeClient.close();
-      } catch (_e) {}
-    }
-    this.activeClient = client;
-    this.isHandshakeComplete = false;
+    logger.info('New client connection received on 6505 gateway, awaiting WS handshake');
+    const state: ClientConnectionState = {
+      client: client,
+      isHandshakeComplete: false,
+      isEngine: false,
+      isRawTcp: false
+    };
+    this.clients.set(client, state);
 
     client.on('message', (value: socket.SocketMessageInfo) => {
-      this.handleSocketData(value.message);
+      this.handleSocketData(client, value.message);
     });
 
     client.on('close', () => {
-      logger.info('Godot client disconnected from 6505 gateway');
-      this.stopHeartbeat();
-      if (this.activeClient === client) {
-        this.activeClient = null;
-        this.isHandshakeComplete = false;
+      logger.info('Client disconnected from 6505 gateway');
+      this.clients.delete(client);
+      if (this.engineClient === client) {
+        this.engineClient = null;
+        // Reject all in-flight forwarded requests immediately to prevent caller timeouts
+        this.forwardedRequests.forEach((callerConn: socket.TCPSocketConnection, reqId: string) => {
+          const errPayload: JsonRpcErrorPayload = {
+            code: -32000,
+            message: 'Godot Engine MCP disconnected while executing this command'
+          };
+          const errRespObj: JsonRpcErrorResponse = {
+            jsonrpc: '2.0',
+            id: reqId,
+            error: errPayload
+          };
+          const errResp = JSON.stringify(errRespObj);
+          const errBytes: Uint8Array = this.textEncoder.encodeInto(errResp);
+          this.sendResponseToClient(callerConn, errResp, errBytes);
+        });
+        this.forwardedRequests.clear();
+
+        // Check if there is another engine client
+        this.clients.forEach((st: ClientConnectionState, conn: socket.TCPSocketConnection) => {
+          if (st.isEngine && st.isHandshakeComplete) {
+            this.engineClient = conn;
+          }
+        });
       }
     });
 
     client.on('error', (err) => {
-      logger.error('Godot client socket error', err);
+      logger.error('Client socket error on 6505 gateway', err);
     });
   }
 
-  private handleSocketData(data: ArrayBuffer): void {
-    if (!this.isHandshakeComplete) {
-      // Process HTTP Handshake
+  private handleSocketData(client: socket.TCPSocketConnection, data: ArrayBuffer): void {
+    const state = this.clients.get(client);
+    if (!state) return;
+
+    if (state.isRawTcp) {
       const reqText = this.textDecoder.decodeToString(new Uint8Array(data));
-      if (reqText.includes('Upgrade: websocket') || reqText.includes('Upgrade: WebSocket')) {
-        const keyMatch = reqText.match(/Sec-WebSocket-Key:\s*([^\r\n]+)/i);
+      const lines = reqText.split('\n');
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        if (line.length > 0) {
+          const lineBytes: Uint8Array = this.textEncoder.encodeInto(line);
+          this.handleJsonRpcMessage(client, line, lineBytes);
+        }
+      }
+      return;
+    }
+
+    if (!state.isHandshakeComplete) {
+      const reqText = this.textDecoder.decodeToString(new Uint8Array(data));
+      const trimmed = reqText.trim();
+      if (trimmed.startsWith('{')) {
+        state.isRawTcp = true;
+        state.isHandshakeComplete = true;
+        logger.info('Raw TCP JSON-RPC client connected on 6505 gateway');
+        const lines = reqText.split('\n');
+        for (let i = 0; i < lines.length; i++) {
+          const line = lines[i].trim();
+          if (line.length > 0) {
+            const lineBytes: Uint8Array = this.textEncoder.encodeInto(line);
+            this.handleJsonRpcMessage(client, line, lineBytes);
+          }
+        }
+        return;
+      }
+
+      // Process HTTP Handshake
+      const lowerReq = reqText.toLowerCase();
+      if (lowerReq.includes('upgrade: websocket') || lowerReq.includes('sec-websocket-key')) {
+        const keyMatch = reqText.match(/sec-websocket-key:\s*([^\r\n\s]+)/i);
         if (keyMatch && keyMatch[1]) {
           const clientKey = keyMatch[1].trim();
           const acceptKey = base64Encode(sha1(clientKey + WS_GUID));
@@ -259,21 +366,26 @@ export class GodotMcpServerGateway {
             'Connection: Upgrade\r\n' +
             `Sec-WebSocket-Accept: ${acceptKey}\r\n\r\n`;
 
-          const respBytes = this.textEncoder.encodeInto(response);
-          this.activeClient?.send({ data: respBytes.buffer as ArrayBuffer });
-          this.isHandshakeComplete = true;
-          this.startHeartbeat();
-          logger.info('WebSocket handshake completed with Godot MCP Pro plugin on 6505');
+          try {
+            client.send({ data: response });
+            state.isHandshakeComplete = true;
+            state.isEngine = true;
+            this.engineClient = client;
+            this.startHeartbeat();
+            logger.info(`WebSocket handshake completed on 6505 gateway (total clients: ${this.clients.size})`);
+          } catch (e) {
+            logger.error('Failed to send handshake response', e);
+          }
         }
       }
       return;
     }
 
     // Process WebSocket Frames
-    this.decodeWebSocketFrames(new Uint8Array(data));
+    this.decodeWebSocketFrames(client, new Uint8Array(data));
   }
 
-  private decodeWebSocketFrames(bytes: Uint8Array): void {
+  private decodeWebSocketFrames(client: socket.TCPSocketConnection, bytes: Uint8Array): void {
     let offset = 0;
     while (offset < bytes.length) {
       if (offset + 2 > bytes.length) break;
@@ -312,30 +424,76 @@ export class GodotMcpServerGateway {
       if (opcode === 0x01) {
         // Text frame (JSON-RPC)
         const text = this.textDecoder.decodeToString(unmasked);
-        this.handleJsonRpcMessage(text);
+        this.handleJsonRpcMessage(client, text, unmasked);
       } else if (opcode === 0x08) {
         // Close frame
-        this.activeClient?.close();
+        try {
+          client.close();
+        } catch (_e) {}
       } else if (opcode === 0x09) {
         // Ping frame -> reply with Pong
-        this.sendWebSocketFrame(0x0a, unmasked);
+        this.sendWebSocketFrame(client, 0x0a, unmasked);
       }
     }
   }
 
-  private handleJsonRpcMessage(text: string): void {
+  private sendResponseToClient(client: socket.TCPSocketConnection, text: string, rawBytes: Uint8Array): void {
+    const state = this.clients.get(client);
+    if (!state) return;
+    if (state.isRawTcp) {
+      try {
+        client.send({ data: text + '\n' });
+      } catch (e) {
+        logger.error('Failed to send raw TCP response', e);
+      }
+    } else {
+      this.sendWebSocketFrame(client, 0x01, rawBytes);
+    }
+  }
+
+  private handleJsonRpcMessage(client: socket.TCPSocketConnection, text: string, rawPayloadBytes: Uint8Array): void {
     try {
       const msg = JSON.parse(text) as Record<string, Object>;
       const method = String(msg['method'] || '');
       const id = String(msg['id'] || '');
+      const state = this.clients.get(client);
 
       // Handle pong from Godot
       if (method === 'pong') {
+        if (state) {
+          state.isEngine = true;
+          this.engineClient = client;
+        }
+        return;
+      }
+
+      // Handle Godot MCP addon auth_required message
+      if (method === 'auth_required') {
+        if (state) {
+          state.isEngine = true;
+          this.engineClient = client;
+        }
+        // Immediately authenticate Godot addon with empty token
+        const authParams: JsonRpcAuthParams = { token: '' };
+        const authMsg: JsonRpcAuthMessage = {
+          jsonrpc: '2.0',
+          id: 'auth_init',
+          method: 'auth',
+          params: authParams
+        };
+        const authPayload = JSON.stringify(authMsg);
+        const authBytes: Uint8Array = this.textEncoder.encodeInto(authPayload);
+        this.sendWebSocketFrame(client, 0x01, authBytes);
+        logger.info('Godot MCP Engine identified and authenticated on 6505');
         return;
       }
 
       // Respond immediately to Godot ping message with protocol-compliant JSON-RPC pong
       if (method === 'ping') {
+        if (state) {
+          state.isEngine = true;
+          this.engineClient = client;
+        }
         let pongResponse = '';
         if (id && id.length > 0) {
           const res: JsonRpcPongResult = { pong: true };
@@ -352,24 +510,74 @@ export class GodotMcpServerGateway {
           };
           pongResponse = JSON.stringify(pongObj);
         }
-        const pongBytes = this.textEncoder.encodeInto(pongResponse);
-        this.sendWebSocketFrame(0x01, pongBytes);
+        const pongBytes: Uint8Array = this.textEncoder.encodeInto(pongResponse);
+        this.sendWebSocketFrame(client, 0x01, pongBytes);
         return;
       }
 
-      if (id && this.pendingCommands.has(id)) {
-        const pending = this.pendingCommands.get(id)!;
-        clearTimeout(pending.timeoutId);
-        this.pendingCommands.delete(id);
-        pending.resolve(msg);
+      // Native host screenshot interception (always responsive, never stalls on game loop)
+      if (
+        method === 'take_screenshot' ||
+        method === 'capture_screenshot' ||
+        method === 'get_screenshot' ||
+        method === 'capture_game_screenshot'
+      ) {
+        void this.handleNativeScreenshot(client, id, msg['params'] as Record<string, Object> | undefined);
+        return;
+      }
+
+      // Method request from a caller (OpenCode, UI, etc.)
+      if (method.length > 0) {
+        if (this.engineClient && this.engineClient !== client) {
+          if (id.length > 0) {
+            this.forwardedRequests.set(id, client);
+          }
+          this.sendWebSocketFrame(this.engineClient, 0x01, rawPayloadBytes);
+        } else if (this.engineClient === client) {
+          // Message from engine client (notification/event)
+          logger.info(`Engine event: ${method}`);
+        } else {
+          // No engine connected to execute the tool
+          if (id.length > 0) {
+            const errPayload: JsonRpcErrorPayload = {
+              code: -32000,
+              message: 'Godot Engine MCP is not connected on port 6505'
+            };
+            const errRespObj: JsonRpcErrorResponse = {
+              jsonrpc: '2.0',
+              id: id,
+              error: errPayload
+            };
+            const errResp = JSON.stringify(errRespObj);
+            const errBytes: Uint8Array = this.textEncoder.encodeInto(errResp);
+            this.sendResponseToClient(client, errResp, errBytes);
+          }
+        }
+        return;
+      }
+
+      // Response to a pending command (has id and result/error)
+      if (id.length > 0) {
+        if (this.pendingCommands.has(id)) {
+          const pending = this.pendingCommands.get(id)!;
+          clearTimeout(pending.timeoutId);
+          this.pendingCommands.delete(id);
+          pending.resolve(msg);
+        } else if (this.forwardedRequests.has(id)) {
+          const callerConn = this.forwardedRequests.get(id)!;
+          this.forwardedRequests.delete(id);
+          this.sendResponseToClient(callerConn, text, rawPayloadBytes);
+        }
       }
     } catch (e) {
-      logger.error('Failed to parse incoming JSON-RPC from Godot', e);
+      logger.error('Failed to parse incoming JSON-RPC on 6505 gateway', e);
     }
   }
 
-  public sendWebSocketFrame(opcode: number, payloadBytes: Uint8Array): void {
-    if (!this.activeClient || !this.isHandshakeComplete) return;
+  public sendWebSocketFrame(client: socket.TCPSocketConnection | null, opcode: number, payloadBytes: Uint8Array): void {
+    if (!client) return;
+    const state = this.clients.get(client);
+    if (!state || !state.isHandshakeComplete) return;
 
     const len = payloadBytes.length;
     let headerLen = 2;
@@ -397,14 +605,18 @@ export class GodotMcpServerGateway {
       frame.set(payloadBytes, 10);
     }
 
-    this.activeClient.send({ data: frame.buffer as ArrayBuffer });
+    try {
+      client.send({ data: frame.buffer.slice(frame.byteOffset, frame.byteOffset + frame.byteLength) as ArrayBuffer });
+    } catch (e) {
+      logger.error('Failed to send WebSocket frame to client', e);
+    }
   }
 
   /**
    * Dispatch a tool command to Godot MCP plugin and await the JSON-RPC response.
    */
-  public async executeGodotCommand(method: string, params: Record<string, Object> = {}, timeoutMs: number = 30000): Promise<Record<string, Object>> {
-    if (!this.isGodotConnected()) {
+  public async executeGodotCommand(method: string, params: Record<string, Object> = {}, timeoutMs: number = 5000): Promise<Record<string, Object>> {
+    if (!this.isGodotConnected() || !this.engineClient) {
       throw new Error('Godot MCP Pro is not connected on port 6505');
     }
 
@@ -422,14 +634,105 @@ export class GodotMcpServerGateway {
         reject(new Error(`Command ${method} timed out after ${timeoutMs}ms`));
       }, timeoutMs);
 
-      this.pendingCommands.set(reqId, {
+      const pending: PendingCommand = {
         resolve: resolve,
         reject: reject,
         timeoutId: timeoutId
-      });
+      };
+      this.pendingCommands.set(reqId, pending);
 
-      const bytes = this.textEncoder.encodeInto(payload);
-      this.sendWebSocketFrame(0x01, bytes);
+      const bytes: Uint8Array = this.textEncoder.encodeInto(payload);
+      this.sendWebSocketFrame(this.engineClient, 0x01, bytes);
     });
   }
+
+  private async handleNativeScreenshot(
+    client: socket.TCPSocketConnection,
+    id: string,
+    params?: Record<string, Object>
+  ): Promise<void> {
+    try {
+      const relPath = String(params?.['path'] || 'res://screenshot.png');
+      const projectDir = getProjectPath() || '/storage/Users/currentUser/Desktop/ZW/godot/chijinbi-2';
+
+      let targetFile = relPath;
+      if (relPath.startsWith('res://')) {
+        targetFile = projectDir + '/' + relPath.substring(6);
+      } else if (!relPath.startsWith('/')) {
+        targetFile = projectDir + '/' + relPath;
+      }
+
+      // Ensure target directory exists
+      const lastSlash = targetFile.lastIndexOf('/');
+      if (lastSlash > 0) {
+        const dir = targetFile.substring(0, lastSlash);
+        try {
+          if (!fs.accessSync(dir)) {
+            fs.mkdirSync(dir, true);
+          }
+        } catch (_e) {}
+      }
+
+      // Try capturing by component ID "godot_surface" or "window"
+      let pixelMap: image.PixelMap | null = null;
+      try {
+        pixelMap = await componentSnapshot.get('godot_surface');
+      } catch (_e1) {
+        try {
+          pixelMap = await componentSnapshot.get('window');
+        } catch (_e2) {
+          logger.warn('Failed to snapshot component godot_surface/window');
+        }
+      }
+
+      if (!pixelMap) {
+        throw new Error('Could not capture ArkUI Godot surface snapshot');
+      }
+
+      const imgInfo = await pixelMap.getImageInfo();
+      const imagePacker = image.createImagePacker();
+      const packOpts: image.PackingOption = { format: 'image/png', quality: 100 };
+      const pngData = await imagePacker.packing(pixelMap, packOpts);
+
+      const file = fs.openSync(targetFile, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC);
+      fs.writeSync(file.fd, pngData);
+      fs.closeSync(file);
+      await pixelMap.release();
+
+      logger.info(`Native screenshot captured successfully -> ${targetFile} (${imgInfo.size.width}x${imgInfo.size.height}, ${pngData.byteLength} bytes)`);
+
+      const resultObj: JsonRpcScreenshotResult = {
+        path: relPath,
+        global_path: targetFile,
+        width: imgInfo.size.width,
+        height: imgInfo.size.height,
+        size_bytes: pngData.byteLength,
+        source: 'native_arkui_surface'
+      };
+
+      const respObj: JsonRpcSuccessResponse = {
+        jsonrpc: '2.0',
+        id: id,
+        result: resultObj
+      };
+      const respStr = JSON.stringify(respObj);
+      const respBytes: Uint8Array = this.textEncoder.encodeInto(respStr);
+      this.sendResponseToClient(client, respStr, respBytes);
+    } catch (err) {
+      logger.error('Failed to capture native screenshot', err);
+      const errPayload: JsonRpcErrorPayload = {
+        code: -32603,
+        message: `Failed to capture native screenshot: ${err?.message || String(err)}`
+      };
+      const errRespObj: JsonRpcErrorResponse = {
+        jsonrpc: '2.0',
+        id: id,
+        error: errPayload
+      };
+      const errRespStr = JSON.stringify(errRespObj);
+      const errRespBytes: Uint8Array = this.textEncoder.encodeInto(errRespStr);
+      this.sendResponseToClient(client, errRespStr, errRespBytes);
+    }
+  }
 }
+

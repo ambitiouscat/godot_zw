@@ -150,8 +150,10 @@ func _create_resource(params: Dictionary) -> Dictionary:
 	if err != OK:
 		return error_internal("Failed to save resource '%s': %s" % [path, error_string(err)])
 
-	# Rescan filesystem
-	EditorInterface.get_resource_filesystem().scan()
+	# Target file update instead of heavy full filesystem scan
+	var fs := EditorInterface.get_resource_filesystem()
+	if fs != null:
+		fs.update_file(path)
 
 	return success({
 		"path": path,

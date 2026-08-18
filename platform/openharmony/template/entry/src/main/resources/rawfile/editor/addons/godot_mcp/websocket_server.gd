@@ -15,7 +15,7 @@ signal command_completed(method: String, success: bool, response: String, source
 var command_router: Node
 
 const BASE_PORT := 6505
-const MAX_PORT := 6514
+const MAX_PORT := 6505
 const RECONNECT_INTERVAL := 3.0
 const BUFFER_SIZE := 16 * 1024 * 1024  # 16MB
 const PING_INTERVAL := 5.0  # send ping every N seconds while connected

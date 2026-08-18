@@ -44,13 +44,55 @@ func _register_commands() -> void:
 		preload("res://addons/godot_mcp/commands/headless_commands.gd"),
 	]
 
+	process_mode = Node.PROCESS_MODE_ALWAYS
+
 	for cmd_class in command_classes:
 		var cmd: Node = cmd_class.new()
+		cmd.process_mode = Node.PROCESS_MODE_ALWAYS
 		cmd.editor_plugin = editor_plugin
 		add_child(cmd)
 		var methods: Dictionary = cmd.get_commands()
 		for method_name: String in methods:
 			_command_handlers[method_name] = methods[method_name]
+
+	# Compatibility aliases
+	if _command_handlers.has("add_node"):
+		_command_handlers["create_node"] = _command_handlers["add_node"]
+	if _command_handlers.has("update_property"):
+		_command_handlers["set_node_property"] = _command_handlers["update_property"]
+		_command_handlers["set_property"] = _command_handlers["update_property"]
+	if _command_handlers.has("get_filesystem_tree"):
+		_command_handlers["get_project_structure"] = _command_handlers["get_filesystem_tree"]
+	if _command_handlers.has("edit_resource"):
+		_command_handlers["update_resource"] = _command_handlers["edit_resource"]
+		_command_handlers["set_resource_property"] = func(p: Dictionary):
+			var path: String = p.get("path", "")
+			var prop: String = p.get("property", p.get("name", ""))
+			var val: Variant = p.get("value", null)
+			return _command_handlers["edit_resource"].call({"path": path, "properties": {prop: val}})
+	if _command_handlers.has("create_resource"):
+		_command_handlers["create_material"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://material.tres")
+			var type: String = p.get("type", p.get("resource_type", "StandardMaterial3D"))
+			var props: Dictionary = p.get("properties", {})
+			if p.has("albedo_color"): props["albedo_color"] = p["albedo_color"]
+			return _command_handlers["create_resource"].call({"path": path, "type": type, "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_box_mesh"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://box_mesh.tres")
+			var type: String = p.get("type", p.get("resource_type", "BoxMesh"))
+			var props: Dictionary = p.get("properties", {})
+			if p.has("size"): props["size"] = p["size"]
+			return _command_handlers["create_resource"].call({"path": path, "type": type, "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_mesh"] = _command_handlers["create_box_mesh"]
+	if _command_handlers.has("set_project_setting"):
+		_command_handlers["set_setting"] = _command_handlers["set_project_setting"]
+		_command_handlers["set_main_scene"] = func(p: Dictionary):
+			var scene: String = p.get("scene", p.get("path", p.get("main_scene", "")))
+			return _command_handlers["set_project_setting"].call({"key": "application/run/main_scene", "value": scene})
+	if _command_handlers.has("run_project"):
+		_command_handlers["play_main_scene"] = _command_handlers["run_project"]
+		_command_handlers["play_scene"] = _command_handlers["run_scene"]
+		_command_handlers["play_current_scene"] = _command_handlers["run_current_scene"]
 
 	print("[MCP] Registered %d commands" % _command_handlers.size())
 
@@ -74,11 +116,22 @@ func execute(method: String, params: Dictionary) -> Dictionary:
 		}
 
 	var handler: Callable = _command_handlers[method]
-	# Not typed as Dictionary on assignment: a handler that returns something
-	# else would raise here, aborting the coroutine so no response is ever
-	# sent and the caller waits out its whole timeout instead of being told
-	# what went wrong.
+	if not handler.is_valid():
+		return {
+			"error": {
+				"code": -32603,
+				"message": "Handler for '%s' is not valid" % method
+			}
+		}
+
 	var result: Variant = await handler.call(params)
+	if result == null:
+		return {
+			"error": {
+				"code": -32603,
+				"message": "Handler for '%s' returned null" % method
+			}
+		}
 	if not result is Dictionary:
 		return {
 			"error": {

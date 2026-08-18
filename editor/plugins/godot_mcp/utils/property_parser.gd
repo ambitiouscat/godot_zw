@@ -127,13 +127,15 @@ static func _auto_parse(value: Variant) -> Variant:
 
 
 static func _extract_numbers(s: String) -> PackedFloat64Array:
-	# Remove type prefix and parentheses
-	var cleaned := s
-	for prefix in ["Vector3i(", "Vector3(", "Vector2i(", "Vector2(", "Rect2(", "Color(", "("]:
+	# Remove type prefix and parentheses / brackets
+	var cleaned := s.strip_edges()
+	for prefix in ["Vector3i(", "Vector3(", "Vector2i(", "Vector2(", "Rect2(", "Color(", "(", "["]:
 		if cleaned.begins_with(prefix):
 			cleaned = cleaned.substr(prefix.length())
 			break
-	cleaned = cleaned.trim_suffix(")")
+	for suffix in [")", "]"]:
+		if cleaned.ends_with(suffix):
+			cleaned = cleaned.substr(0, cleaned.length() - suffix.length())
 	cleaned = cleaned.strip_edges()
 
 	var parts := cleaned.split(",")
@@ -158,6 +160,10 @@ static func _num(value: Variant, default: float = 0.0) -> float:
 
 static func _parse_vector2(value: Variant) -> Vector2:
 	if value is Vector2: return value
+	if value is Array:
+		var arr: Array = value
+		if arr.size() >= 2:
+			return Vector2(_num(arr[0]), _num(arr[1]))
 	if value is Dictionary:
 		return Vector2(_num(value.get("x", 0)), _num(value.get("y", 0)))
 	var nums := _extract_numbers(str(value))
@@ -173,6 +179,10 @@ static func _parse_vector2i(value: Variant) -> Vector2i:
 
 static func _parse_vector3(value: Variant) -> Vector3:
 	if value is Vector3: return value
+	if value is Array:
+		var arr: Array = value
+		if arr.size() >= 3:
+			return Vector3(_num(arr[0]), _num(arr[1]), _num(arr[2]))
 	if value is Dictionary:
 		return Vector3(_num(value.get("x", 0)), _num(value.get("y", 0)), _num(value.get("z", 0)))
 	var nums := _extract_numbers(str(value))
@@ -188,6 +198,10 @@ static func _parse_vector3i(value: Variant) -> Vector3i:
 
 static func _parse_rect2(value: Variant) -> Rect2:
 	if value is Rect2: return value
+	if value is Array:
+		var arr: Array = value
+		if arr.size() >= 4:
+			return Rect2(_num(arr[0]), _num(arr[1]), _num(arr[2]), _num(arr[3]))
 	if value is Dictionary:
 		return Rect2(
 			_num(value.get("x", 0)), _num(value.get("y", 0)),
@@ -202,8 +216,10 @@ static func _parse_rect2(value: Variant) -> Rect2:
 
 static func _parse_color(value: Variant) -> Color:
 	if value is Color: return value
-	# serialize_value() reports a Color as {"r","g","b","a","html"}; without
-	# this, feeding that same dictionary back set the property to white.
+	if value is Array:
+		var arr: Array = value
+		if arr.size() >= 3:
+			return Color(_num(arr[0]), _num(arr[1]), _num(arr[2]), _num(arr[3], 1.0) if arr.size() > 3 else 1.0)
 	if value is Dictionary:
 		var d: Dictionary = value
 		if d.has("html") and d["html"] is String and Color.html_is_valid(d["html"]):
@@ -214,11 +230,9 @@ static func _parse_color(value: Variant) -> Color:
 	var s := str(value)
 	if s.begins_with("#"):
 		return Color.html(s)
-	if s.begins_with("Color("):
-		var nums := _extract_numbers(s)
-		match nums.size():
-			3: return Color(nums[0], nums[1], nums[2])
-			4: return Color(nums[0], nums[1], nums[2], nums[3])
+	var nums := _extract_numbers(s)
+	if nums.size() >= 3:
+		return Color(nums[0], nums[1], nums[2], nums[3] if nums.size() > 3 else 1.0)
 	# Try named color
 	if Color.html_is_valid(s):
 		return Color.html(s)

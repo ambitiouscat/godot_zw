@@ -198,6 +198,12 @@ uint32_t latest_window_height = 0;
 static std::atomic<bool> pending_stop_playing{ false };
 int32_t latest_window_event = 0;
 
+static pthread_t godot_engine_thread;
+static std::mutex vsync_frame_mutex;
+static std::condition_variable vsync_frame_cv;
+static std::atomic<bool> vsync_frame_ready{false};
+static std::atomic<bool> godot_engine_running{false};
+
 enum GodotStartupStep {
 	STEP_TERMINATED = -1,
 	STEP_SETUP,
@@ -211,6 +217,9 @@ void godot_finalize() {
 	}
 	step = STEP_TERMINATED;
 
+	godot_engine_running = false;
+	vsync_frame_cv.notify_all();
+
 	if (os_openharmony) {
 		os_openharmony->main_loop_end();
 		Main::cleanup();
@@ -218,14 +227,24 @@ void godot_finalize() {
 		os_openharmony = nullptr;
 	}
 
-	OH_NativeVSync_Destroy(native_vsync);
-	native_vsync = nullptr;
+	if (native_vsync) {
+		OH_NativeVSync_Destroy(native_vsync);
+		native_vsync = nullptr;
+	}
 }
 
 void godot_step(long long timestamp, void *data) {
+	{
+		std::lock_guard<std::mutex> lock(vsync_frame_mutex);
+		vsync_frame_ready = true;
+	}
+	vsync_frame_cv.notify_one();
+}
+
+static void godot_step_internal() {
 	// First VSync callback — bridge is now safe to use.
-	// godot_iterate runs on the VSync thread (not JS thread),
-	// so TSF callbacks can be processed normally.
+	// godot_iterate runs on the dedicated engine thread (with 16MB stack),
+	// so TSF callbacks and deep UI/TextServer trees can be processed normally.
 	g_godot_init_in_progress = false;
 
 	if (step == STEP_TERMINATED) {
@@ -242,7 +261,6 @@ void godot_step(long long timestamp, void *data) {
 		case STEP_SHOW_LOGO:
 			Main::setup_boot_logo();
 			step++;
-
 			break;
 		case STEP_STARTED:
 			if (Main::start() != EXIT_SUCCESS) {
@@ -252,7 +270,6 @@ void godot_step(long long timestamp, void *data) {
 			step++;
 			break;
 		default:
-
 			godot_step_mutex.lock();
 			uint32_t current_window_width = latest_window_width;
 			uint32_t current_window_height = latest_window_height;
@@ -307,7 +324,30 @@ void godot_step(long long timestamp, void *data) {
 	}
 
 	// Request the next frame
-	OH_NativeVSync_RequestFrame(native_vsync, godot_step, nullptr);
+	if (native_vsync && step != STEP_TERMINATED) {
+		OH_NativeVSync_RequestFrame(native_vsync, godot_step, nullptr);
+	}
+}
+
+static void *godot_engine_thread_func(void *p_arg) {
+	Thread::make_main_thread();
+
+	while (godot_engine_running.load()) {
+		{
+			std::unique_lock<std::mutex> lock(vsync_frame_mutex);
+			vsync_frame_cv.wait(lock, [] {
+				return vsync_frame_ready.load() || !godot_engine_running.load();
+			});
+			vsync_frame_ready = false;
+		}
+
+		if (!godot_engine_running.load()) {
+			break;
+		}
+
+		godot_step_internal();
+	}
+	return nullptr;
 }
 
 int64_t godot_init(NativeResourceManager *p_resource_manager, void *p_native_window, int32_t window_id, int64_t window_width, int64_t window_height, const char *p_allowed_permissions) {
@@ -439,7 +479,14 @@ int64_t godot_init(NativeResourceManager *p_resource_manager, void *p_native_win
 
 	g_godot_init_in_progress = false;
 
-	Thread::release_main_thread(); // setup2 and game loop will be called from the vsync render thread.
+	Thread::release_main_thread(); // setup2 and game loop will be called on the dedicated 16MB engine thread.
+
+	godot_engine_running = true;
+	pthread_attr_t attr;
+	pthread_attr_init(&attr);
+	pthread_attr_setstacksize(&attr, 16 * 1024 * 1024); // 16MB stack for Godot Engine
+	pthread_create(&godot_engine_thread, &attr, godot_engine_thread_func, nullptr);
+	pthread_attr_destroy(&attr);
 
 	const char *connection_name = "godot";
 	native_vsync = OH_NativeVSync_Create(connection_name, strlen(connection_name));

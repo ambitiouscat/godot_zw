@@ -36,6 +36,7 @@ import { Logger } from '../core/Logger';
 import { setGodotMode, setProjectPath, setRestartArgs, isGameLaunched, setGameLaunched } from '../core/AbilityState';
 import { BridgeCallbacks } from '../core/BridgeCallbacks';
 import { GodotMcpInstaller } from '../core/GodotMcpInstaller';
+import { GodotMcpServerGateway } from '../core/GodotMcpServerGateway';
 
 const logger = new Logger('EditorAbility')
 
@@ -59,6 +60,9 @@ export default class EditorAbility extends UIAbility {
       logger.error('Failed to set color mode', e);
     }
     logger.info('Ability onCreate');
+
+    // Start Godot MCP gateway hub on 6505
+    void GodotMcpServerGateway.getInstance().start(6505);
 
     // Default mode: editor
     setGodotMode('editor');
@@ -100,6 +104,7 @@ export default class EditorAbility extends UIAbility {
 
   onDestroy(): void {
     logger.info('Ability onDestroy');
+    void GodotMcpServerGateway.getInstance().stop();
   }
 
   onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
