@@ -77,8 +77,11 @@ static func parse_value(value: Variant, target_type: int = TYPE_NIL) -> Variant:
 				return value
 			if value is String:
 				var s: String = value
-				if (s.begins_with("res://") or s.begins_with("uid://")) and ResourceLoader.exists(s):
-					return ResourceLoader.load(s)
+				if s.begins_with("res://") or s.begins_with("uid://"):
+					if FileAccess.file_exists(s) or ResourceLoader.exists(s):
+						var loaded_res := ResourceLoader.load(s)
+						if loaded_res != null:
+							return loaded_res
 				# Unresolvable string for an Object-typed property: return null so
 				# callers can detect the failure instead of coercing to null silently.
 				return null
@@ -120,8 +123,11 @@ static func _auto_parse(value: Variant) -> Variant:
 		return _parse_rect2(s)
 
 	# Resource path (covers unset Object properties, where typeof(null) is TYPE_NIL)
-	if (s.begins_with("res://") or s.begins_with("uid://")) and ResourceLoader.exists(s):
-		return ResourceLoader.load(s)
+	if s.begins_with("res://") or s.begins_with("uid://"):
+		if FileAccess.file_exists(s) or ResourceLoader.exists(s):
+			var loaded_res := ResourceLoader.load(s)
+			if loaded_res != null:
+				return loaded_res
 
 	return s
 

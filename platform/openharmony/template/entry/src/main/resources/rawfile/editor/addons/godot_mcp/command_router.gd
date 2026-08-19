@@ -77,6 +77,7 @@ func _register_commands() -> void:
 			var props: Dictionary = p.get("properties", {})
 			if p.has("albedo_color"): props["albedo_color"] = p["albedo_color"]
 			return _command_handlers["create_resource"].call({"path": path, "type": type, "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_standard_material_3d"] = _command_handlers["create_material"]
 		_command_handlers["create_box_mesh"] = func(p: Dictionary):
 			var path: String = p.get("path", "res://box_mesh.tres")
 			var type: String = p.get("type", p.get("resource_type", "BoxMesh"))
@@ -84,6 +85,12 @@ func _register_commands() -> void:
 			if p.has("size"): props["size"] = p["size"]
 			return _command_handlers["create_resource"].call({"path": path, "type": type, "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_mesh"] = _command_handlers["create_box_mesh"]
+		_command_handlers["create_box_shape_3d"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://box_shape_3d.tres")
+			var props: Dictionary = {}
+			if p.has("size"): props["size"] = p["size"]
+			return _command_handlers["create_resource"].call({"path": path, "type": "BoxShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_box_shape"] = _command_handlers["create_box_shape_3d"]
 	if _command_handlers.has("set_project_setting"):
 		_command_handlers["set_setting"] = _command_handlers["set_project_setting"]
 		_command_handlers["set_main_scene"] = func(p: Dictionary):
@@ -93,6 +100,81 @@ func _register_commands() -> void:
 		_command_handlers["play_main_scene"] = _command_handlers["run_project"]
 		_command_handlers["play_scene"] = _command_handlers["run_scene"]
 		_command_handlers["play_current_scene"] = _command_handlers["run_current_scene"]
+
+	# Additional tool aliases
+	_command_handlers["get_editor_state"] = func(p: Dictionary):
+		var tree := get_tree()
+		var current_scene: Node = tree.edited_scene_root if tree else null
+		var selected_paths: Array = []
+		if EditorInterface.get_selection():
+			for n in EditorInterface.get_selection().get_selected_nodes():
+				if current_scene:
+					selected_paths.append(str(current_scene.get_path_to(n)))
+				else:
+					selected_paths.append(n.name)
+		return {
+			"result": {
+				"active_scene": current_scene.scene_file_path if current_scene else "",
+				"active_root_name": current_scene.name if current_scene else "",
+				"open_scenes": EditorInterface.get_open_scenes(),
+				"selected_nodes": selected_paths,
+				"is_playing": EditorInterface.is_playing_scene()
+			}
+		}
+
+	if _command_handlers.has("add_node"):
+		_command_handlers["create_camera_3d"] = func(p: Dictionary):
+			var cp := p.duplicate()
+			cp["type"] = "Camera3D"
+			if not cp.has("name"): cp["name"] = "Camera3D"
+			return _command_handlers["add_node"].call(cp)
+		_command_handlers["create_light_3d"] = func(p: Dictionary):
+			var cp := p.duplicate()
+			var light_type: String = cp.get("light_type", cp.get("type", "DirectionalLight3D"))
+			if not light_type.ends_with("Light3D"):
+				light_type = "DirectionalLight3D"
+			cp["type"] = light_type
+			if not cp.has("name"): cp["name"] = light_type
+			return _command_handlers["add_node"].call(cp)
+		_command_handlers["create_mesh_instance_3d"] = func(p: Dictionary):
+			var cp := p.duplicate()
+			cp["type"] = "MeshInstance3D"
+			if not cp.has("name"): cp["name"] = "MeshInstance3D"
+			return _command_handlers["add_node"].call(cp)
+		_command_handlers["create_collision_shape_3d"] = func(p: Dictionary):
+			var cp := p.duplicate()
+			cp["type"] = "CollisionShape3D"
+			if not cp.has("name"): cp["name"] = "CollisionShape3D"
+			return _command_handlers["add_node"].call(cp)
+
+	if _command_handlers.has("move_node"):
+		_command_handlers["reparent_node"] = func(p: Dictionary):
+			var cp := p.duplicate()
+			if not cp.has("new_parent_path"):
+				if cp.has("parent_path"): cp["new_parent_path"] = cp["parent_path"]
+				elif cp.has("parent"): cp["new_parent_path"] = cp["parent"]
+				elif cp.has("target_path"): cp["new_parent_path"] = cp["target_path"]
+			if not cp.has("node_path") and cp.has("path"):
+				cp["node_path"] = cp["path"]
+			return _command_handlers["move_node"].call(cp)
+
+	if _command_handlers.has("stop_scene"):
+		_command_handlers["stop_project"] = _command_handlers["stop_scene"]
+		_command_handlers["stop_playing_scene"] = _command_handlers["stop_scene"]
+
+	_command_handlers["save_project_settings"] = func(p: Dictionary):
+		var err := ProjectSettings.save()
+		if err == OK:
+			return {"result": {"saved": true}}
+		return {"error": {"code": -32603, "message": "Failed to save project settings: %d" % err}}
+
+	_command_handlers["refresh_filesystem"] = func(p: Dictionary):
+		EditorInterface.get_resource_filesystem().scan()
+		return {"result": {"rescanned": true}}
+	_command_handlers["rescan_filesystem"] = _command_handlers["refresh_filesystem"]
+
+	if _command_handlers.has("read_resource"):
+		_command_handlers["load_resource"] = _command_handlers["read_resource"]
 
 	print("[MCP] Registered %d commands" % _command_handlers.size())
 

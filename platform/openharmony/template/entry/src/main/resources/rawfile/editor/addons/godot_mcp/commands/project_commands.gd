@@ -162,10 +162,25 @@ func _get_project_settings(params: Dictionary) -> Dictionary:
 
 	# If section requested, return all settings in that section
 	var settings := {}
+	var max_entries: int = optional_int(params, "max_entries", 100)
+	var allowed_default_prefixes: Array = [
+		"application/", "display/", "rendering/", "physics/", "audio/", "debug/", "autoload/"
+	]
+
 	for prop in ProjectSettings.get_property_list():
 		var name: String = prop["name"]
-		if section.is_empty() or name.begins_with(section):
-			settings[name] = str(ProjectSettings.get_setting(name))
+		if not section.is_empty():
+			if name.begins_with(section):
+				settings[name] = str(ProjectSettings.get_setting(name))
+		else:
+			# If no section specified, only return common project configuration sections
+			# to prevent dumping thousands of internal properties and buffer overflow
+			for prefix in allowed_default_prefixes:
+				if name.begins_with(prefix):
+					settings[name] = str(ProjectSettings.get_setting(name))
+					break
+		if settings.size() >= max_entries:
+			break
 
 	return success({"settings": settings, "count": settings.size()})
 

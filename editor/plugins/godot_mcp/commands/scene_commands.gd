@@ -106,7 +106,11 @@ func _create_scene(params: Dictionary) -> Dictionary:
 	# Refresh filesystem
 	EditorInterface.get_resource_filesystem().scan()
 
-	return success({"path": path, "root_type": root_type, "root_name": root_name})
+	var open_in_editor: bool = optional_bool(params, "open_in_editor", true)
+	if open_in_editor:
+		EditorInterface.open_scene_from_path(path)
+
+	return success({"path": path, "root_type": root_type, "root_name": root_name, "opened": open_in_editor})
 
 
 func _open_scene(params: Dictionary) -> Dictionary:
