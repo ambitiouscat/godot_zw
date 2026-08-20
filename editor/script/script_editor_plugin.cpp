@@ -838,12 +838,17 @@ bool ScriptEditor::_test_script_times_on_disk(Ref<Resource> p_for_script) {
 	}
 
 	if (need_reload) {
+#ifdef __OPENHARMONY__
+		script_editor->reload_scripts();
+		need_reload = false;
+#else
 		if (!need_ask) {
 			script_editor->reload_scripts();
 			need_reload = false;
 		} else {
 			callable_mp((Window *)disk_changed, &Window::popup_centered_ratio).call_deferred(0.3);
 		}
+#endif
 	}
 
 	return need_reload;

@@ -1608,7 +1608,12 @@ void EditorNode::_scan_external_changes() {
 	}
 
 	if (need_reload) {
+#ifdef __OPENHARMONY__
+		_reload_modified_scenes();
+		_reload_project_settings();
+#else
 		callable_mp((Window *)disk_changed, &Window::popup_centered_ratio).call_deferred(0.3);
+#endif
 	}
 }
 
@@ -8863,8 +8868,15 @@ EditorNode::EditorNode() {
 
 	scan_changes_timer = memnew(Timer);
 	scan_changes_timer->set_wait_time(0.5);
+#ifdef __OPENHARMONY__
+	scan_changes_timer->set_autostart(true);
+#else
 	scan_changes_timer->set_autostart(EDITOR_GET("interface/editor/behavior/import_resources_when_unfocused"));
+#endif
 	scan_changes_timer->connect("timeout", callable_mp(EditorFileSystem::get_singleton(), &EditorFileSystem::scan_changes));
+#ifdef __OPENHARMONY__
+	scan_changes_timer->connect("timeout", callable_mp(this, &EditorNode::_scan_external_changes));
+#endif
 	add_child(scan_changes_timer);
 
 	top_split = memnew(VSplitContainer);

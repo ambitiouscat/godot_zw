@@ -697,6 +697,8 @@ func _set_auto_dismiss(params: Dictionary) -> Dictionary:
 
 
 func _run_project(params: Dictionary = {}) -> Dictionary:
+	if EditorInterface.get_edited_scene_root() != null:
+		EditorInterface.save_scene()
 	EditorInterface.call_deferred("play_main_scene")
 	return success({
 		"action": "play_main_scene",
@@ -710,6 +712,8 @@ func _run_scene(params: Dictionary) -> Dictionary:
 		scene_path = optional_string(params, "scene_path", "")
 	if scene_path.is_empty():
 		return _run_current_scene(params)
+	if EditorInterface.get_edited_scene_root() != null:
+		EditorInterface.save_scene()
 	EditorInterface.call_deferred("play_custom_scene", scene_path)
 	return success({
 		"action": "play_custom_scene",
@@ -719,6 +723,8 @@ func _run_scene(params: Dictionary) -> Dictionary:
 
 
 func _run_current_scene(params: Dictionary = {}) -> Dictionary:
+	if EditorInterface.get_edited_scene_root() != null:
+		EditorInterface.save_scene()
 	EditorInterface.call_deferred("play_current_scene")
 	return success({
 		"action": "play_current_scene",

@@ -108,6 +108,8 @@ func _create_scene(params: Dictionary) -> Dictionary:
 
 	var open_in_editor: bool = optional_bool(params, "open_in_editor", true)
 	if open_in_editor:
+		if EditorInterface.get_edited_scene_root() != null:
+			EditorInterface.save_scene()
 		EditorInterface.open_scene_from_path(path)
 
 	return success({"path": path, "root_type": root_type, "root_name": root_name, "opened": open_in_editor})
@@ -121,6 +123,9 @@ func _open_scene(params: Dictionary) -> Dictionary:
 
 	if not FileAccess.file_exists(path):
 		return error_not_found("Scene file '%s'" % path)
+
+	if EditorInterface.get_edited_scene_root() != null:
+		EditorInterface.save_scene()
 
 	EditorInterface.open_scene_from_path(path)
 	return success({"path": path, "opened": true})
@@ -216,6 +221,9 @@ func _add_scene_instance(params: Dictionary) -> Dictionary:
 
 func _play_scene(params: Dictionary) -> Dictionary:
 	var mode: String = optional_string(params, "mode", "main")  # "main", "current", or path
+
+	if EditorInterface.get_edited_scene_root() != null:
+		EditorInterface.save_scene()
 
 	match mode:
 		"main":
