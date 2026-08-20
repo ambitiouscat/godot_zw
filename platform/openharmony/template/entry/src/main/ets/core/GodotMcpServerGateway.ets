@@ -168,6 +168,7 @@ interface ClientConnectionState {
   isHandshakeComplete: boolean;
   isEngine: boolean;
   isRawTcp: boolean;
+  rxBuffer: Uint8Array;
 }
 
 /**
@@ -273,7 +274,8 @@ export class GodotMcpServerGateway {
       client: client,
       isHandshakeComplete: false,
       isEngine: false,
-      isRawTcp: false
+      isRawTcp: false,
+      rxBuffer: new Uint8Array(0)
     };
     this.clients.set(client, state);
 
@@ -321,33 +323,53 @@ export class GodotMcpServerGateway {
     const state = this.clients.get(client);
     if (!state) return;
 
+    const newChunk = new Uint8Array(data);
+    let allBytes: Uint8Array;
+    if (!state.rxBuffer || state.rxBuffer.length === 0) {
+      allBytes = newChunk;
+    } else {
+      allBytes = new Uint8Array(state.rxBuffer.length + newChunk.length);
+      allBytes.set(state.rxBuffer, 0);
+      allBytes.set(newChunk, state.rxBuffer.length);
+    }
+
     if (state.isRawTcp) {
-      const reqText = this.textDecoder.decodeToString(new Uint8Array(data));
+      const reqText = this.textDecoder.decodeToString(allBytes);
       const lines = reqText.split('\n');
-      for (let i = 0; i < lines.length; i++) {
-        const line = lines[i].trim();
-        if (line.length > 0) {
-          const lineBytes: Uint8Array = this.textEncoder.encodeInto(line);
-          this.handleJsonRpcMessage(client, line, lineBytes);
+      if (lines.length > 1) {
+        for (let i = 0; i < lines.length - 1; i++) {
+          const line = lines[i].trim();
+          if (line.length > 0) {
+            const lineBytes: Uint8Array = this.textEncoder.encodeInto(line);
+            this.handleJsonRpcMessage(client, line, lineBytes);
+          }
         }
+        state.rxBuffer = this.textEncoder.encodeInto(lines[lines.length - 1]);
+      } else {
+        state.rxBuffer = allBytes;
       }
       return;
     }
 
     if (!state.isHandshakeComplete) {
-      const reqText = this.textDecoder.decodeToString(new Uint8Array(data));
+      const reqText = this.textDecoder.decodeToString(allBytes);
       const trimmed = reqText.trim();
       if (trimmed.startsWith('{')) {
         state.isRawTcp = true;
         state.isHandshakeComplete = true;
         logger.info('Raw TCP JSON-RPC client connected on 6505 gateway');
         const lines = reqText.split('\n');
-        for (let i = 0; i < lines.length; i++) {
-          const line = lines[i].trim();
-          if (line.length > 0) {
-            const lineBytes: Uint8Array = this.textEncoder.encodeInto(line);
-            this.handleJsonRpcMessage(client, line, lineBytes);
+        if (lines.length > 1) {
+          for (let i = 0; i < lines.length - 1; i++) {
+            const line = lines[i].trim();
+            if (line.length > 0) {
+              const lineBytes: Uint8Array = this.textEncoder.encodeInto(line);
+              this.handleJsonRpcMessage(client, line, lineBytes);
+            }
           }
+          state.rxBuffer = this.textEncoder.encodeInto(lines[lines.length - 1]);
+        } else {
+          state.rxBuffer = allBytes;
         }
         return;
       }
@@ -371,6 +393,7 @@ export class GodotMcpServerGateway {
             state.isHandshakeComplete = true;
             state.isEngine = true;
             this.engineClient = client;
+            state.rxBuffer = new Uint8Array(0);
             this.startHeartbeat();
             logger.info(`WebSocket handshake completed on 6505 gateway (total clients: ${this.clients.size})`);
           } catch (e) {
@@ -382,13 +405,16 @@ export class GodotMcpServerGateway {
     }
 
     // Process WebSocket Frames
-    this.decodeWebSocketFrames(client, new Uint8Array(data));
+    state.rxBuffer = this.decodeWebSocketFrames(client, allBytes);
   }
 
-  private decodeWebSocketFrames(client: socket.TCPSocketConnection, bytes: Uint8Array): void {
+  private decodeWebSocketFrames(client: socket.TCPSocketConnection, bytes: Uint8Array): Uint8Array {
     let offset = 0;
     while (offset < bytes.length) {
-      if (offset + 2 > bytes.length) break;
+      const frameStart = offset;
+      if (offset + 2 > bytes.length) {
+        return bytes.subarray(frameStart);
+      }
       const b0 = bytes[offset++];
       const b1 = bytes[offset++];
 
@@ -397,21 +423,31 @@ export class GodotMcpServerGateway {
       let payloadLen = b1 & 0x7f;
 
       if (payloadLen === 126) {
-        if (offset + 2 > bytes.length) break;
+        if (offset + 2 > bytes.length) {
+          return bytes.subarray(frameStart);
+        }
         payloadLen = (bytes[offset] << 8) | bytes[offset + 1];
         offset += 2;
       } else if (payloadLen === 127) {
-        offset += 8; // 64-bit len (simplified)
+        if (offset + 8 > bytes.length) {
+          return bytes.subarray(frameStart);
+        }
+        payloadLen = ((bytes[offset + 4] << 24) >>> 0) | (bytes[offset + 5] << 16) | (bytes[offset + 6] << 8) | bytes[offset + 7];
+        offset += 8;
       }
 
       let maskKey: Uint8Array | null = null;
       if (isMasked) {
-        if (offset + 4 > bytes.length) break;
+        if (offset + 4 > bytes.length) {
+          return bytes.subarray(frameStart);
+        }
         maskKey = bytes.subarray(offset, offset + 4);
         offset += 4;
       }
 
-      if (offset + payloadLen > bytes.length) break;
+      if (offset + payloadLen > bytes.length) {
+        return bytes.subarray(frameStart);
+      }
       const payload = bytes.subarray(offset, offset + payloadLen);
       offset += payloadLen;
 
@@ -435,6 +471,7 @@ export class GodotMcpServerGateway {
         this.sendWebSocketFrame(client, 0x0a, unmasked);
       }
     }
+    return new Uint8Array(0);
   }
 
   private sendResponseToClient(client: socket.TCPSocketConnection, text: string, rawBytes: Uint8Array): void {

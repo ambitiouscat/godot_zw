@@ -85,12 +85,56 @@ func _register_commands() -> void:
 			if p.has("size"): props["size"] = p["size"]
 			return _command_handlers["create_resource"].call({"path": path, "type": type, "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_mesh"] = _command_handlers["create_box_mesh"]
+		_command_handlers["create_cylinder_mesh"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://cylinder_mesh.tres")
+			var props: Dictionary = p.get("properties", {})
+			if p.has("top_radius"): props["top_radius"] = p["top_radius"]
+			if p.has("bottom_radius"): props["bottom_radius"] = p["bottom_radius"]
+			if p.has("height"): props["height"] = p["height"]
+			return _command_handlers["create_resource"].call({"path": path, "type": "CylinderMesh", "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_sphere_mesh"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://sphere_mesh.tres")
+			var props: Dictionary = p.get("properties", {})
+			if p.has("radius"): props["radius"] = p["radius"]
+			if p.has("height"): props["height"] = p["height"]
+			return _command_handlers["create_resource"].call({"path": path, "type": "SphereMesh", "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_capsule_mesh"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://capsule_mesh.tres")
+			var props: Dictionary = p.get("properties", {})
+			if p.has("radius"): props["radius"] = p["radius"]
+			if p.has("height"): props["height"] = p["height"]
+			return _command_handlers["create_resource"].call({"path": path, "type": "CapsuleMesh", "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_plane_mesh"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://plane_mesh.tres")
+			var props: Dictionary = p.get("properties", {})
+			if p.has("size"): props["size"] = p["size"]
+			return _command_handlers["create_resource"].call({"path": path, "type": "PlaneMesh", "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_box_shape_3d"] = func(p: Dictionary):
 			var path: String = p.get("path", "res://box_shape_3d.tres")
 			var props: Dictionary = {}
 			if p.has("size"): props["size"] = p["size"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "BoxShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_box_shape"] = _command_handlers["create_box_shape_3d"]
+		_command_handlers["create_cylinder_shape_3d"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://cylinder_shape_3d.tres")
+			var props: Dictionary = {}
+			if p.has("radius"): props["radius"] = p["radius"]
+			if p.has("height"): props["height"] = p["height"]
+			return _command_handlers["create_resource"].call({"path": path, "type": "CylinderShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_cylinder_shape"] = _command_handlers["create_cylinder_shape_3d"]
+		_command_handlers["create_sphere_shape_3d"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://sphere_shape_3d.tres")
+			var props: Dictionary = {}
+			if p.has("radius"): props["radius"] = p["radius"]
+			return _command_handlers["create_resource"].call({"path": path, "type": "SphereShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_sphere_shape"] = _command_handlers["create_sphere_shape_3d"]
+		_command_handlers["create_capsule_shape_3d"] = func(p: Dictionary):
+			var path: String = p.get("path", "res://capsule_shape_3d.tres")
+			var props: Dictionary = {}
+			if p.has("radius"): props["radius"] = p["radius"]
+			if p.has("height"): props["height"] = p["height"]
+			return _command_handlers["create_resource"].call({"path": path, "type": "CapsuleShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
+		_command_handlers["create_capsule_shape"] = _command_handlers["create_capsule_shape_3d"]
 	if _command_handlers.has("set_project_setting"):
 		_command_handlers["set_setting"] = _command_handlers["set_project_setting"]
 		_command_handlers["set_main_scene"] = func(p: Dictionary):
@@ -189,8 +233,7 @@ func execute(method: String, params: Dictionary) -> Dictionary:
 		return {
 			"error": {
 				"code": -32601,
-				"message": "Method not found: %s" % method,
-				"data": {"available_methods": _command_handlers.keys()}
+				"message": "Method '%s' not found. Check tool name or use get_editor_state/list_methods." % method
 			}
 		}
 

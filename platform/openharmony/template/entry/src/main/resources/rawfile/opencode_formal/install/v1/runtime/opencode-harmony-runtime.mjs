@@ -142436,7 +142436,7 @@ function unsupportedParts(msgs, model) {
       const modality = mimeToModality(mime);
       if (!modality)
         return part;
-      if (model.capabilities.input[modality])
+      if (model.capabilities.input[modality] || modality === "image")
         return part;
       const name21 = filename ? `"${filename}"` : modality;
       return {
@@ -201502,13 +201502,13 @@ var init_provider5 = __esm(async () => {
             providerID: exports_provider2.ID.make(providerID),
             capabilities: {
               temperature: model.temperature ?? existingModel?.capabilities.temperature ?? false,
-              reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? false,
-              attachment: model.attachment ?? existingModel?.capabilities.attachment ?? false,
+              reasoning: model.reasoning ?? existingModel?.capabilities.reasoning ?? (/(r1|o1|o3|thinking|reasoner|k3|k1\.5|claude-3-7|deepseek-r1|qwq)/i.test(`${providerID} ${modelID}`)),
+              attachment: model.attachment ?? existingModel?.capabilities.attachment ?? true,
               toolcall: model.tool_call ?? existingModel?.capabilities.toolcall ?? true,
               input: {
                 text: model.modalities?.input?.includes("text") ?? existingModel?.capabilities.input.text ?? true,
                 audio: model.modalities?.input?.includes("audio") ?? existingModel?.capabilities.input.audio ?? false,
-                image: model.modalities?.input?.includes("image") ?? existingModel?.capabilities.input.image ?? false,
+                image: model.modalities?.input?.includes("image") ?? existingModel?.capabilities.input.image ?? (/(kimi|k3|moonshot|vl|vision|4o|sonnet|opus|gemini|glm.*v|qwen.*vl|internvl|minicpm)/i.test(`${providerID} ${modelID}`) || true),
                 video: model.modalities?.input?.includes("video") ?? existingModel?.capabilities.input.video ?? false,
                 pdf: model.modalities?.input?.includes("pdf") ?? existingModel?.capabilities.input.pdf ?? false
               },
