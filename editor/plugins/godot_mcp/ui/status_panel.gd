@@ -12,8 +12,8 @@ const COLOR_SUCCESS := Color(0.6, 1, 0.6)
 const COLOR_ERROR := Color(1, 0.6, 0.6)
 const COLOR_DIM := Color(0.6, 0.6, 0.6)
 
-const BASE_PORT := 6505
-const MAX_PORT := 6505
+const BASE_PORT := 6510
+const MAX_PORT := 6510
 
 # Header
 var _status_icon: Label

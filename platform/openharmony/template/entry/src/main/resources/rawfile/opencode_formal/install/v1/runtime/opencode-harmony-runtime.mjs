@@ -261484,7 +261484,7 @@ function ensureConnected() {
   }
   return new Promise((resolve15, reject) => {
     try {
-      const socket = net.createConnection({ port: 6505, host: "127.0.0.1" }, () => {
+      const socket = net.createConnection({ port: 6510, host: "127.0.0.1" }, () => {
         activeSocket = socket;
         rxBuffer = "";
         resolve15(socket);
@@ -261516,7 +261516,7 @@ function ensureConnected() {
       });
       socket.on("error", (err) => {
         activeSocket = null;
-        reject(new Error(`Failed to connect to Godot MCP gateway at 127.0.0.1:6505: ${err?.message || String(err)}`));
+        reject(new Error(`Failed to connect to Godot MCP gateway at 127.0.0.1:6510: ${err?.message || String(err)}`));
       });
       socket.on("close", () => {
         if (activeSocket === socket)
@@ -261528,7 +261528,7 @@ function ensureConnected() {
         pendingRequests.clear();
       });
     } catch (e3) {
-      reject(new Error(`Failed to initialize TCP socket to 127.0.0.1:6505: ${e3?.message || String(e3)}`));
+      reject(new Error(`Failed to initialize TCP socket to 127.0.0.1:6510: ${e3?.message || String(e3)}`));
     }
   });
 }

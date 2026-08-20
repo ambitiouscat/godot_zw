@@ -6,7 +6,7 @@
       "command": "node",
       "args": ["mcp/godot-server/index.mjs", "--minimal"],
       "env": {
-        "GODOT_MCP_PORT": "6505"
+        "GODOT_MCP_PORT": "6510"
       },
       "enabled": true
     }

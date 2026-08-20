@@ -4,7 +4,7 @@
   "generator": "godot_zw/scripts/package-opencode-assets.mjs",
   "installRoot": "opencode-formal/install/v1",
   "rawfileRoot": "opencode_formal",
-  "outputSha256": "9b9bb634b8e25bd354fb81f2aff81910b17e5ba3165de9fc1f4f23bbe3ae05bb",
+  "outputSha256": "ca369fc37bcb52d67d515ecbd1e77e06fac29e2a3a70f25210a5c34163856531",
   "bytes": 24424321,
   "selections": {
     "runtime": "formal-upstream",
@@ -80,7 +80,7 @@
     {
       "path": "install/v1/config/opencode.json",
       "bytes": 274,
-      "sha256": "3c880ebd65bebb8253798561ad92397597dd15a4563f43ff8263403ae582ac2a"
+      "sha256": "a0dd45edeb54f8a944ab4d7835ceb2b51904606953baf45fdb6f020c95842f0d"
     },
     {
       "path": "install/v1/manifests/formal-upstream-baseline.json",
@@ -140,7 +140,7 @@
     {
       "path": "install/v1/runtime/opencode-harmony-runtime.mjs",
       "bytes": 16410136,
-      "sha256": "11006df6d4faed5ea16d0fc1a7031c898babd7e1fe286ab5f2b824d831757650"
+      "sha256": "42e56798de0b507690b128bffa443745edce80376a889446f2e3a2d7277f8db6"
     }
   ]
 }
