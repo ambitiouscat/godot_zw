@@ -61,8 +61,8 @@ export default class EditorAbility extends UIAbility {
     }
     logger.info('Ability onCreate');
 
-    // Start Godot MCP gateway hub on 6505
-    void GodotMcpServerGateway.getInstance().start(6505);
+    // Start Godot MCP gateway hub on 6510
+    void GodotMcpServerGateway.getInstance().start(6510);
 
     // Default mode: editor
     setGodotMode('editor');

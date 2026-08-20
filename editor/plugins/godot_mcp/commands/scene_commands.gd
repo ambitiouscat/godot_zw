@@ -17,6 +17,7 @@ func get_commands() -> Dictionary:
 		"stop_scene": _stop_scene,
 		"save_scene": _save_scene,
 		"get_scene_exports": _get_scene_exports,
+		"export_mesh_library": _export_mesh_library,
 	}
 
 
@@ -380,3 +381,76 @@ func _cleanup_inspector_files() -> void:
 		DirAccess.remove_absolute(request_path)
 	if FileAccess.file_exists(response_path):
 		DirAccess.remove_absolute(response_path)
+
+
+func _export_mesh_library(params: Dictionary) -> Dictionary:
+	var scene_path_res := require_string(params, "scene_path")
+	if scene_path_res[1] != null:
+		return scene_path_res[1]
+	var scene_path: String = scene_path_res[0]
+	if not scene_path.begins_with("res://"):
+		scene_path = "res://" + scene_path
+
+	var output_path_res := require_string(params, "output_path")
+	if output_path_res[1] != null:
+		return output_path_res[1]
+	var output_path: String = output_path_res[0]
+	if not output_path.begins_with("res://"):
+		output_path = "res://" + output_path
+
+	if not FileAccess.file_exists(scene_path):
+		return error_not_found("Scene file '%s'" % scene_path)
+
+	var packed_scene := ResourceLoader.load(scene_path) as PackedScene
+	if not packed_scene:
+		return error_internal("Failed to load scene: %s" % scene_path)
+
+	var scene_root := packed_scene.instantiate()
+	if not scene_root:
+		return error_internal("Failed to instantiate scene: %s" % scene_path)
+
+	var mesh_library := MeshLibrary.new()
+	var mesh_item_names: Array = params.get("mesh_item_names", [])
+	var use_specific_items: bool = mesh_item_names.size() > 0
+
+	var item_id := 0
+	var added_items: Array = []
+
+	for child in scene_root.get_children():
+		if use_specific_items and not (child.name in mesh_item_names):
+			continue
+
+		var mesh_instance: MeshInstance3D = null
+		if child is MeshInstance3D:
+			mesh_instance = child
+		else:
+			for descendant in child.get_children():
+				if descendant is MeshInstance3D:
+					mesh_instance = descendant
+					break
+
+		if mesh_instance and mesh_instance.mesh:
+			mesh_library.create_item(item_id)
+			mesh_library.set_item_name(item_id, child.name)
+			mesh_library.set_item_mesh(item_id, mesh_instance.mesh)
+			if mesh_instance.material_override:
+				mesh_library.set_item_material(item_id, mesh_instance.material_override)
+			added_items.append({"id": item_id, "name": child.name})
+			item_id += 1
+
+	scene_root.free()
+
+	if added_items.is_empty():
+		return error_invalid_params("No MeshInstance3D nodes with meshes found in scene '%s'" % scene_path)
+
+	var err := ResourceSaver.save(mesh_library, output_path)
+	if err != OK:
+		return error_internal("Failed to save MeshLibrary to '%s': %d" % [output_path, err])
+
+	EditorInterface.get_resource_filesystem().scan()
+
+	return success({
+		"output_path": output_path,
+		"item_count": added_items.size(),
+		"items": added_items
+	})

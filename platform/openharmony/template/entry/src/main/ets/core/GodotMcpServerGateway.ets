@@ -202,7 +202,7 @@ export class GodotMcpServerGateway {
     return state !== undefined && state.isHandshakeComplete;
   }
 
-  public async start(port: number = 6505): Promise<void> {
+  public async start(port: number = 6510): Promise<void> {
     if (this.isRunning) {
       logger.info(`GodotMcpServerGateway already running on port ${port}`);
       return;

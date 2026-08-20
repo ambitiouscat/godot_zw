@@ -135,7 +135,7 @@ struct GameWindow {
 
       // Auto-provision Godot MCP In-Engine Addon into the opened project
       void GodotMcpInstaller.ensureInstalled(this.context, initialProjectDir)
-      void GodotMcpServerGateway.getInstance().start(6505)
+      void GodotMcpServerGateway.getInstance().start(6510)
 
       const runtimeController = new OpenCodeFormalRuntimeController(
         this.context.filesDir,

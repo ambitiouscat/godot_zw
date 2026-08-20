@@ -72,7 +72,7 @@ export default class GameAbility extends UIAbility {
 
     // Start Godot MCP Gateway for Editor mode
     if (getGodotMode() === 'editor') {
-      void GodotMcpServerGateway.getInstance().start(6505);
+      void GodotMcpServerGateway.getInstance().start(6510);
     }
   }
 
