@@ -151,11 +151,16 @@ func _register_commands() -> void:
 		_command_handlers["reparent_node"] = func(p: Dictionary):
 			var cp := p.duplicate()
 			if not cp.has("new_parent_path"):
-				if cp.has("parent_path"): cp["new_parent_path"] = cp["parent_path"]
+				if cp.has("new_parent"): cp["new_parent_path"] = cp["new_parent"]
+				elif cp.has("parent_path"): cp["new_parent_path"] = cp["parent_path"]
 				elif cp.has("parent"): cp["new_parent_path"] = cp["parent"]
 				elif cp.has("target_path"): cp["new_parent_path"] = cp["target_path"]
-			if not cp.has("node_path") and cp.has("path"):
-				cp["node_path"] = cp["path"]
+				elif cp.has("target"): cp["new_parent_path"] = cp["target"]
+			if not cp.has("node_path"):
+				if cp.has("path"): cp["node_path"] = cp["path"]
+				elif cp.has("node"): cp["node_path"] = cp["node"]
+				elif cp.has("source_path"): cp["node_path"] = cp["source_path"]
+				elif cp.has("source"): cp["node_path"] = cp["source"]
 			return _command_handlers["move_node"].call(cp)
 
 	if _command_handlers.has("stop_scene"):

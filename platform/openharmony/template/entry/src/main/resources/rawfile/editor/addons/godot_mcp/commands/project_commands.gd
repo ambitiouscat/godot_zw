@@ -162,25 +162,36 @@ func _get_project_settings(params: Dictionary) -> Dictionary:
 
 	# If section requested, return all settings in that section
 	var settings := {}
-	var max_entries: int = optional_int(params, "max_entries", 100)
-	var allowed_default_prefixes: Array = [
-		"application/", "display/", "rendering/", "physics/", "audio/", "debug/", "autoload/"
-	]
+	var max_entries: int = optional_int(params, "max_entries", 50)
 
-	for prop in ProjectSettings.get_property_list():
-		var name: String = prop["name"]
-		if not section.is_empty():
-			if name.begins_with(section):
+	if section.is_empty():
+		const SAFE_KEYS: Array = [
+			"application/config/name",
+			"application/config/description",
+			"application/config/version",
+			"application/run/main_scene",
+			"application/config/features",
+			"application/config/icon",
+			"display/window/size/viewport_width",
+			"display/window/size/viewport_height",
+			"display/window/size/mode",
+			"display/window/size/resizable",
+			"rendering/renderer/rendering_method",
+			"rendering/anti_aliasing/quality/msaa_3d",
+			"physics/3d/physics_engine",
+			"physics/3d/default_gravity",
+			"physics/2d/default_gravity"
+		]
+		for k: String in SAFE_KEYS:
+			if ProjectSettings.has_setting(k):
+				settings[k] = str(ProjectSettings.get_setting(k))
+	else:
+		for prop in ProjectSettings.get_property_list():
+			var name: String = prop.get("name", "")
+			if name.begins_with(section) and ProjectSettings.has_setting(name):
 				settings[name] = str(ProjectSettings.get_setting(name))
-		else:
-			# If no section specified, only return common project configuration sections
-			# to prevent dumping thousands of internal properties and buffer overflow
-			for prefix in allowed_default_prefixes:
-				if name.begins_with(prefix):
-					settings[name] = str(ProjectSettings.get_setting(name))
-					break
-		if settings.size() >= max_entries:
-			break
+			if settings.size() >= max_entries:
+				break
 
 	return success({"settings": settings, "count": settings.size()})
 
