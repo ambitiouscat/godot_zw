@@ -171,7 +171,108 @@ export function packageOpenCodeAssets() {
   console.log(`  ✓ OpenCode assets packaged successfully (${resources.length} files, ${(totalBytes / 1024 / 1024).toFixed(2)} MB, sha256: ${outputSha256.substring(0, 12)}...)`);
   
   packageGodotMcpAddon();
+  packageSkills();
   console.log("=========================================\n");
+}
+
+export function packageSkills() {
+  console.log("  Packaging Godot & OpenSpec Skills Suite...");
+  const skillsSourceDir = path.join(workspaceRoot, "skills");
+  const targetSkillsDir = path.join(rawfileRoot, "opencode_skills");
+  const stagingSkillsDir = path.join(rawfileRoot, ".opencode_skills.staging");
+
+  if (!existsSync(skillsSourceDir)) {
+    console.warn(`  [!] Skills source directory ${skillsSourceDir} does not exist.`);
+    return;
+  }
+
+  if (existsSync(stagingSkillsDir)) {
+    rmSync(stagingSkillsDir, { recursive: true, force: true });
+  }
+  mkdirSync(path.join(stagingSkillsDir, "harmony"), { recursive: true });
+
+  const skillsToPackage = [
+    "godot-game-gen",
+    "godot-api",
+    "godot-visual-qa",
+    "godot-error-doctor",
+    "openspec-propose",
+    "openspec-apply-change",
+    "openspec-explore",
+    "openspec-archive-change",
+    "workspace-session-skill",
+    "resource-finder",
+    "shell-guard"
+  ];
+
+  const files = [];
+
+  for (const skillName of skillsToPackage) {
+    const srcDir = path.join(skillsSourceDir, skillName);
+    if (!existsSync(srcDir)) continue;
+
+    const dstDir = path.join(stagingSkillsDir, "harmony", skillName);
+    mkdirSync(dstDir, { recursive: true });
+
+    function collectSkillFiles(currentSrc, currentDst, relPrefix) {
+      mkdirSync(currentDst, { recursive: true });
+      const entries = readdirSync(currentSrc, { withFileTypes: true });
+      for (const entry of entries) {
+        if (entry.name.startsWith(".")) continue;
+        const srcPath = path.join(currentSrc, entry.name);
+        const dstPath = path.join(currentDst, entry.name);
+        const relPath = `${relPrefix}/${entry.name}`;
+        if (entry.isDirectory()) {
+          collectSkillFiles(srcPath, dstPath, relPath);
+        } else if (entry.isFile()) {
+          cpSync(srcPath, dstPath);
+          const stat = statSync(srcPath);
+          files.push({
+            path: relPath,
+            bytes: stat.size,
+            sha256: sha256File(srcPath)
+          });
+        }
+      }
+    }
+
+    collectSkillFiles(srcDir, dstDir, skillName);
+  }
+
+  files.sort((a, b) => a.path.localeCompare(b.path));
+  const totalBytes = files.reduce((acc, f) => acc + f.bytes, 0);
+
+  const hashStream = createHash("sha256");
+  for (const f of files) {
+    hashStream.update(`${f.path}:${f.bytes}:${f.sha256}\n`);
+  }
+  const outputSha256 = hashStream.digest("hex");
+
+  const manifest = {
+    schemaVersion: 1,
+    packageID: "godot-game-skills-v1",
+    rawfileRoot: "opencode_skills",
+    skillsSubdir: "harmony",
+    installRoot: "opencode-formal/v1/home/.agents/skills",
+    outputSha256,
+    bytes: totalBytes,
+    files
+  };
+
+  writeFileSync(
+    path.join(stagingSkillsDir, "skills-manifest.json"),
+    JSON.stringify(manifest, null, 2) + "\n",
+    "utf8"
+  );
+
+  if (existsSync(targetSkillsDir)) {
+    rmSync(targetSkillsDir, { recursive: true, force: true });
+  }
+  mkdirSync(path.dirname(targetSkillsDir), { recursive: true });
+  cpSync(stagingSkillsDir, targetSkillsDir, { recursive: true });
+  rmSync(stagingSkillsDir, { recursive: true, force: true });
+
+  console.log(`  ✓ Skills suite packaged (${files.length} files across ${skillsToPackage.length} skills, ${(totalBytes / 1024 / 1024).toFixed(2)} MB, sha256: ${outputSha256.substring(0, 12)}...)`);
 }
 
 export function packageGodotMcpAddon() {

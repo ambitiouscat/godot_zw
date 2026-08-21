@@ -1,0 +1,36 @@
+{
+  "_comment": "使用 Node.js 脚本实现跨平台兼容",
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/log-user.js\"",
+            "env": {
+              "CLAUDE_WORKSPACE": "${workspaceFolder}",
+              "SKILL_DIR": "${CLAUDE_PLUGIN_ROOT}",
+              "CLAUDE_PROMPT": "${prompt}"
+            }
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/scripts/log-assistant.js\"",
+            "env": {
+              "CLAUDE_WORKSPACE": "${workspaceFolder}",
+              "SKILL_DIR": "${CLAUDE_PLUGIN_ROOT}"
+            }
+          }
+        ]
+      }
+    ]
+  }
+}

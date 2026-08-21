@@ -1,0 +1,226 @@
+{
+  "schemaVersion": 1,
+  "packageID": "godot-game-skills-v1",
+  "rawfileRoot": "opencode_skills",
+  "skillsSubdir": "harmony",
+  "installRoot": "opencode-formal/v1/home/.agents/skills",
+  "outputSha256": "4d1e2b9fc9d2783b900a952c28f16b13198ae7c25b238173568d2fcb44f324f7",
+  "bytes": 267762,
+  "files": [
+    {
+      "path": "godot-api/SKILL.md",
+      "bytes": 1635,
+      "sha256": "f6c056b4428a46d9a89bca399aef1253b2e666e6186d6a6d94117c1bf27b530c"
+    },
+    {
+      "path": "godot-error-doctor/SKILL.md",
+      "bytes": 1264,
+      "sha256": "c109ff5d20df477eb0bc7124ec8dbfc3f339aea8d5b46799de48602f9f499ea3"
+    },
+    {
+      "path": "godot-game-gen/mcp-recipes.md",
+      "bytes": 4678,
+      "sha256": "c0d775bda5990639db16180c2287dff384a7758ec3b50b1a946b2f50e419c79e"
+    },
+    {
+      "path": "godot-game-gen/scaffold.md",
+      "bytes": 1187,
+      "sha256": "cb22b6a540a798867f6c3ec20e3a459c5e1f8837f24bc85b23e44ebb288b6976"
+    },
+    {
+      "path": "godot-game-gen/SKILL.md",
+      "bytes": 5668,
+      "sha256": "9dca17f07f22e9cd6f3678fe57091cefa0d6ed0d4782ac0c4ecc61a40baa7b2f"
+    },
+    {
+      "path": "godot-game-gen/task-execution.md",
+      "bytes": 989,
+      "sha256": "9d7c913221c528b99385a28310084a17f1c6142cd098c8e09f96307fcbeb09e4"
+    },
+    {
+      "path": "godot-visual-qa/SKILL.md",
+      "bytes": 1533,
+      "sha256": "c2c1f94ad0ef5e6d67aa3418ddb4b65c4ab1c6e172ad1f9501c21e54c33ad144"
+    },
+    {
+      "path": "openspec-apply-change/SKILL.md",
+      "bytes": 8177,
+      "sha256": "753618d1f73460859e57e987f755b665bb532ee6d40f7928204a1ee795307cc2"
+    },
+    {
+      "path": "openspec-archive-change/SKILL.md",
+      "bytes": 10668,
+      "sha256": "39cd07e57c51c93f8d7c17e38bdcca48fc00df9e93c423cb832effc5364c0712"
+    },
+    {
+      "path": "openspec-explore/SKILL.md",
+      "bytes": 16232,
+      "sha256": "ce18db389cba878541246e568b3d321142cd48b47aa6ca1657da22599d395212"
+    },
+    {
+      "path": "openspec-propose/SKILL.md",
+      "bytes": 11284,
+      "sha256": "cd4799fda7f07c16acbe3123320e522271d92d66132f93c7f6964e266fc35b32"
+    },
+    {
+      "path": "resource-finder/SKILL.md",
+      "bytes": 5365,
+      "sha256": "7763c6882310e0be87678af59058e9a830a6af5b713e2b60b3953f4d758c3b6f"
+    },
+    {
+      "path": "shell-guard/SKILL.md",
+      "bytes": 9204,
+      "sha256": "47614dbadd37111fa00b3d77ff632b648c287c412f2794833e4cab4b5bbb4bc2"
+    },
+    {
+      "path": "workspace-session-skill/assets/commit-msg-body.sh",
+      "bytes": 582,
+      "sha256": "1c9fab7357546b1a2a5cb7976ede34c42fe71449226dbd1692595830446c027f"
+    },
+    {
+      "path": "workspace-session-skill/assets/commit-msg-hook.sh",
+      "bytes": 702,
+      "sha256": "31ab3089f550c74e5d921c5c45ba0445b6aebc876867012c228bac3f7a4183bd"
+    },
+    {
+      "path": "workspace-session-skill/assets/normalize-hash.sh",
+      "bytes": 960,
+      "sha256": "b2bb2df75d85417ccc652253149639ee4aa2482f2c6707f0b4255ebcc17ce5f2"
+    },
+    {
+      "path": "workspace-session-skill/assets/session-template.md",
+      "bytes": 1077,
+      "sha256": "40a02481083a1c990e2fb5a5ec3e071d566849dc8bf6d98aca03604ca767cd29"
+    },
+    {
+      "path": "workspace-session-skill/assets/sync-report-template.json",
+      "bytes": 762,
+      "sha256": "62699510a0a065addd9ab731905bce539b6c79e5b876578d50193868cf05fe88"
+    },
+    {
+      "path": "workspace-session-skill/assets/weekly-summary-template.txt",
+      "bytes": 413,
+      "sha256": "be6ad9989029273cade13bc2e3193e3be524c21a6ae68f0a998a166581661787"
+    },
+    {
+      "path": "workspace-session-skill/CHANGELOG.md",
+      "bytes": 10319,
+      "sha256": "87de49f6463e9426abf021aeabfed1c31bbb247e40047e28dd3801aecc12c759"
+    },
+    {
+      "path": "workspace-session-skill/commands/workspace.md",
+      "bytes": 56109,
+      "sha256": "6c1df2c943f601d3402aab16ecc6fad558855fad752f12ad0f843e4167ed0d96"
+    },
+    {
+      "path": "workspace-session-skill/hooks/hooks.json",
+      "bytes": 866,
+      "sha256": "48bedb7fde7288aa34ce4c869bece7d9fbe3009666961b9fd849eb0440561321"
+    },
+    {
+      "path": "workspace-session-skill/install.sh",
+      "bytes": 10793,
+      "sha256": "6f94556156c74c71db6a81624dfd08b8845dd3f553f50b5bec07c3bb7f013430"
+    },
+    {
+      "path": "workspace-session-skill/README.en.md",
+      "bytes": 3513,
+      "sha256": "d87e42d2c322219a3cdf3a5b5bdf111092f665d1f8271698411920b938aef630"
+    },
+    {
+      "path": "workspace-session-skill/README.md",
+      "bytes": 4187,
+      "sha256": "e8cfc39c7f00e50743ed8db63db198b3be33212f289f7d957f5b99289793a3da"
+    },
+    {
+      "path": "workspace-session-skill/references/autosave.md",
+      "bytes": 4517,
+      "sha256": "8522a1c79608940d9e941cd4db4b7a7293dfe8d93659cb2db8a501f64c79dba1"
+    },
+    {
+      "path": "workspace-session-skill/references/background-agent.md",
+      "bytes": 4418,
+      "sha256": "3558940ad62ad973accc92b14a359975b23dd86eec342bc775aa7303695e4372"
+    },
+    {
+      "path": "workspace-session-skill/references/configuration.md",
+      "bytes": 4653,
+      "sha256": "79a4816d08a4da0db1f22692a398c71a9b0c4159861a1746114400633fe7ea49"
+    },
+    {
+      "path": "workspace-session-skill/references/cross-day-summary-template.md",
+      "bytes": 1559,
+      "sha256": "abdc67081d637cba46bbfe8e69e43e56ac023aaf18b12a0d02912a98f5d39c4e"
+    },
+    {
+      "path": "workspace-session-skill/references/daily-summary-template.md",
+      "bytes": 1682,
+      "sha256": "cdea897614cf9fa2f45721cf7411bdd42641c4b983acfb39908ede26071fcc47"
+    },
+    {
+      "path": "workspace-session-skill/references/flowcharts.md",
+      "bytes": 16325,
+      "sha256": "e0b9e43190c310081491c901b48c3f194bd0f9195418bc22003285a52163ec40"
+    },
+    {
+      "path": "workspace-session-skill/references/notes-management.md",
+      "bytes": 17391,
+      "sha256": "ddcf2e82b69558987e66eb387058b0ae7a780291f1bdb594869bb6495be3449a"
+    },
+    {
+      "path": "workspace-session-skill/references/project-overview.md",
+      "bytes": 3355,
+      "sha256": "c6fc7a64e202df7b4514e6237f79aeedfc88e1781bddb1f8bedf460c3ac68585"
+    },
+    {
+      "path": "workspace-session-skill/references/README.md",
+      "bytes": 2088,
+      "sha256": "e0a3ec7bb0bcb5c9136824728b7058f2195cc2c7aafdf52bdd80623562b1150d"
+    },
+    {
+      "path": "workspace-session-skill/references/session-format.md",
+      "bytes": 6674,
+      "sha256": "e38a4a84a7ece60a17db688fb248460b0c573fc59a66e416e5fb919377c25571"
+    },
+    {
+      "path": "workspace-session-skill/references/trilium-integration.md",
+      "bytes": 5731,
+      "sha256": "67cc12dd4c7c1672716094ef955b2e4d5c248708d67e93b2d89f037341219776"
+    },
+    {
+      "path": "workspace-session-skill/references/workflow.md",
+      "bytes": 15392,
+      "sha256": "3123ca1a817c31c27ccd93c52734f118092627dd51acdb35dff09240ebd2238f"
+    },
+    {
+      "path": "workspace-session-skill/scripts/log-assistant.js",
+      "bytes": 2028,
+      "sha256": "748346c50919967f3649e4b19368158712aeb9faced0f18c7ccb81e87f2ea140"
+    },
+    {
+      "path": "workspace-session-skill/scripts/log-user.js",
+      "bytes": 1093,
+      "sha256": "d44e9e9ff3084e1040d5584793c3447f2b09d9e30a119dcb1e80c1cb18a4ee41"
+    },
+    {
+      "path": "workspace-session-skill/scripts/log-utils.js",
+      "bytes": 2148,
+      "sha256": "424310f4be6e342c7ae9721ad8bb21aa08a599c9c9c87ef9d5d4984767e0c848"
+    },
+    {
+      "path": "workspace-session-skill/settings.json",
+      "bytes": 1257,
+      "sha256": "19b7e04f79c0ab847e19bd31ecbd356e0a53ceffed6dae51822254ea1f4af379"
+    },
+    {
+      "path": "workspace-session-skill/SKILL.md",
+      "bytes": 8867,
+      "sha256": "94761e855349cee76c21baf806302df93b6c057967bd41c93425064f266d3f76"
+    },
+    {
+      "path": "workspace-session-skill/skills_settings.json.example",
+      "bytes": 417,
+      "sha256": "dc4cb05d5dc70b1c64c8c4b9ccb0bc8a702ba617a76db6e2c24dcd5065ead299"
+    }
+  ]
+}

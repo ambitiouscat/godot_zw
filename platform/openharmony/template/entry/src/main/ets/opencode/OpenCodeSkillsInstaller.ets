@@ -5,7 +5,7 @@ import hilog from '@ohos.hilog';
 
 const SKILLS_RAWFILE_ROOT = 'opencode_skills';
 const SKILLS_MANIFEST = `${SKILLS_RAWFILE_ROOT}/skills-manifest.json`;
-const SKILLS_PACKAGE_ID = 'harmony-i3dact-skills-v1';
+const SKILLS_PACKAGE_ID = 'godot-game-skills-v1';
 const SKILLS_INSTALL_ROOT = 'opencode-formal/v1/home/.agents/skills';
 const SKILLS_STATE_FILE = '.opencode-skills-state.json';
 const SKILLS_MAX_FILES = 4096;
@@ -161,7 +161,7 @@ export class OpenCodeSkillsInstaller {
 
   private validateManifest(manifest: SkillsPackageManifest): void {
     if (manifest.schemaVersion !== 1 ||
-      manifest.packageID !== SKILLS_PACKAGE_ID ||
+      (manifest.packageID !== SKILLS_PACKAGE_ID && manifest.packageID !== 'harmony-i3dact-skills-v1') ||
       manifest.rawfileRoot !== SKILLS_RAWFILE_ROOT ||
       manifest.skillsSubdir !== 'harmony' ||
       manifest.installRoot !== SKILLS_INSTALL_ROOT ||

@@ -1,0 +1,34 @@
+{
+  "status": "ok|conflicts|error",
+  "timestamp": "<ISO8601>",
+  "sync": {
+    "pushed": 0,
+    "pulled": 0,
+    "skipped": 0,
+    "errors": 0
+  },
+  "files": [
+    {
+      "path": "<relative-path>",
+      "action": "push|pull|skip|conflict|error",
+      "local_hash": "<16-hex>",
+      "remote_hash": "<16-hex>",
+      "reason": "mtime_unchanged|hash_match|local_newer|remote_newer|both_modified|file_missing|note_missing"
+    }
+  ],
+  "conflicts": [
+    {
+      "file": "<relative-path>",
+      "local_hash": "<16-hex>",
+      "remote_hash": "<16-hex>",
+      "backup_note_id": "<noteId>",
+      "backup_title": "<filename>.conflict-<ISO8601>"
+    }
+  ],
+  "errors": [
+    {
+      "file": "<relative-path>",
+      "message": "<error description>"
+    }
+  ]
+}

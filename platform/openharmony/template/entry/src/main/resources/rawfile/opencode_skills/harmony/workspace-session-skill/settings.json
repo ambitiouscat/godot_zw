@@ -1,0 +1,31 @@
+{
+  "_comment": "此文件为配置模板，运行时不直接读取。请将配置复制到 ~/.agents/skills_settings.json",
+  "workspaceSession": {
+    "daily_notes": {
+      "root": "trilium:NOTE_ID",
+      "root_path": "#root/path/to/daily/notes",
+      "description": "每日笔记目录（book类型，存放月度目录）",
+      "current_note_id": "",
+      "current_note_date": "",
+      "month_dir_id": "",
+      "current_task_note_id": ""
+    },
+    "project_notes": {
+      "root": "trilium:NOTE_ID",
+      "root_path": "#root/path/to/project/notes",
+      "description": "项目笔记目录（book类型，存放项目集合）"
+    },
+    "default_local_path": "notes",
+    "_help": {
+      "config_location": "~/.agents/skills_settings.json",
+      "fields": {
+        "daily_notes.root": "每日笔记根目录 ID，格式 trilium:NOTE_ID",
+        "daily_notes.root_path": "完整路径，用于生成链接",
+        "daily_notes.current_note_id": "当前每日笔记 ID（自动更新）",
+        "daily_notes.current_note_date": "当前每日笔记日期 YYYY-MM-DD（自动更新）",
+        "project_notes.root": "项目笔记根目录 ID",
+        "project_notes.root_path": "完整路径，用于生成链接"
+      }
+    }
+  }
+}

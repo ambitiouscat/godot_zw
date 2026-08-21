@@ -21,6 +21,7 @@ import { HarmonyOpenCodeBridgeProxy } from '../opencode/OpenCodePanelBridgeHost'
 import { OpenCodeFormalPanelController } from '../opencode/OpenCodeFormalPanelController';
 import { OpenCodeFormalRuntimeController } from '../opencode/OpenCodeFormalRuntimeController';
 import { OpenCodeFormalAssetInstaller } from '../opencode/OpenCodeFormalAssetInstaller';
+import { OpenCodeSkillsInstaller } from '../opencode/OpenCodeSkillsInstaller';
 import type { OpenCodePanelNavigation } from '../opencode/OpenCodePanelContract';
 
 const logger = new Logger('GameWindow')
@@ -144,7 +145,8 @@ struct GameWindow {
         initialProjectDir
       )
       const assetInstaller = new OpenCodeFormalAssetInstaller(this.context)
-      this.panelController = new OpenCodeFormalPanelController(this.context.filesDir, runtimeController, assetInstaller)
+      const skillsInstaller = new OpenCodeSkillsInstaller(this.context)
+      this.panelController = new OpenCodeFormalPanelController(this.context.filesDir, runtimeController, assetInstaller, skillsInstaller)
       this.startOpenCodePanel()
     } catch (e) {
       logger.error('Failed to initialize OpenCode formal panel controller', e)

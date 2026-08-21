@@ -16,6 +16,10 @@ import {
   OpenCodeFormalAssetInstaller,
   OpenCodeFormalAssetInstallerError
 } from './OpenCodeFormalAssetInstaller';
+import {
+  OpenCodeSkillsInstaller,
+  OpenCodeSkillsInstallerError
+} from './OpenCodeSkillsInstaller';
 import type {
   OpenCodeFormalHostEvent,
   OpenCodeFormalRuntimeConnection
@@ -45,6 +49,7 @@ interface OpenCodeFormalRuntimeGenerationDocument {
 export class OpenCodeFormalPanelController implements OpenCodePanelSessionController {
   private readonly runtimeController: OpenCodeFormalRuntimeController;
   private readonly assetInstaller: OpenCodeFormalAssetInstaller;
+  private readonly skillsInstaller?: OpenCodeSkillsInstaller;
   private readonly runtimeEntryPath: string;
   private phase: string = 'idle';
   private visible: boolean = false;
@@ -62,9 +67,11 @@ export class OpenCodeFormalPanelController implements OpenCodePanelSessionContro
 
   constructor(filesDirectory: string,
     runtimeController: OpenCodeFormalRuntimeController,
-    assetInstaller: OpenCodeFormalAssetInstaller) {
+    assetInstaller: OpenCodeFormalAssetInstaller,
+    skillsInstaller?: OpenCodeSkillsInstaller) {
     this.runtimeController = runtimeController;
     this.assetInstaller = assetInstaller;
+    this.skillsInstaller = skillsInstaller;
     this.runtimeEntryPath =
       `${filesDirectory}/${FORMAL_RUNTIME_INSTALL_ROOT}/${FORMAL_RUNTIME_ENTRY}`;
     this.publishState('idle', 'none', '', false);
@@ -217,6 +224,9 @@ export class OpenCodeFormalPanelController implements OpenCodePanelSessionContro
     this.publishState('preparing-assets', 'none', '', false);
     try {
       await this.assetInstaller.prepare();
+      if (this.skillsInstaller) {
+        await this.skillsInstaller.prepare();
+      }
       this.requireCurrentActivation(activationVersion);
       this.assetsPrepared = true;
       this.publishState('starting', 'none', '', false);
@@ -275,6 +285,11 @@ export class OpenCodeFormalPanelController implements OpenCodePanelSessionContro
   private normalizeError(error: Object): OpenCodePanelError {
     if (error instanceof OpenCodePanelError) return error;
     if (error instanceof OpenCodeFormalAssetInstallerError) {
+      const code = this.boundedCode(error.code);
+      return new OpenCodePanelError(code, this.phase,
+        this.summaryForCode(code), this.isRetryable(code));
+    }
+    if (error instanceof OpenCodeSkillsInstallerError) {
       const code = this.boundedCode(error.code);
       return new OpenCodePanelError(code, this.phase,
         this.summaryForCode(code), this.isRetryable(code));
