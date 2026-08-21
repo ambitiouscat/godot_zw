@@ -4,9 +4,19 @@
   "rawfileRoot": "opencode_skills",
   "skillsSubdir": "harmony",
   "installRoot": "opencode-formal/v1/home/.agents/skills",
-  "outputSha256": "4dec5671f349a14cbe2fdd9a30a9b879d1d7314ef2c7b14148bd4660615ee011",
-  "bytes": 272341,
+  "outputSha256": "82310e2919c89c8eec89aed7638c7211fb3ac6e579180be331c5c3839820d97a",
+  "bytes": 348281,
   "files": [
+    {
+      "path": "game-art/SKILL.md",
+      "bytes": 5693,
+      "sha256": "1c180a74b7e3fe644e674a9c1a0035187cc0d251295caf48260fc8a0e9ce0c1d"
+    },
+    {
+      "path": "game-audio/SKILL.md",
+      "bytes": 6010,
+      "sha256": "dce0c63a765af9a9c8fd75b3311f970080313659f09c8ec88f1000d3711fc8ea"
+    },
     {
       "path": "godot-api/SKILL.md",
       "bytes": 1635,
@@ -38,9 +48,44 @@
       "sha256": "a8ac25c6b2aea5fcb1f79fa9937bfe00d27611d2daafd337d3c247b12fc51a59"
     },
     {
+      "path": "godot-game-script-engineer/SKILL.md",
+      "bytes": 15541,
+      "sha256": "c882e863a4af0728f1e1d8220d251b90f2d7ea7b0299113000dc9203152bb7b2"
+    },
+    {
+      "path": "godot-multiplayer/SKILL.md",
+      "bytes": 13909,
+      "sha256": "60aeb038c9b79f0b8827ac43056f4d53d0241ca8ca476250eae9dcede9967caa"
+    },
+    {
+      "path": "godot-shader-dev/SKILL.md",
+      "bytes": 13386,
+      "sha256": "ae968a20aa1dee6388d44d51ca4859932e0568c9adb846e2744b26fe5501117d"
+    },
+    {
       "path": "godot-visual-qa/SKILL.md",
       "bytes": 1533,
       "sha256": "c2c1f94ad0ef5e6d67aa3418ddb4b65c4ab1c6e172ad1f9501c21e54c33ad144"
+    },
+    {
+      "path": "level-design/assets/level_config.yaml",
+      "bytes": 151,
+      "sha256": "bdb615081664f09d6a67645c6f62b061df4323a4f79246314e8a263b10f9716a"
+    },
+    {
+      "path": "level-design/references/LEVEL_GUIDE.md",
+      "bytes": 118,
+      "sha256": "ea3a5b2af8e8e3c843375388352eeae3a366997d70451a7a2de441bb74f7b2a0"
+    },
+    {
+      "path": "level-design/scripts/level_planner.py",
+      "bytes": 204,
+      "sha256": "4542dd1e5bbdafb094df5e438790edc0b3cea04d7282d2a9670fa621627bae85"
+    },
+    {
+      "path": "level-design/SKILL.md",
+      "bytes": 20928,
+      "sha256": "76d5dd4d323ce0d637b5958980632d22705b807bd35a92493880beb25998c74e"
     },
     {
       "path": "openspec-apply-change/SKILL.md",
