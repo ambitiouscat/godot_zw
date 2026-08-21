@@ -8,7 +8,7 @@
 
 2. **Visual Verification Gate**:
    - After completing node assembly and logic scripts, ALWAYS run the project with `run_project()`.
-   - Take a screenshot with `take_screenshot(output_path="res://screenshots/verify.png")`.
+   - Take a screenshot with `take_screenshot(path="res://screenshots/verify.png")`.
    - Read the image using your native vision capabilities (`read`).
    - Confirm that:
      - The camera is aimed properly at the playable area.
