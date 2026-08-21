@@ -4,9 +4,14 @@
   "rawfileRoot": "opencode_skills",
   "skillsSubdir": "harmony",
   "installRoot": "opencode-formal/v1/home/.agents/skills",
-  "outputSha256": "82310e2919c89c8eec89aed7638c7211fb3ac6e579180be331c5c3839820d97a",
-  "bytes": 348281,
+  "outputSha256": "4d3de186c7f074997bcedd33f85aeccfbd980c5a08e427b352f16e899922a7e5",
+  "bytes": 359982,
   "files": [
+    {
+      "path": "AGENTS.md",
+      "bytes": 1814,
+      "sha256": "5c1d20793ed64c1d97ab7aaf765d657070108fb691a5dc21e267c607be5af9a7"
+    },
     {
       "path": "game-art/SKILL.md",
       "bytes": 5693,
@@ -16,6 +21,11 @@
       "path": "game-audio/SKILL.md",
       "bytes": 6010,
       "sha256": "dce0c63a765af9a9c8fd75b3311f970080313659f09c8ec88f1000d3711fc8ea"
+    },
+    {
+      "path": "GODOT_GAME_DEV_PROTOCOL.md",
+      "bytes": 9887,
+      "sha256": "7d129bc0929670550d15108b62505c426d9961c55680bd356836b8025998eb55"
     },
     {
       "path": "godot-api/SKILL.md",

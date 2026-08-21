@@ -245,6 +245,20 @@ export function packageSkills() {
     collectSkillFiles(srcDir, dstDir, skillName);
   }
 
+  const rootProtocolFiles = ["AGENTS.md", "GODOT_GAME_DEV_PROTOCOL.md"];
+  for (const fileName of rootProtocolFiles) {
+    const srcPath = path.join(skillsSourceDir, fileName);
+    if (!existsSync(srcPath)) continue;
+    const dstPath = path.join(stagingSkillsDir, "harmony", fileName);
+    cpSync(srcPath, dstPath);
+    const stat = statSync(srcPath);
+    files.push({
+      path: fileName,
+      bytes: stat.size,
+      sha256: sha256File(srcPath)
+    });
+  }
+
   files.sort((a, b) => a.path.localeCompare(b.path));
   const totalBytes = files.reduce((acc, f) => acc + f.bytes, 0);
 

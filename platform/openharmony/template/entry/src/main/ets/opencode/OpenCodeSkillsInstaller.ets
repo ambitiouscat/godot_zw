@@ -203,7 +203,11 @@ export class OpenCodeSkillsInstaller {
       );
     }
     for (const root of skillRoots) {
-      if (!paths.has(`${root}/SKILL.md`) && root !== 'ADAPTATION-NOTES.md') {
+      if (!paths.has(`${root}/SKILL.md`) &&
+        root !== 'ADAPTATION-NOTES.md' &&
+        root !== 'AGENTS.md' &&
+        root !== 'GODOT_GAME_DEV_PROTOCOL.md' &&
+        root !== 'README.md') {
         throw new OpenCodeSkillsInstallerError(
           'SKILLS_MANIFEST_REJECTED',
           'A packaged skill directory is missing its SKILL.md'
