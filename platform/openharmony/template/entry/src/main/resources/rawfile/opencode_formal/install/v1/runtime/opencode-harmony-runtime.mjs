@@ -237706,7 +237706,7 @@ function wrap2(id2, init2, truncate5, agents2) {
           detail: toolInfo.formatValidationError ? toolInfo.formatValidationError(error49) : String(error49)
         })));
         const result7 = yield* execute3(decoded, ctx);
-        if (result7.metadata.truncated !== undefined) {
+        if (result7 && result7.metadata && result7.metadata.truncated !== undefined) {
           return result7;
         }
         const agent = yield* agents2.get(ctx.agent);
@@ -241695,7 +241695,10 @@ var init_skill6 = __esm(async () => {
             "",
             `Skill "${info3.name}" is fully loaded and active. Follow the instructions above.`,
             "</skill_content>"
-          ].join("\n")
+          ].join("\n"),
+          metadata: {
+            truncated: false
+          }
         };
       })
     };

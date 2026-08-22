@@ -413,14 +413,25 @@ export function applyHarmonyPatches(stagingRoot) {
             "",
             \`Skill "\${info3.name}" is fully loaded and active. Follow the instructions above.\`,
             "</skill_content>"
-          ].join("\\n")
+          ].join("\\n"),
+          metadata: {
+            truncated: false
+          }
         };
       })
     };
   }));`;
         c = c.substring(0, oldSkillToolStart) + newSkillTool + c.substring(oldSkillToolEnd);
-        console.log("    ✓ Patched SkillTool in staging");
+        console.log("    ✓ Patched SkillTool in staging (with metadata.truncated: false)");
       }
+    }
+
+    // 1b. Make tool executor resilient against missing metadata
+    const oldExecCheck = 'if (result7.metadata.truncated !== undefined) {';
+    const newExecCheck = 'if (result7 && result7.metadata && result7.metadata.truncated !== undefined) {';
+    if (c.includes(oldExecCheck)) {
+      c = c.replaceAll(oldExecCheck, newExecCheck);
+      console.log("    ✓ Patched tool executor metadata.truncated null check");
     }
 
     // 2. Clean slash command skill template
