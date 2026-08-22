@@ -68,9 +68,37 @@ const newMsg = 'const sc = error49.data.statusCode ? `[HTTP ${error49.data.statu
 
 if (runtimeJs.includes(oldMsg)) {
   runtimeJs = runtimeJs.replace(oldMsg, newMsg);
-  console.log('✓ Enhanced retryable error message with status & endpoint');
 } else {
   console.warn('! oldMsg not found in opencode-harmony-runtime.mjs');
+}
+
+// Fix 4: Skill loading failure when skill is in home/.agents/skills (outside project root)
+const oldSkillRgLF = `const files4 = yield* ripgrep.find({
+          cwd: dir3,
+          pattern: "!**/SKILL.md",
+          hidden: true,
+          follow: false,
+          signal: ctx.abort,
+          limit: 10
+        });`;
+const oldSkillRgCRLF = `const files4 = yield* ripgrep.find({\r\n          cwd: dir3,\r\n          pattern: "!**/SKILL.md",\r\n          hidden: true,\r\n          follow: false,\r\n          signal: ctx.abort,\r\n          limit: 10\r\n        });`;
+const newSkillRg = `const files4 = yield* ripgrep.find({
+          cwd: dir3,
+          pattern: "!**/SKILL.md",
+          hidden: true,
+          follow: false,
+          signal: ctx.abort,
+          limit: 10
+        }).pipe(exports_Effect.catch(() => exports_Effect.succeed([])));`;
+
+if (runtimeJs.includes(oldSkillRgLF)) {
+  runtimeJs = runtimeJs.replace(oldSkillRgLF, newSkillRg);
+  console.log('✓ Patched skill tool ripgrep.find (LF) to catch cross-directory errors');
+} else if (runtimeJs.includes(oldSkillRgCRLF)) {
+  runtimeJs = runtimeJs.replace(oldSkillRgCRLF, newSkillRg);
+  console.log('✓ Patched skill tool ripgrep.find (CRLF) to catch cross-directory errors');
+} else {
+  console.warn('! oldSkillRg not found in opencode-harmony-runtime.mjs');
 }
 
 fs.writeFileSync(runtimeJsPath, runtimeJs);
