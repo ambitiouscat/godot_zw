@@ -95,7 +95,7 @@ export class OpenCodeSkillsInstaller {
           await this.copyFileToCustomDestination(manifest, file, `${projectDir}/skills/${file.path}`, preparedDirectories);
           await this.copyFileToCustomDestination(manifest, file, `${skillsRoot}/${file.path}`, preparedDirectories);
         } else {
-          destination = `${skillsRoot}/${file.path}`;
+          const destination = `${skillsRoot}/${file.path}`;
           await this.copyFileToCustomDestination(manifest, file, destination, preparedDirectories);
         }
       }

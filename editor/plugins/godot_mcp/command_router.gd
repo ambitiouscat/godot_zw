@@ -222,6 +222,35 @@ func _register_commands() -> void:
 		return {"result": {"rescanned": true}}
 	_command_handlers["rescan_filesystem"] = _command_handlers["refresh_filesystem"]
 
+	if _command_handlers.has("set_input_action"):
+		_command_handlers["add_input_action"] = func(p: Dictionary):
+			var cp := p.duplicate()
+			if not cp.has("action") and cp.has("action_name"):
+				cp["action"] = cp["action_name"]
+			return await _command_handlers["set_input_action"].call(cp)
+
+	_command_handlers["list_methods"] = func(_p: Dictionary):
+		var keys: Array = _command_handlers.keys()
+		keys.sort()
+		return {"result": {"methods": keys, "count": keys.size()}}
+
+	_command_handlers["get_documentation"] = func(p: Dictionary):
+		var method: String = p.get("method", p.get("name", p.get("tool", "")))
+		if _command_handlers.has(method):
+			return {"result": {"method": method, "available": true, "is_disabled": _disabled_tools.get(method, false)}}
+		return {"error": {"code": -32601, "message": "Method '%s' not found" % method}}
+
+	if _command_handlers.has("get_game_screenshot"):
+		_command_handlers["capture_game_screenshot"] = _command_handlers["get_game_screenshot"]
+	if _command_handlers.has("get_editor_screenshot"):
+		_command_handlers["take_screenshot"] = func(p: Dictionary):
+			var src: String = p.get("source", p.get("viewport", "editor"))
+			if src == "game" and _command_handlers.has("get_game_screenshot"):
+				return await _command_handlers["get_game_screenshot"].call(p)
+			return await _command_handlers["get_editor_screenshot"].call(p)
+		_command_handlers["capture_screenshot"] = _command_handlers["take_screenshot"]
+		_command_handlers["get_screenshot"] = _command_handlers["take_screenshot"]
+
 	if _command_handlers.has("read_resource"):
 		_command_handlers["load_resource"] = _command_handlers["read_resource"]
 

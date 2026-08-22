@@ -184,10 +184,15 @@ func _get_output_log(params: Dictionary) -> Dictionary:
 
 	# Read safely from log file without touching live UI scene tree
 	var log_paths: Array[String] = [
+		get_game_user_dir() + "/logs/godot.log",
+		get_game_user_dir() + "/godot.log",
 		"user://logs/godot.log",
 		"user://logs/editor.log",
 		"user://godot.log"
 	]
+	if FileAccess.file_exists("res://screenshots/qa_runtime_log.txt"):
+		log_paths.push_front("res://screenshots/qa_runtime_log.txt")
+
 	for log_path in log_paths:
 		if FileAccess.file_exists(log_path):
 			var file := FileAccess.open(log_path, FileAccess.READ)
@@ -201,7 +206,9 @@ func _get_output_log(params: Dictionary) -> Dictionary:
 					var line: String = lines[i]
 					if filter.is_empty() or line.contains(filter):
 						output_lines.append(line)
-				return success({"lines": output_lines, "count": output_lines.size(), "source": "log_file"})
+				if not output_lines.is_empty():
+					var src_tag := "game_log" if log_path.contains("qa_runtime_log") or log_path.begins_with(get_game_user_dir()) else "log_file"
+					return success({"lines": output_lines, "count": output_lines.size(), "source": src_tag})
 
 	return success({"lines": [], "count": 0, "source": "none"})
 
@@ -261,6 +268,7 @@ func _get_editor_screenshot(params: Dictionary) -> Dictionary:
 			"width": image.get_width(),
 			"height": image.get_height(),
 			"format": "png",
+			"source": "editor_viewport"
 		})
 
 	var png_buffer := image.save_png_to_buffer()
@@ -271,6 +279,7 @@ func _get_editor_screenshot(params: Dictionary) -> Dictionary:
 		"width": image.get_width(),
 		"height": image.get_height(),
 		"format": "png",
+		"source": "editor_viewport"
 	})
 
 
@@ -320,17 +329,20 @@ func _get_game_screenshot(params: Dictionary) -> Dictionary:
 	# Clean up temp file
 	DirAccess.remove_absolute(screenshot_path)
 
-	var save_path_param: String = params.get("save_path", "")
+	var save_path_param: String = params.get("save_path", params.get("path", ""))
 	if save_path_param != "":
 		var abs_path := _resolve_save_path(save_path_param)
 		var save_err := image.save_png(abs_path)
 		if save_err != OK:
 			return error_internal("Failed to save screenshot: %s" % error_string(save_err))
 		return success({
+			"path": save_path_param,
 			"saved_path": save_path_param,
+			"global_path": abs_path,
 			"width": image.get_width(),
 			"height": image.get_height(),
 			"format": "png",
+			"source": "game_viewport"
 		})
 
 	var png_buffer := image.save_png_to_buffer()
@@ -341,6 +353,7 @@ func _get_game_screenshot(params: Dictionary) -> Dictionary:
 		"width": image.get_width(),
 		"height": image.get_height(),
 		"format": "png",
+		"source": "game_viewport"
 	})
 
 

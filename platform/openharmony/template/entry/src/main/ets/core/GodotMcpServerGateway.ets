@@ -552,14 +552,23 @@ export class GodotMcpServerGateway {
         return;
       }
 
-      // Native host screenshot interception (always responsive, never stalls on game loop)
+      const paramsObj = msg['params'] as Record<string, Object> | undefined;
+      const isGameViewport =
+        paramsObj?.['source'] === 'game' ||
+        paramsObj?.['viewport'] === 'game' ||
+        method === 'get_game_screenshot' ||
+        method === 'capture_game_screenshot';
+
+      // Native host screenshot interception for editor surface
       if (
-        method === 'take_screenshot' ||
-        method === 'capture_screenshot' ||
-        method === 'get_screenshot' ||
-        method === 'capture_game_screenshot'
+        (method === 'take_screenshot' ||
+         method === 'capture_screenshot' ||
+         method === 'get_screenshot' ||
+         method === 'capture_game_screenshot' ||
+         method === 'get_game_screenshot') &&
+        (!isGameViewport || !this.engineClient || this.engineClient === client)
       ) {
-        void this.handleNativeScreenshot(client, id, msg['params'] as Record<string, Object> | undefined);
+        void this.handleNativeScreenshot(client, id, paramsObj);
         return;
       }
 
