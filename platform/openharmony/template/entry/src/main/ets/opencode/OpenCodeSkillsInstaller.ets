@@ -82,6 +82,64 @@ export class OpenCodeSkillsInstaller {
     return preparation;
   }
 
+  async installToProject(projectDir: string): Promise<void> {
+    if (!projectDir || projectDir.length === 0) return;
+    try {
+      const manifest = await this.readManifest();
+      const skillsRoot = `${projectDir}/.agents/skills`;
+      const preparedDirectories: Set<string> = new Set();
+      preparedDirectories.add(skillsRoot);
+      for (const file of manifest.files) {
+        let destination: string;
+        if (file.path === 'AGENTS.md' || file.path === 'GODOT_GAME_DEV_PROTOCOL.md' || file.path === 'README.md') {
+          destination = `${projectDir}/${file.path}`;
+        } else {
+          destination = `${skillsRoot}/${file.path}`;
+        }
+        await this.copyFileToCustomDestination(manifest, file, destination, preparedDirectories);
+      }
+      hilog.info(HILOG_DOMAIN, HILOG_TAG,
+        'SKILLS_PROJECT_INSTALL_OK target=%{public}s files=%{public}d',
+        projectDir, manifest.files.length);
+    } catch (error) {
+      hilog.warn(HILOG_DOMAIN, HILOG_TAG,
+        'SKILLS_PROJECT_INSTALL_WARN target=%{public}s error=%{public}s',
+        projectDir, String(error));
+    }
+  }
+
+  private async copyFileToCustomDestination(manifest: SkillsPackageManifest,
+    file: SkillsPackageFile, destination: string,
+    preparedDirectories: Set<string>): Promise<void> {
+    const rawfilePath =
+      `${SKILLS_RAWFILE_ROOT}/${manifest.skillsSubdir}/${file.path}`;
+    let content: Uint8Array;
+    try {
+      content = await this.context.resourceManager.getRawFileContent(rawfilePath);
+    } catch (_) {
+      return;
+    }
+    const directory = destination.substring(0, destination.lastIndexOf('/'));
+    if (!preparedDirectories.has(directory)) {
+      try {
+        fs.mkdirSync(directory, true);
+        preparedDirectories.add(directory);
+      } catch (_) {
+        if (this.isExistingDirectory(directory)) {
+          preparedDirectories.add(directory);
+        }
+      }
+    }
+    try {
+      const opened = fs.openSync(destination,
+        fs.OpenMode.CREATE | fs.OpenMode.WRITE_ONLY | fs.OpenMode.TRUNC);
+      this.writePackagedContent(opened.fd, content);
+      fs.closeSync(opened);
+    } catch (e) {
+      hilog.warn(HILOG_DOMAIN, HILOG_TAG, 'Failed writing skill file %{public}s: %{public}s', destination, String(e));
+    }
+  }
+
   private async install(): Promise<OpenCodeSkillsInstallResult> {
     const manifest = await this.readManifest();
     const installRoot = `${this.context.filesDir}/${SKILLS_INSTALL_ROOT}`;

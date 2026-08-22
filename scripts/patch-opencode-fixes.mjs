@@ -101,5 +101,57 @@ if (runtimeJs.includes(oldSkillRgLF)) {
   console.warn('! oldSkillRg not found in opencode-harmony-runtime.mjs');
 }
 
+// Fix 5: Allow external directory / .agents read access in createHarmonyAuthorizedProjectFilesystem contains6
+const oldContainsLF = `const contains6 = (candidate) => {\n    const relative2 = path41.relative(root, candidate);\n    return relative2 === "" || !path41.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(\`..\${path41.sep}\`);\n  };`;
+const oldContainsCRLF = `const contains6 = (candidate) => {\r\n    const relative2 = path41.relative(root, candidate);\r\n    return relative2 === "" || !path41.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(\`..\${path41.sep}\`);\r\n  };`;
+const newContains = `const contains6 = (candidate) => {
+    const relative2 = path41.relative(root, candidate);
+    if (relative2 === "" || (!path41.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(\`..\${path41.sep}\`))) {
+      return true;
+    }
+    const norm = String(candidate).replaceAll("\\\\", "/");
+    if (norm.includes("/opencode-formal/") || norm.includes("/.agents/")) {
+      return true;
+    }
+    return false;
+  };`;
+
+if (runtimeJs.includes(oldContainsLF)) {
+  runtimeJs = runtimeJs.replace(oldContainsLF, newContains);
+  console.log('✓ Patched contains6 (LF) to permit .agents/opencode-formal reading');
+} else if (runtimeJs.includes(oldContainsCRLF)) {
+  runtimeJs = runtimeJs.replace(oldContainsCRLF, newContains);
+  console.log('✓ Patched contains6 (CRLF) to permit .agents/opencode-formal reading');
+} else {
+  console.warn('! oldContains not found in opencode-harmony-runtime.mjs');
+}
+
+// Fix 6: Allow stable-ripgrep relativeToRoot for .agents and opencode-formal
+const oldRelRootLF = `relativeToRoot = (root, value8) => {\n  const relative2 = path47.relative(path47.resolve(root), path47.resolve(value8));\n  if (relative2 === "")\n    return "";\n  if (path47.isAbsolute(relative2) || relative2 === ".." || relative2.startsWith(\`..\${path47.sep}\`)) {\n    throw new globalThis.Error("Search path is outside the authorized project root");\n  }\n  return relative2.replaceAll("\\\\", "/");\n},`;
+const oldRelRootCRLF = `relativeToRoot = (root, value8) => {\r\n  const relative2 = path47.relative(path47.resolve(root), path47.resolve(value8));\r\n  if (relative2 === "")\r\n    return "";\r\n  if (path47.isAbsolute(relative2) || relative2 === ".." || relative2.startsWith(\`..\${path47.sep}\`)) {\r\n    throw new globalThis.Error("Search path is outside the authorized project root");\r\n  }\r\n  return relative2.replaceAll("\\\\", "/");\r\n},`;
+const newRelRoot = `relativeToRoot = (root, value8) => {
+  const relative2 = path47.relative(path47.resolve(root), path47.resolve(value8));
+  if (relative2 === "")
+    return "";
+  if (path47.isAbsolute(relative2) || relative2 === ".." || relative2.startsWith(\`..\${path47.sep}\`)) {
+    const norm = path47.resolve(value8).replaceAll("\\\\", "/");
+    if (norm.includes("/opencode-formal/") || norm.includes("/.agents/")) {
+      return "";
+    }
+    throw new globalThis.Error("Search path is outside the authorized project root");
+  }
+  return relative2.replaceAll("\\\\", "/");
+},`;
+
+if (runtimeJs.includes(oldRelRootLF)) {
+  runtimeJs = runtimeJs.replace(oldRelRootLF, newRelRoot);
+  console.log('✓ Patched relativeToRoot (LF) for .agents/opencode-formal');
+} else if (runtimeJs.includes(oldRelRootCRLF)) {
+  runtimeJs = runtimeJs.replace(oldRelRootCRLF, newRelRoot);
+  console.log('✓ Patched relativeToRoot (CRLF) for .agents/opencode-formal');
+} else {
+  console.warn('! oldRelRoot not found in opencode-harmony-runtime.mjs');
+}
+
 fs.writeFileSync(runtimeJsPath, runtimeJs);
 console.log('OpenCode fixes successfully applied!');

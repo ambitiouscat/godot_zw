@@ -146,6 +146,7 @@ struct GameWindow {
       )
       const assetInstaller = new OpenCodeFormalAssetInstaller(this.context)
       const skillsInstaller = new OpenCodeSkillsInstaller(this.context)
+      void skillsInstaller.installToProject(initialProjectDir)
       this.panelController = new OpenCodeFormalPanelController(this.context.filesDir, runtimeController, assetInstaller, skillsInstaller)
       this.startOpenCodePanel()
     } catch (e) {
