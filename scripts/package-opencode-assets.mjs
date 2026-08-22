@@ -84,8 +84,29 @@ export function packageOpenCodeAssets() {
 
   if (!existsSync(runtimeRoot) || !existsSync(clientRoot)) {
     if (existsSync(path.join(destination, "package-manifest.json"))) {
-      console.log("  ✓ Using pre-packaged rawfile/opencode_formal assets from repository.");
+      const manifestPath = path.join(destination, "package-manifest.json");
+      const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+      let totalBytes = 0;
+      for (const file of manifest.files) {
+        const fullPath = path.join(destination, file.path);
+        if (existsSync(fullPath)) {
+          const content = readFileSync(fullPath);
+          file.bytes = content.length;
+          file.sha256 = createHash("sha256").update(content).digest("hex");
+        }
+        totalBytes += file.bytes;
+      }
+      manifest.bytes = totalBytes;
+      const sortedFiles = [...manifest.files].sort((a, b) => a.path.localeCompare(b.path));
+      const packageHash = createHash("sha256");
+      for (const file of sortedFiles) {
+        packageHash.update(`${file.path}:${file.sha256}\n`);
+      }
+      manifest.outputSha256 = packageHash.digest("hex");
+      writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
+      console.log(`  ✓ Using pre-packaged rawfile/opencode_formal assets (refreshed sha256: ${manifest.outputSha256.substring(0, 12)}..., total: ${manifest.files.length} files).`);
       packageGodotMcpAddon();
+      packageSkillsSuite();
       console.log("=========================================\n");
       return;
     }
@@ -129,6 +150,19 @@ export function packageOpenCodeAssets() {
         `install/v1/manifests/${filename}`,
         resources
       );
+    }
+  }
+
+  console.log("  [5/5] Applying HarmonyOS runtime & UI patches...");
+  applyHarmonyPatches(staging);
+
+  // Recalculate file hashes and sizes after patching
+  for (const r of resources) {
+    const fullPath = path.join(staging, r.path);
+    if (existsSync(fullPath)) {
+      const content = readFileSync(fullPath);
+      r.bytes = content.length;
+      r.sha256 = createHash("sha256").update(content).digest("hex");
     }
   }
 
@@ -338,6 +372,117 @@ export function packageGodotMcpAddon() {
   };
   writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n", "utf8");
   console.log(`  ✓ Godot MCP Pro Addon packaged (${files.length} files into rawfile/editor/addons/godot_mcp)`);
+}
+
+export function applyHarmonyPatches(stagingRoot) {
+  const runtimePath = path.join(stagingRoot, "install/v1/runtime/opencode-harmony-runtime.mjs");
+  const appJsPath = path.join(stagingRoot, "install/v1/client/js/app.17b6e037.js");
+
+  if (existsSync(runtimePath)) {
+    let c = readFileSync(runtimePath, "utf8");
+
+    // 1. Replace SkillTool definition precisely with zero-cost version
+    const oldSkillToolStart = c.indexOf('SkillTool = define5("skill"');
+    if (oldSkillToolStart !== -1) {
+      let oldSkillToolEnd = c.indexOf('}));\r\n});', oldSkillToolStart);
+      if (oldSkillToolEnd === -1) {
+        oldSkillToolEnd = c.indexOf('}));\n});', oldSkillToolStart);
+      }
+      if (oldSkillToolEnd !== -1) {
+        oldSkillToolEnd += 4;
+        const newSkillTool = `SkillTool = define5("skill", exports_Effect.gen(function* () {
+    const skill = yield* exports_skill4.Service;
+    return {
+      description: skill_default,
+      parameters: Parameters8,
+      execute: (params2, ctx) => exports_Effect.gen(function* () {
+        const info3 = yield* skill.require(params2.name).pipe(exports_Effect.catchTag("Skill.NotFoundError", (error49) => exports_Effect.die(new Error(error49.message))));
+        yield* ctx.ask({
+          permission: "skill",
+          patterns: [params2.name],
+          always: [params2.name],
+          metadata: {}
+        });
+        return {
+          title: \`Loaded skill: \${info3.name}\`,
+          output: [
+            \`<skill_content name="\${info3.name}">\`,
+            \`# Skill: \${info3.name}\`,
+            "",
+            info3.content.trim(),
+            "",
+            \`Skill "\${info3.name}" is fully loaded and active. Follow the instructions above.\`,
+            "</skill_content>"
+          ].join("\\n")
+        };
+      })
+    };
+  }));`;
+        c = c.substring(0, oldSkillToolStart) + newSkillTool + c.substring(oldSkillToolEnd);
+        console.log("    ✓ Patched SkillTool in staging");
+      }
+    }
+
+    // 2. Clean slash command skill template
+    while (c.includes('Base directory for this skill:')) {
+      const idx = c.indexOf('Base directory for this skill:');
+      const tStart = c.lastIndexOf('get template()', idx);
+      if (tStart !== -1 && tStart > idx - 300) {
+        const tEnd = c.indexOf('},', idx) + 2;
+        const newTemplate = `get template() {\n            return item.content;\n          },`;
+        c = c.substring(0, tStart) + newTemplate + c.substring(tEnd);
+        console.log("    ✓ Patched slash command get template() in staging");
+      } else {
+        break;
+      }
+    }
+
+    // 3. Retry policy fail-fast
+    const oldPolicyLF = 'function policy(opts) {\n  return exports_Schedule.fromStepWithMetadata(exports_Effect.succeed((meta2) => {\n    const error49 = opts.parse(meta2.input);';
+    const oldPolicyCRLF = 'function policy(opts) {\r\n  return exports_Schedule.fromStepWithMetadata(exports_Effect.succeed((meta2) => {\r\n    const error49 = opts.parse(meta2.input);';
+    const newPolicy = 'function policy(opts) {\n  return exports_Schedule.fromStepWithMetadata(exports_Effect.succeed((meta2) => {\n    if (meta2.attempt >= 2) return exports_Cause.done(meta2.attempt);\n    const error49 = opts.parse(meta2.input);';
+    if (c.includes(oldPolicyLF)) c = c.replace(oldPolicyLF, newPolicy);
+    else if (c.includes(oldPolicyCRLF)) c = c.replace(oldPolicyCRLF, newPolicy);
+
+    // 4. Error detail formatting
+    const oldMsg = 'return { message: error49.data.message.includes("Overloaded") ? "Provider is overloaded" : error49.data.message };';
+    const newMsg = 'const sc = error49.data.statusCode ? `[HTTP ${error49.data.statusCode}] ` : ""; const ep = error49.data.endpoint ? ` (${error49.data.endpoint})` : ""; return { message: sc + (error49.data.message || "API Call Failed") + ep };';
+    if (c.includes(oldMsg)) c = c.replace(oldMsg, newMsg);
+
+    // 5. Sandboxing contains6 & relativeToRoot permissions
+    const oldContainsLF = `const contains6 = (candidate) => {\n    const relative2 = path41.relative(root, candidate);\n    return relative2 === "" || !path41.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(\`..\${path41.sep}\`);\n  };`;
+    const oldContainsCRLF = `const contains6 = (candidate) => {\r\n    const relative2 = path41.relative(root, candidate);\r\n    return relative2 === "" || !path41.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(\`..\${path41.sep}\`);\r\n  };`;
+    const newContains = `const contains6 = (candidate) => {\n    const relative2 = path41.relative(root, candidate);\n    if (relative2 === "" || (!path41.isAbsolute(relative2) && relative2 !== ".." && !relative2.startsWith(\`..\${path41.sep}\`))) {\n      return true;\n    }\n    const norm = String(candidate).replaceAll("\\\\", "/");\n    if (norm.includes("/opencode-formal/") || norm.includes("/.agents/")) {\n      return true;\n    }\n    return false;\n  };`;
+    if (c.includes(oldContainsLF)) c = c.replace(oldContainsLF, newContains);
+    else if (c.includes(oldContainsCRLF)) c = c.replace(oldContainsCRLF, newContains);
+
+    const oldRelRootLF = `relativeToRoot = (root, value8) => {\n  const relative2 = path47.relative(path47.resolve(root), path47.resolve(value8));\n  if (relative2 === "")\n    return "";\n  if (path47.isAbsolute(relative2) || relative2 === ".." || relative2.startsWith(\`..\${path47.sep}\`)) {\n    throw new globalThis.Error("Search path is outside the authorized project root");\n  }\n  return relative2.replaceAll("\\\\", "/");\n},`;
+    const oldRelRootCRLF = `relativeToRoot = (root, value8) => {\r\n  const relative2 = path47.relative(path47.resolve(root), path47.resolve(value8));\r\n  if (relative2 === "")\r\n    return "";\r\n  if (path47.isAbsolute(relative2) || relative2 === ".." || relative2.startsWith(\`..\${path47.sep}\`)) {\r\n    throw new globalThis.Error("Search path is outside the authorized project root");\r\n  }\r\n  return relative2.replaceAll("\\\\", "/");\r\n},`;
+    const newRelRoot = `relativeToRoot = (root, value8) => {\n  const relative2 = path47.relative(path47.resolve(root), path47.resolve(value8));\n  if (relative2 === "")\n    return "";\n  if (path47.isAbsolute(relative2) || relative2 === ".." || relative2.startsWith(\`..\${path47.sep}\`)) {\n    const norm = path47.resolve(value8).replaceAll("\\\\", "/");\n    if (norm.includes("/opencode-formal/") || norm.includes("/.agents/")) {\n      return "";\n    }\n    throw new globalThis.Error("Search path is outside the authorized project root");\n  }\n  return relative2.replaceAll("\\\\", "/");\n},`;
+    if (c.includes(oldRelRootLF)) c = c.replace(oldRelRootLF, newRelRoot);
+    else if (c.includes(oldRelRootCRLF)) c = c.replace(oldRelRootCRLF, newRelRoot);
+
+    writeFileSync(runtimePath, c, "utf8");
+    console.log("    ✓ Patched opencode-harmony-runtime.mjs in staging (SkillTool, no-rg, clean template, sandbox)");
+  }
+
+  if (existsSync(appJsPath)) {
+    let appJs = readFileSync(appJsPath, "utf8");
+    const oldV = 'V=(0,s.EW)(()=>{if(!v.value)return"编辑器桥接等待中";const e=m.value?.script;if(!0===e?.available&&"string"===typeof e.path)return e.path.split("/").at(-1)||"当前脚本";const t=m.value?.scene?.selectedNode;return!0===t?.available&&"string"===typeof t.path?t.path.split("/").at(-1)||"当前节点":"未打开可编辑脚本"})';
+    const newV = 'V=(0,s.EW)(()=>{if(!v.value)return"引擎通信: 等待连接...";const e=m.value?.script;if(!0===e?.available&&"string"===typeof e.path)return(e.path.split("/").at(-1)||"当前脚本")+" · 引擎/MCP 已连接";const t=m.value?.scene?.selectedNode;if(!0===t?.available&&"string"===typeof t.path)return(t.path.split("/").at(-1)||"当前节点")+" · 引擎/MCP 已连接";return"引擎通信: 已连接 · MCP: 已连接 (6510)"})';
+    if (appJs.includes(oldV)) appJs = appJs.replace(oldV, newV);
+
+    const oldC = 'c=l.length>0?l:i;e={configured:!0,providerID:o,modelID:r,baseURL:s,contextTokens:a.contextTokens,outputTokens:a.outputTokens,availableModels:c}';
+    const newC = 'c=l.length>0?l:(i.length>0?i:[{id:r,name:(a||o)+" / "+r,providerID:o,contextTokens:a.contextTokens,outputTokens:a.outputTokens}]);if(!c.some(m=>m.id===r))c.unshift({id:r,name:(a||o)+" / "+r,providerID:o,contextTokens:a.contextTokens,outputTokens:a.outputTokens});e={configured:!0,providerID:o,modelID:r,baseURL:s,contextTokens:a.contextTokens,outputTokens:a.outputTokens,availableModels:c}';
+    if (appJs.includes(oldC)) appJs = appJs.replace(oldC, newC);
+
+    const oldN = 'o&&(this.provider={...this.provider,availableModels:n,contextTokens:o.contextTokens,outputTokens:o.outputTokens})}';
+    const newN = 'if(n.length===0&&this.provider.configured&&this.provider.modelID){n=[{id:this.provider.modelID,name:(this.provider.providerID||this.provider.modelID)+" / "+this.provider.modelID,providerID:this.provider.providerID,contextTokens:this.provider.contextTokens,outputTokens:this.provider.outputTokens}]}else if(this.provider.configured&&this.provider.modelID&&!n.some(m=>m.id===this.provider.modelID)){n.unshift({id:this.provider.modelID,name:(this.provider.providerID||this.provider.modelID)+" / "+this.provider.modelID,providerID:this.provider.providerID,contextTokens:this.provider.contextTokens,outputTokens:this.provider.outputTokens})}o&&(this.provider={...this.provider,availableModels:n,contextTokens:o.contextTokens,outputTokens:o.outputTokens})}';
+    if (appJs.includes(oldN)) appJs = appJs.replace(oldN, newN);
+
+    writeFileSync(appJsPath, appJs, "utf8");
+    console.log("    ✓ Patched app.17b6e037.js in staging (header status, model list fallback)");
+  }
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {

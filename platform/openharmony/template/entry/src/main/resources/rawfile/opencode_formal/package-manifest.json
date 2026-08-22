@@ -4,8 +4,8 @@
   "generator": "godot_zw/scripts/package-opencode-assets.mjs",
   "installRoot": "opencode-formal/install/v1",
   "rawfileRoot": "opencode_formal",
-  "outputSha256": "ca369fc37bcb52d67d515ecbd1e77e06fac29e2a3a70f25210a5c34163856531",
-  "bytes": 24424321,
+  "outputSha256": "be86c35e9693500ce1b76fafd619dcb3a487363a5498dcb4cb32ce0c293fbe30",
+  "bytes": 24424753,
   "selections": {
     "runtime": "formal-upstream",
     "client": "sdk-composed",
@@ -29,8 +29,8 @@
     },
     {
       "path": "install/v1/client/js/app.17b6e037.js",
-      "bytes": 86112,
-      "sha256": "58244ad64d0a98be0c6be1b504dbe382e97c2d62f9e1da65828681af13511c82"
+      "bytes": 87089,
+      "sha256": "e188897e9b9517352f76ff88f7ab1289785363f7bcc196cfa06349c0e1fed9f3"
     },
     {
       "path": "install/v1/client/js/app.202e9862.js",
@@ -139,8 +139,8 @@
     },
     {
       "path": "install/v1/runtime/opencode-harmony-runtime.mjs",
-      "bytes": 16410136,
-      "sha256": "42e56798de0b507690b128bffa443745edce80376a889446f2e3a2d7277f8db6"
+      "bytes": 16409591,
+      "sha256": "547edaebc85b90df2a28133dbf66e0310b68fb2ac3bec23e74f801c9c454e0d5"
     }
   ]
 }
