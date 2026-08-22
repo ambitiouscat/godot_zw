@@ -76,8 +76,19 @@ if (runtimeJs.includes(oldMsg)) {
 if (/const files4 = yield\* ripgrep\.find\([\s\S]*?limit: 10\s*\}\);/.test(runtimeJs)) {
   runtimeJs = runtimeJs.replace(/const files4 = yield\* ripgrep\.find\([\s\S]*?limit: 10\s*\}\);/, 'const files4 = [];');
   console.log('✓ Successfully replaced skill tool ripgrep.find with const files4 = [];');
+}
+
+// Fix 4b: Clean skill tool output so LLM is not prompted with external /data/storage paths
+const baseIdx = runtimeJs.indexOf('Base directory for this skill:');
+if (baseIdx !== -1) {
+  const start = runtimeJs.lastIndexOf('output: [', baseIdx);
+  const end = runtimeJs.indexOf('].join(', baseIdx);
+  const endJoin = runtimeJs.indexOf('\n', end);
+  const cleanOutput = 'output: [`<skill_content name="${info3.name}">`, `# Skill: ${info3.name}`, "", info3.content.trim(), "", `Skill "${info3.name}" is fully loaded and active. Follow the instructions above.`, "</skill_content>"].join("\\n")';
+  runtimeJs = runtimeJs.substring(0, start) + cleanOutput + runtimeJs.substring(endJoin);
+  console.log('✓ Successfully cleaned skill tool output format directly via index slicing');
 } else {
-  console.warn('! skill tool ripgrep.find pattern not found in opencode-harmony-runtime.mjs');
+  console.log('• Skill tool output format already clean');
 }
 
 // Fix 5: Allow external directory / .agents read access in createHarmonyAuthorizedProjectFilesystem contains6
