@@ -90,13 +90,14 @@ export class OpenCodeSkillsInstaller {
       const preparedDirectories: Set<string> = new Set();
       preparedDirectories.add(skillsRoot);
       for (const file of manifest.files) {
-        let destination: string;
         if (file.path === 'AGENTS.md' || file.path === 'GODOT_GAME_DEV_PROTOCOL.md' || file.path === 'README.md') {
-          destination = `${projectDir}/${file.path}`;
+          await this.copyFileToCustomDestination(manifest, file, `${projectDir}/${file.path}`, preparedDirectories);
+          await this.copyFileToCustomDestination(manifest, file, `${projectDir}/skills/${file.path}`, preparedDirectories);
+          await this.copyFileToCustomDestination(manifest, file, `${skillsRoot}/${file.path}`, preparedDirectories);
         } else {
           destination = `${skillsRoot}/${file.path}`;
+          await this.copyFileToCustomDestination(manifest, file, destination, preparedDirectories);
         }
-        await this.copyFileToCustomDestination(manifest, file, destination, preparedDirectories);
       }
       hilog.info(HILOG_DOMAIN, HILOG_TAG,
         'SKILLS_PROJECT_INSTALL_OK target=%{public}s files=%{public}d',
