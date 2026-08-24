@@ -14,6 +14,7 @@ var running_scene_path: String = ""
 var overlay_root: Control = null
 var sub_viewport: SubViewport = null
 var sub_viewport_container: SubViewportContainer = null
+var input_proxy: SimulationInputProxy = null
 var backdrop: ColorRect = null
 var hud_panel: PanelContainer = null
 var simulated_scene_root: Node = null
@@ -37,6 +38,13 @@ func _exit_tree() -> void:
 	stop_simulation()
 	if _instance == self:
 		_instance = null
+
+
+## Catch unhandled global keyboard, joypad, and shortcut events and route into the simulation sandbox
+func _unhandled_input(event: InputEvent) -> void:
+	if is_running and sub_viewport and is_instance_valid(sub_viewport) and not sub_viewport.gui_disable_input:
+		if event is InputEventKey or event is InputEventJoypadButton or event is InputEventJoypadMotion or event is InputEventAction or event is InputEventShortcut:
+			sub_viewport.push_input(event, true)
 
 
 ## Start in-editor simulation for a given scene or the project's main scene
@@ -74,6 +82,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	overlay_root = Control.new()
 	overlay_root.name = "InEditorGameOverlay"
 	overlay_root.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay_root.focus_mode = Control.FOCUS_ALL
 
 	# 4. Opaque dark backdrop to guarantee 0 background grid/gizmo bleed-through
 	backdrop = ColorRect.new()
@@ -88,7 +97,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	sub_viewport_container.name = "GameContainer"
 	sub_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sub_viewport_container.stretch = true
-	sub_viewport_container.mouse_filter = Control.MOUSE_FILTER_STOP
+	sub_viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay_root.add_child(sub_viewport_container)
 
 	# 6. Create SubViewport
@@ -124,10 +133,17 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 
 	sub_viewport.add_child(simulated_scene_root)
 
-	# 9. Create floating in-viewport HUD control capsule
+	# 9. Create Input Proxy on top of the rendered game viewport to intercept, scale & forward all mouse/touch/keyboard events
+	input_proxy = SimulationInputProxy.new()
+	input_proxy.name = "InputProxy"
+	input_proxy.target_viewport = sub_viewport
+	input_proxy.runner = self
+	overlay_root.add_child(input_proxy)
+
+	# 10. Create floating in-viewport HUD control capsule
 	_create_hud_capsule(scene_path)
 
-	# 10. Align overlay position & size precisely to 3D MainScreen area
+	# 11. Align overlay position & size precisely to 3D MainScreen area
 	var main_screen: Control = EditorInterface.get_editor_main_screen()
 	if main_screen != null:
 		_update_overlay_rect()
@@ -147,11 +163,15 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 
 	_update_overlay_rect()
 
+	# 12. Acquire keyboard focus immediately
+	overlay_root.grab_focus()
+	input_proxy.grab_focus()
+
 	is_running = true
 	running_scene_path = scene_path
 
 	simulation_started.emit(scene_path)
-	print("[InEditorGameRunner] 60 FPS 3D-Viewport simulation started for: %s (size: %dx%d)" % [scene_path, w, h])
+	print("[InEditorGameRunner] 60 FPS 3D-Viewport simulation with Input Bridge started for: %s (size: %dx%d)" % [scene_path, w, h])
 
 	return {
 		"result": {
@@ -288,7 +308,7 @@ func stop_simulation() -> Dictionary:
 		edited_root.process_mode = _saved_edited_process_mode
 		edited_root.visible = _saved_edited_visible
 
-	# 4. Free simulated game nodes and overlay
+	# 4. Free simulated game nodes, input proxy, and overlay
 	if simulated_scene_root and is_instance_valid(simulated_scene_root):
 		simulated_scene_root.queue_free()
 		simulated_scene_root = null
@@ -298,6 +318,7 @@ func stop_simulation() -> Dictionary:
 		overlay_root = null
 		sub_viewport_container = null
 		sub_viewport = null
+		input_proxy = null
 		hud_panel = null
 		backdrop = null
 
@@ -321,10 +342,10 @@ func get_viewport() -> SubViewport:
 	return null
 
 
-## Forward an InputEvent to the simulated SubViewport
+## Forward an InputEvent directly to the simulated SubViewport
 func forward_input_event(event: InputEvent) -> bool:
 	if is_running and sub_viewport and is_instance_valid(sub_viewport):
-		sub_viewport.push_input(event)
+		sub_viewport.push_input(event, true)
 		return true
 	return false
 
@@ -336,3 +357,43 @@ func capture_frame_image() -> Image:
 		if tex:
 			return tex.get_image()
 	return null
+
+
+## =============================================================================
+## Inner Class: SimulationInputProxy
+## Intercepts all mouse, touch, and focus events directly on the simulation container
+## before Godot C++'s editor-hint suppression, scales coordinates, and forwards to SubViewport.
+## =============================================================================
+class SimulationInputProxy extends Control:
+	var runner: Node = null
+	var target_viewport: SubViewport = null
+
+	func _ready() -> void:
+		mouse_filter = Control.MOUSE_FILTER_STOP
+		focus_mode = Control.FOCUS_ALL
+		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+
+	func _gui_input(event: InputEvent) -> void:
+		if target_viewport == null or not is_instance_valid(target_viewport) or target_viewport.gui_disable_input:
+			return
+
+		var ev: InputEvent = event.duplicate()
+		var vp_size: Vector2 = Vector2(target_viewport.size)
+		var cont_size: Vector2 = size
+		if cont_size.x > 0.0 and cont_size.y > 0.0:
+			var scale_factor: Vector2 = vp_size / cont_size
+			if ev is InputEventMouse:
+				ev.position = event.position * scale_factor
+				ev.global_position = event.position * scale_factor
+				if ev is InputEventMouseMotion:
+					ev.relative = event.relative * scale_factor
+					ev.velocity = event.velocity * scale_factor
+			elif ev is InputEventScreenTouch:
+				ev.position = event.position * scale_factor
+			elif ev is InputEventScreenDrag:
+				ev.position = event.position * scale_factor
+				ev.relative = event.relative * scale_factor
+				ev.velocity = event.velocity * scale_factor
+
+		target_viewport.push_input(ev, true)
+		accept_event()
