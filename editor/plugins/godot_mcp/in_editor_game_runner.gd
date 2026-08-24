@@ -65,15 +65,12 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 		edited_root.process_mode = Node.PROCESS_MODE_DISABLED
 		edited_root.visible = false
 
-	# 2. Create root overlay Control
+	# 2. Create root overlay Control precisely covering the 3D MainScreen area
 	overlay_root = Control.new()
 	overlay_root.name = "InEditorGameOverlay"
-	overlay_root.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	overlay_root.mouse_filter = Control.MOUSE_FILTER_STOP
-	overlay_root.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	overlay_root.size_flags_vertical = Control.SIZE_EXPAND_FILL
 
-	# 3. Opaque dark backdrop to guarantee 0 background bleed-through
+	# 3. Opaque dark backdrop to guarantee 0 background grid/gizmo bleed-through
 	backdrop = ColorRect.new()
 	backdrop.name = "Backdrop"
 	backdrop.color = Color(0.1, 0.1, 0.12, 1.0)
@@ -81,14 +78,12 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay_root.add_child(backdrop)
 
-	# 4. Create isolated SubViewportContainer
+	# 4. Create isolated SubViewportContainer filling the 3D viewport area
 	sub_viewport_container = SubViewportContainer.new()
 	sub_viewport_container.name = "GameContainer"
 	sub_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	sub_viewport_container.stretch = true
 	sub_viewport_container.mouse_filter = Control.MOUSE_FILTER_STOP
-	sub_viewport_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	sub_viewport_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	overlay_root.add_child(sub_viewport_container)
 
 	# 5. Create SubViewport
@@ -123,22 +118,31 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	# 7. Create floating in-viewport HUD control capsule
 	_create_hud_capsule(scene_path)
 
-	# 8. Mount overlay onto Editor BaseControl (top-level UI root)
+	# 8. Align overlay position & size precisely to 3D MainScreen area
+	var main_screen: Control = EditorInterface.get_editor_main_screen()
+	if main_screen != null:
+		_update_overlay_rect()
+		if not main_screen.resized.is_connected(_update_overlay_rect):
+			main_screen.resized.connect(_update_overlay_rect)
+		if not main_screen.item_rect_changed.is_connected(_update_overlay_rect):
+			main_screen.item_rect_changed.connect(_update_overlay_rect)
+
+	# Mount overlay onto Editor BaseControl
 	var base_ctrl: Control = EditorInterface.get_base_control()
 	if base_ctrl != null:
 		base_ctrl.add_child(overlay_root)
+	elif main_screen != null:
+		main_screen.add_child(overlay_root)
 	else:
-		var main_screen: Control = EditorInterface.get_editor_main_screen()
-		if main_screen != null:
-			main_screen.add_child(overlay_root)
-		else:
-			add_child(overlay_root)
+		add_child(overlay_root)
+
+	_update_overlay_rect()
 
 	is_running = true
 	running_scene_path = scene_path
 
 	simulation_started.emit(scene_path)
-	print("[InEditorGameRunner] Full-screen simulation started for: %s (size: %dx%d)" % [scene_path, w, h])
+	print("[InEditorGameRunner] 3D-Viewport simulation started for: %s (size: %dx%d)" % [scene_path, w, h])
 
 	return {
 		"result": {
@@ -148,6 +152,16 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 			"viewport_size": {"width": w, "height": h}
 		}
 	}
+
+
+## Update overlay position and size to match the 3D main screen area exactly
+func _update_overlay_rect() -> void:
+	if overlay_root and is_instance_valid(overlay_root):
+		var main_screen: Control = EditorInterface.get_editor_main_screen()
+		if main_screen and is_instance_valid(main_screen):
+			var rect: Rect2 = main_screen.get_global_rect()
+			overlay_root.global_position = rect.position
+			overlay_root.size = rect.size
 
 
 ## Create in-viewport semi-transparent HUD capsule
@@ -160,28 +174,28 @@ func _create_hud_capsule(scene_path: String) -> void:
 	hud_panel.anchor_right = 1.0
 	hud_panel.anchor_top = 0.0
 	hud_panel.anchor_bottom = 0.0
-	hud_panel.offset_left = -260
-	hud_panel.offset_top = 20
-	hud_panel.offset_right = -20
-	hud_panel.offset_bottom = 62
+	hud_panel.offset_left = -220
+	hud_panel.offset_top = 10
+	hud_panel.offset_right = -10
+	hud_panel.offset_bottom = 48
 	hud_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.12, 0.12, 0.16, 0.9)
-	style.border_color = Color(0.3, 0.8, 0.4, 0.8)
+	style.border_color = Color(0.3, 0.85, 0.4, 0.9)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
-	style.set_corner_radius_all(10)
-	style.content_margin_left = 14
-	style.content_margin_right = 14
-	style.content_margin_top = 8
-	style.content_margin_bottom = 8
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
 	hud_panel.add_theme_stylebox_override("panel", style)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 12)
+	hbox.add_theme_constant_override("separation", 8)
 	hud_panel.add_child(hbox)
 
 	var status_lbl := Label.new()
@@ -210,13 +224,21 @@ func stop_simulation() -> Dictionary:
 	is_running = false
 	running_scene_path = ""
 
-	# 1. Restore background 3D editor scene visibility and processing
+	# 1. Unbind main_screen resize events
+	var main_screen: Control = EditorInterface.get_editor_main_screen()
+	if main_screen and is_instance_valid(main_screen):
+		if main_screen.resized.is_connected(_update_overlay_rect):
+			main_screen.resized.disconnect(_update_overlay_rect)
+		if main_screen.item_rect_changed.is_connected(_update_overlay_rect):
+			main_screen.item_rect_changed.disconnect(_update_overlay_rect)
+
+	# 2. Restore background 3D editor scene visibility and processing
 	var edited_root := EditorInterface.get_edited_scene_root()
 	if edited_root and is_instance_valid(edited_root):
 		edited_root.process_mode = _saved_edited_process_mode
 		edited_root.visible = _saved_edited_visible
 
-	# 2. Free simulated game nodes and overlay container
+	# 3. Free simulated game nodes and overlay container
 	if simulated_scene_root and is_instance_valid(simulated_scene_root):
 		simulated_scene_root.queue_free()
 		simulated_scene_root = null
@@ -230,7 +252,7 @@ func stop_simulation() -> Dictionary:
 		backdrop = null
 
 	simulation_stopped.emit(prev_scene)
-	print("[InEditorGameRunner] Simulation stopped for: %s" % prev_scene)
+	print("[InEditorGameRunner] 3D-Viewport simulation stopped for: %s" % prev_scene)
 
 	return {"result": {"stopped": true, "was_running": true, "scene": prev_scene}}
 
