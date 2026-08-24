@@ -164,55 +164,56 @@ func _update_overlay_rect() -> void:
 			overlay_root.size = rect.size
 
 
-## Create in-viewport semi-transparent HUD capsule
+## Create in-viewport semi-transparent HUD capsule safely inside 3D viewport
 func _create_hud_capsule(scene_path: String) -> void:
+	var hud_layer := MarginContainer.new()
+	hud_layer.name = "HUDLayer"
+	hud_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	hud_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_layer.add_theme_constant_override("margin_top", 16)
+	hud_layer.add_theme_constant_override("margin_right", 24)
+	hud_layer.add_theme_constant_override("margin_left", 16)
+	hud_layer.add_theme_constant_override("margin_bottom", 16)
+
 	hud_panel = PanelContainer.new()
 	hud_panel.name = "SimulationHUD"
-	
-	hud_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
-	hud_panel.anchor_left = 1.0
-	hud_panel.anchor_right = 1.0
-	hud_panel.anchor_top = 0.0
-	hud_panel.anchor_bottom = 0.0
-	hud_panel.offset_left = -220
-	hud_panel.offset_top = 10
-	hud_panel.offset_right = -10
-	hud_panel.offset_bottom = 48
+	hud_panel.size_flags_horizontal = Control.SIZE_SHRINK_END
+	hud_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	hud_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 
 	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.12, 0.12, 0.16, 0.9)
+	style.bg_color = Color(0.12, 0.12, 0.16, 0.92)
 	style.border_color = Color(0.3, 0.85, 0.4, 0.9)
 	style.border_width_left = 1
 	style.border_width_top = 1
 	style.border_width_right = 1
 	style.border_width_bottom = 1
 	style.set_corner_radius_all(8)
-	style.content_margin_left = 10
-	style.content_margin_right = 10
-	style.content_margin_top = 4
-	style.content_margin_bottom = 4
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
 	hud_panel.add_theme_stylebox_override("panel", style)
 
 	var hbox := HBoxContainer.new()
-	hbox.add_theme_constant_override("separation", 8)
+	hbox.add_theme_constant_override("separation", 10)
 	hud_panel.add_child(hbox)
 
 	var status_lbl := Label.new()
 	var scene_name := scene_path.get_file()
 	status_lbl.text = "🟢 %s" % scene_name
 	status_lbl.add_theme_color_override("font_color", Color(0.4, 0.95, 0.4))
-	status_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	hbox.add_child(status_lbl)
 
 	var stop_btn := Button.new()
 	stop_btn.text = "⏹ 退出"
-	stop_btn.tooltip_text = "停止当前仿真并返回编辑器"
+	stop_btn.tooltip_text = "停止当前仿真并返回 3D 编辑器"
 	stop_btn.focus_mode = Control.FOCUS_NONE
 	stop_btn.pressed.connect(func(): stop_simulation())
 	hbox.add_child(stop_btn)
 
-	overlay_root.add_child(hud_panel)
+	hud_layer.add_child(hud_panel)
+	overlay_root.add_child(hud_layer)
 
 
 ## Stop the active simulation, restore background editor, and clean up nodes
