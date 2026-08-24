@@ -18,6 +18,7 @@ var input_proxy: SimulationInputProxy = null
 var backdrop: ColorRect = null
 var hud_panel: PanelContainer = null
 var simulated_scene_root: Node = null
+var _instantiated_autoloads: Array[Node] = []
 
 var _saved_edited_process_mode: int = Node.PROCESS_MODE_INHERIT
 var _saved_edited_visible: bool = true
@@ -100,7 +101,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	sub_viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay_root.add_child(sub_viewport_container)
 
-	# 6. Create SubViewport
+	# 6. Create SubViewport with 100% isolated 3D world and enabled audio listeners
 	sub_viewport = SubViewport.new()
 	sub_viewport.name = "InEditorGameViewport"
 	
@@ -108,6 +109,8 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	var h: int = int(ProjectSettings.get_setting("display/window/size/viewport_height", 720))
 	sub_viewport.size = Vector2i(w, h)
 	sub_viewport.own_world_3d = true
+	sub_viewport.audio_listener_enable_3d = true
+	sub_viewport.audio_listener_enable_2d = true
 	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	sub_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	sub_viewport.handle_input_locally = true
@@ -117,7 +120,10 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 
 	sub_viewport_container.add_child(sub_viewport)
 
-	# 7. Instantiate the target scene inside SubViewport
+	# 7. Instantiate configured project Autoload singletons into SubViewport
+	_instantiate_autoloads()
+
+	# 8. Instantiate the target scene inside SubViewport
 	var packed: PackedScene = load(scene_path) as PackedScene
 	if packed == null:
 		stop_simulation()
@@ -128,23 +134,23 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 		stop_simulation()
 		return {"error": {"code": -32603, "message": "Failed to instantiate scene: %s" % scene_path}}
 
-	# 8. Upgrade all scripts in-memory to tool scripts so Godot creates real GDScriptInstances (not Placeholders)
+	# 9. Upgrade all scripts in-memory to tool scripts so Godot creates real GDScriptInstances (not Placeholders)
 	_upgrade_to_tool_scripts(simulated_scene_root)
 	simulated_scene_root.child_entered_tree.connect(_on_dynamic_child_entered)
 
 	sub_viewport.add_child(simulated_scene_root)
 
-	# 9. Create Input Proxy on top of the rendered game viewport to intercept, scale & forward all mouse/touch/keyboard events
+	# 10. Create Input Proxy on top of the rendered game viewport to intercept, scale & forward all mouse/touch/keyboard events
 	input_proxy = SimulationInputProxy.new()
 	input_proxy.name = "InputProxy"
 	input_proxy.target_viewport = sub_viewport
 	input_proxy.runner = self
 	overlay_root.add_child(input_proxy)
 
-	# 10. Create floating in-viewport HUD control capsule
+	# 11. Create floating in-viewport HUD control capsule
 	_create_hud_capsule(scene_path)
 
-	# 11. Align overlay position & size precisely to 3D MainScreen area
+	# 12. Align overlay position & size precisely to 3D MainScreen area
 	var main_screen: Control = EditorInterface.get_editor_main_screen()
 	if main_screen != null:
 		_update_overlay_rect()
@@ -164,7 +170,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 
 	_update_overlay_rect()
 
-	# 12. Acquire keyboard focus immediately
+	# 13. Acquire keyboard focus immediately
 	overlay_root.grab_focus()
 	input_proxy.grab_focus()
 
@@ -172,7 +178,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	running_scene_path = scene_path
 
 	simulation_started.emit(scene_path)
-	print("[InEditorGameRunner] 60 FPS 3D-Viewport simulation with Input Bridge started for: %s (size: %dx%d)" % [scene_path, w, h])
+	print("[InEditorGameRunner] 1:1 Parity 3D-Viewport simulation started for: %s (size: %dx%d)" % [scene_path, w, h])
 
 	return {
 		"result": {
@@ -182,6 +188,33 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 			"viewport_size": {"width": w, "height": h}
 		}
 	}
+
+
+## Instantiate project Autoload singletons into the simulation SubViewport
+func _instantiate_autoloads() -> void:
+	_instantiated_autoloads.clear()
+	for prop in ProjectSettings.get_property_list():
+		var p_name: String = prop.name
+		if p_name.begins_with("autoload/"):
+			var auto_name: String = p_name.trim_prefix("autoload/")
+			# Skip MCP internal autoloads
+			if auto_name.begins_with("MCP") or auto_name.begins_with("GodotMCP"):
+				continue
+			var auto_path: String = str(ProjectSettings.get_setting(p_name, ""))
+			if auto_path.begins_with("*"):
+				auto_path = auto_path.substr(1)
+			if not auto_path.is_empty() and ResourceLoader.exists(auto_path):
+				var res: Resource = load(auto_path)
+				var auto_node: Node = null
+				if res is PackedScene:
+					auto_node = res.instantiate()
+				elif res is GDScript:
+					auto_node = res.new()
+				if auto_node:
+					auto_node.name = auto_name
+					_upgrade_to_tool_scripts(auto_node)
+					sub_viewport.add_child(auto_node)
+					_instantiated_autoloads.append(auto_node)
 
 
 ## Recursively upgrade non-tool GDScripts in memory to tool scripts to avoid Placeholder instances
@@ -237,6 +270,7 @@ func _create_hud_capsule(scene_path: String) -> void:
 	hud_layer.name = "HUDLayer"
 	hud_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	hud_layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	hud_layer.process_mode = Node.PROCESS_MODE_ALWAYS
 	hud_layer.add_theme_constant_override("margin_top", 16)
 	hud_layer.add_theme_constant_override("margin_right", 24)
 	hud_layer.add_theme_constant_override("margin_left", 16)
@@ -244,6 +278,7 @@ func _create_hud_capsule(scene_path: String) -> void:
 
 	hud_panel = PanelContainer.new()
 	hud_panel.name = "SimulationHUD"
+	hud_panel.process_mode = Node.PROCESS_MODE_ALWAYS
 	hud_panel.size_flags_horizontal = Control.SIZE_SHRINK_END
 	hud_panel.size_flags_vertical = Control.SIZE_SHRINK_BEGIN
 	hud_panel.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -292,10 +327,13 @@ func stop_simulation() -> Dictionary:
 	is_running = false
 	running_scene_path = ""
 
-	# 1. Restore editor low-processor power saving mode
+	# 1. Restore editor cursor mode
+	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
+
+	# 2. Restore editor low-processor power saving mode
 	OS.low_processor_usage_mode = _saved_low_processor_mode
 
-	# 2. Unbind main_screen resize events
+	# 3. Unbind main_screen resize events
 	var main_screen: Control = EditorInterface.get_editor_main_screen()
 	if main_screen and is_instance_valid(main_screen):
 		if main_screen.resized.is_connected(_update_overlay_rect):
@@ -303,13 +341,18 @@ func stop_simulation() -> Dictionary:
 		if main_screen.item_rect_changed.is_connected(_update_overlay_rect):
 			main_screen.item_rect_changed.disconnect(_update_overlay_rect)
 
-	# 3. Restore background 3D editor scene visibility and processing
+	# 4. Restore background 3D editor scene visibility and processing
 	var edited_root := EditorInterface.get_edited_scene_root()
 	if edited_root and is_instance_valid(edited_root):
 		edited_root.process_mode = _saved_edited_process_mode
 		edited_root.visible = _saved_edited_visible
 
-	# 4. Free simulated game nodes, input proxy, and overlay
+	# 5. Free simulated game nodes, instantiated autoloads, input proxy, and overlay
+	for auto_node in _instantiated_autoloads:
+		if is_instance_valid(auto_node):
+			auto_node.queue_free()
+	_instantiated_autoloads.clear()
+
 	if simulated_scene_root and is_instance_valid(simulated_scene_root):
 		simulated_scene_root.queue_free()
 		simulated_scene_root = null
@@ -370,6 +413,7 @@ class SimulationInputProxy extends Control:
 	var target_viewport: SubViewport = null
 
 	func _ready() -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS
 		mouse_filter = Control.MOUSE_FILTER_STOP
 		focus_mode = Control.FOCUS_ALL
 		set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
