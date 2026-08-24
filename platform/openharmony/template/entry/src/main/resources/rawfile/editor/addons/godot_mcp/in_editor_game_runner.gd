@@ -201,7 +201,7 @@ func _create_hud_capsule(scene_path: String) -> void:
 
 	var status_lbl := Label.new()
 	var scene_name := scene_path.get_file()
-	status_lbl.text = "🟢 %s" % scene_name
+	status_lbl.text = "🟢 %s (仿真运行中)" % scene_name
 	status_lbl.add_theme_color_override("font_color", Color(0.4, 0.95, 0.4))
 	hbox.add_child(status_lbl)
 

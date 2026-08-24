@@ -40,10 +40,7 @@ func _enter_tree() -> void:
 	sim_button.pressed.connect(_on_sim_button_pressed)
 	add_control_to_container(EditorPlugin.CONTAINER_TOOLBAR, sim_button)
 
-	_sim_runner = command_router.get_node_or_null("InEditorGameRunner")
-	if _sim_runner:
-		_sim_runner.simulation_started.connect(_on_sim_started)
-		_sim_runner.simulation_stopped.connect(_on_sim_stopped)
+	call_deferred("_setup_sim_runner")
 
 	# Create WebSocket server
 	websocket_server = preload("res://addons/godot_mcp/websocket_server.gd").new()
@@ -66,6 +63,18 @@ func _enter_tree() -> void:
 	if cfg.load("res://addons/godot_mcp/plugin.cfg") == OK:
 		ver = cfg.get_value("plugin", "version", "unknown")
 	print("[MCP] Godot MCP Pro v%s started (port 6510)" % ver)
+
+
+func _setup_sim_runner() -> void:
+	if is_instance_valid(command_router):
+		_sim_runner = command_router.get_node_or_null("InEditorGameRunner")
+	if _sim_runner:
+		if not _sim_runner.simulation_started.is_connected(_on_sim_started):
+			_sim_runner.simulation_started.connect(_on_sim_started)
+		if not _sim_runner.simulation_stopped.is_connected(_on_sim_stopped):
+			_sim_runner.simulation_stopped.connect(_on_sim_stopped)
+		if _sim_runner.is_running:
+			_on_sim_started(_sim_runner.running_scene_path)
 
 
 func _exit_tree() -> void:
@@ -98,6 +107,11 @@ func _on_sim_button_pressed() -> void:
 	if _sim_runner == null and is_instance_valid(command_router):
 		_sim_runner = command_router.get_node_or_null("InEditorGameRunner")
 	if _sim_runner:
+		if not _sim_runner.simulation_started.is_connected(_on_sim_started):
+			_sim_runner.simulation_started.connect(_on_sim_started)
+		if not _sim_runner.simulation_stopped.is_connected(_on_sim_stopped):
+			_sim_runner.simulation_stopped.connect(_on_sim_stopped)
+
 		if _sim_runner.is_running:
 			_sim_runner.stop_simulation()
 		else:
@@ -107,12 +121,14 @@ func _on_sim_button_pressed() -> void:
 func _on_sim_started(_scene: String) -> void:
 	if sim_button and is_instance_valid(sim_button):
 		sim_button.text = "⏹ 停止仿真"
-		sim_button.modulate = Color(1.0, 0.45, 0.45)
+		sim_button.tooltip_text = "点击停止当前仿真并返回 3D 编辑器"
+		sim_button.modulate = Color(1.0, 0.4, 0.4)
 
 
 func _on_sim_stopped(_scene: String) -> void:
 	if sim_button and is_instance_valid(sim_button):
 		sim_button.text = "▶ 视口仿真"
+		sim_button.tooltip_text = "在当前 3D 视口内运行场景仿真"
 		sim_button.modulate = Color.WHITE
 
 
