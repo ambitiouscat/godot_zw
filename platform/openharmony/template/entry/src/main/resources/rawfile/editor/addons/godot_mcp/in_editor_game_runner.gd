@@ -17,9 +17,11 @@ var sub_viewport_container: SubViewportContainer = null
 var backdrop: ColorRect = null
 var hud_panel: PanelContainer = null
 var simulated_scene_root: Node = null
+var ticker: InEditorSimulationTicker = null
 
 var _saved_edited_process_mode: int = Node.PROCESS_MODE_INHERIT
 var _saved_edited_visible: bool = true
+var _saved_low_processor_mode: bool = true
 
 static var _instance: Node = null
 
@@ -57,7 +59,11 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	if is_running:
 		stop_simulation()
 
-	# 1. Suspend background 3D editor scene rendering and processing (0 GPU waste)
+	# 1. Unlock continuous 60 FPS main loop for smooth gameplay
+	_saved_low_processor_mode = OS.low_processor_usage_mode
+	OS.low_processor_usage_mode = false
+
+	# 2. Suspend background 3D editor scene rendering and processing (0 GPU waste)
 	var edited_root := EditorInterface.get_edited_scene_root()
 	if edited_root and is_instance_valid(edited_root):
 		_saved_edited_process_mode = edited_root.process_mode
@@ -65,12 +71,12 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 		edited_root.process_mode = Node.PROCESS_MODE_DISABLED
 		edited_root.visible = false
 
-	# 2. Create root overlay Control precisely covering the 3D MainScreen area
+	# 3. Create root overlay Control precisely covering the 3D MainScreen area
 	overlay_root = Control.new()
 	overlay_root.name = "InEditorGameOverlay"
 	overlay_root.mouse_filter = Control.MOUSE_FILTER_STOP
 
-	# 3. Opaque dark backdrop to guarantee 0 background grid/gizmo bleed-through
+	# 4. Opaque dark backdrop to guarantee 0 background grid/gizmo bleed-through
 	backdrop = ColorRect.new()
 	backdrop.name = "Backdrop"
 	backdrop.color = Color(0.1, 0.1, 0.12, 1.0)
@@ -78,7 +84,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay_root.add_child(backdrop)
 
-	# 4. Create isolated SubViewportContainer filling the 3D viewport area
+	# 5. Create isolated SubViewportContainer filling the 3D viewport area
 	sub_viewport_container = SubViewportContainer.new()
 	sub_viewport_container.name = "GameContainer"
 	sub_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -86,7 +92,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	sub_viewport_container.mouse_filter = Control.MOUSE_FILTER_STOP
 	overlay_root.add_child(sub_viewport_container)
 
-	# 5. Create SubViewport
+	# 6. Create SubViewport
 	sub_viewport = SubViewport.new()
 	sub_viewport.name = "InEditorGameViewport"
 	
@@ -102,7 +108,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 
 	sub_viewport_container.add_child(sub_viewport)
 
-	# 6. Instantiate the target scene inside SubViewport
+	# 7. Instantiate the target scene inside SubViewport
 	var packed: PackedScene = load(scene_path) as PackedScene
 	if packed == null:
 		stop_simulation()
@@ -115,10 +121,16 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 
 	sub_viewport.add_child(simulated_scene_root)
 
-	# 7. Create floating in-viewport HUD control capsule
+	# 8. Attach Simulation Ticker to drive _process and _physics_process on all non-@tool game scripts
+	ticker = InEditorSimulationTicker.new()
+	ticker.name = "SimulationTicker"
+	ticker.target_root = simulated_scene_root
+	sub_viewport.add_child(ticker)
+
+	# 9. Create floating in-viewport HUD control capsule
 	_create_hud_capsule(scene_path)
 
-	# 8. Align overlay position & size precisely to 3D MainScreen area
+	# 10. Align overlay position & size precisely to 3D MainScreen area
 	var main_screen: Control = EditorInterface.get_editor_main_screen()
 	if main_screen != null:
 		_update_overlay_rect()
@@ -142,7 +154,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	running_scene_path = scene_path
 
 	simulation_started.emit(scene_path)
-	print("[InEditorGameRunner] 3D-Viewport simulation started for: %s (size: %dx%d)" % [scene_path, w, h])
+	print("[InEditorGameRunner] 60 FPS 3D-Viewport simulation started for: %s (size: %dx%d)" % [scene_path, w, h])
 
 	return {
 		"result": {
@@ -225,7 +237,10 @@ func stop_simulation() -> Dictionary:
 	is_running = false
 	running_scene_path = ""
 
-	# 1. Unbind main_screen resize events
+	# 1. Restore editor low-processor power saving mode
+	OS.low_processor_usage_mode = _saved_low_processor_mode
+
+	# 2. Unbind main_screen resize events
 	var main_screen: Control = EditorInterface.get_editor_main_screen()
 	if main_screen and is_instance_valid(main_screen):
 		if main_screen.resized.is_connected(_update_overlay_rect):
@@ -233,13 +248,17 @@ func stop_simulation() -> Dictionary:
 		if main_screen.item_rect_changed.is_connected(_update_overlay_rect):
 			main_screen.item_rect_changed.disconnect(_update_overlay_rect)
 
-	# 2. Restore background 3D editor scene visibility and processing
+	# 3. Restore background 3D editor scene visibility and processing
 	var edited_root := EditorInterface.get_edited_scene_root()
 	if edited_root and is_instance_valid(edited_root):
 		edited_root.process_mode = _saved_edited_process_mode
 		edited_root.visible = _saved_edited_visible
 
-	# 3. Free simulated game nodes and overlay container
+	# 4. Free simulation ticker and simulated game nodes
+	if ticker and is_instance_valid(ticker):
+		ticker.queue_free()
+		ticker = null
+
 	if simulated_scene_root and is_instance_valid(simulated_scene_root):
 		simulated_scene_root.queue_free()
 		simulated_scene_root = null
@@ -253,7 +272,7 @@ func stop_simulation() -> Dictionary:
 		backdrop = null
 
 	simulation_stopped.emit(prev_scene)
-	print("[InEditorGameRunner] 3D-Viewport simulation stopped for: %s" % prev_scene)
+	print("[InEditorGameRunner] Simulation stopped for: %s" % prev_scene)
 
 	return {"result": {"stopped": true, "was_running": true, "scene": prev_scene}}
 
@@ -287,3 +306,72 @@ func capture_frame_image() -> Image:
 		if tex:
 			return tex.get_image()
 	return null
+
+
+## =============================================================================
+## Inner Class: InEditorSimulationTicker
+## Drives continuous _process(delta) and _physics_process(delta) callbacks
+## across all non-@tool game script nodes in the SubViewport simulation sandbox.
+## =============================================================================
+class InEditorSimulationTicker extends Node:
+	var target_root: Node = null
+	var _process_nodes: Array[Node] = []
+	var _physics_nodes: Array[Node] = []
+
+	func _ready() -> void:
+		process_mode = Node.PROCESS_MODE_ALWAYS
+		_rescan_nodes()
+		if target_root and is_instance_valid(target_root):
+			target_root.child_entered_tree.connect(_on_child_entered)
+			target_root.child_exiting_tree.connect(_on_child_exiting)
+
+	func _process(delta: float) -> void:
+		for i in range(_process_nodes.size() - 1, -1, -1):
+			var node := _process_nodes[i]
+			if not is_instance_valid(node) or not node.is_inside_tree():
+				_process_nodes.remove_at(i)
+				continue
+			if node.process_mode == Node.PROCESS_MODE_DISABLED:
+				continue
+			if node.has_method("_process"):
+				node.call("_process", delta)
+
+	func _physics_process(delta: float) -> void:
+		for i in range(_physics_nodes.size() - 1, -1, -1):
+			var node := _physics_nodes[i]
+			if not is_instance_valid(node) or not node.is_inside_tree():
+				_physics_nodes.remove_at(i)
+				continue
+			if node.process_mode == Node.PROCESS_MODE_DISABLED:
+				continue
+			if node.has_method("_physics_process"):
+				node.call("_physics_process", delta)
+
+	func _on_child_entered(node: Node) -> void:
+		_register_node_recursive(node)
+
+	func _on_child_exiting(node: Node) -> void:
+		_unregister_node_recursive(node)
+
+	func _rescan_nodes() -> void:
+		_process_nodes.clear()
+		_physics_nodes.clear()
+		if target_root and is_instance_valid(target_root):
+			_register_node_recursive(target_root)
+
+	func _register_node_recursive(node: Node) -> void:
+		if not is_instance_valid(node):
+			return
+		if node.get_script() != null:
+			if node.has_method("_process") and not _process_nodes.has(node):
+				_process_nodes.append(node)
+			if node.has_method("_physics_process") and not _physics_nodes.has(node):
+				_physics_nodes.append(node)
+		for child in node.get_children():
+			_register_node_recursive(child)
+
+	func _unregister_node_recursive(node: Node) -> void:
+		_process_nodes.erase(node)
+		_physics_nodes.erase(node)
+		for child in node.get_children():
+			_unregister_node_recursive(child)
