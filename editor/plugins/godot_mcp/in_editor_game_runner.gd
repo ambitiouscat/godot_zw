@@ -4,13 +4,21 @@ extends Node
 ## InEditorGameRunner
 ## Manages in-editor isolated SubViewport scene simulations for Godot MCP on OpenHarmony.
 
+signal simulation_started(scene_path: String)
+signal simulation_stopped(scene_path: String)
+
 var editor_plugin: EditorPlugin
 
 var is_running: bool = false
 var running_scene_path: String = ""
 var sub_viewport: SubViewport = null
 var sub_viewport_container: SubViewportContainer = null
+var backdrop: ColorRect = null
+var hud_panel: PanelContainer = null
 var simulated_scene_root: Node = null
+
+var _saved_edited_process_mode: int = Node.PROCESS_MODE_INHERIT
+var _saved_edited_visible: bool = true
 
 static var _instance: Node = null
 
@@ -48,29 +56,58 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	if is_running:
 		stop_simulation()
 
-	# Create isolated SubViewport container
-	sub_viewport_container = SubViewportContainer.new()
-	sub_viewport_container.name = "InEditorGameContainer"
-	sub_viewport_container.stretch = true
-	sub_viewport_container.mouse_filter = Control.MOUSE_FILTER_PASS
+	# 1. Suspend background 3D editor scene rendering and processing (0 GPU waste)
+	var edited_root := EditorInterface.get_edited_scene_root()
+	if edited_root and is_instance_valid(edited_root):
+		_saved_edited_process_mode = edited_root.process_mode
+		_saved_edited_visible = edited_root.visible
+		edited_root.process_mode = Node.PROCESS_MODE_DISABLED
+		edited_root.visible = false
 
+	# 2. Create full-rect SubViewportContainer with opaque backdrop and input exclusivity
+	sub_viewport_container = SubViewportContainer.new()
+	sub_viewport_container.name = "InEditorGameOverlay"
+	sub_viewport_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	sub_viewport_container.stretch = true
+	sub_viewport_container.mouse_filter = Control.MOUSE_FILTER_STOP  # Intercept all touch/clicks
+
+	# Opaque dark backdrop to guarantee 0 background grid/gizmo bleed-through
+	backdrop = ColorRect.new()
+	backdrop.name = "Backdrop"
+	backdrop.color = Color(0.12, 0.12, 0.14, 1.0)
+	backdrop.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	backdrop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	sub_viewport_container.add_child(backdrop)
+
+	# 3. Create isolated SubViewport
 	sub_viewport = SubViewport.new()
 	sub_viewport.name = "InEditorGameViewport"
 	
-	# Fetch project window size or default to 1280x720
 	var w: int = int(ProjectSettings.get_setting("display/window/size/viewport_width", 1280))
 	var h: int = int(ProjectSettings.get_setting("display/window/size/viewport_height", 720))
 	sub_viewport.size = Vector2i(w, h)
 	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	sub_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	sub_viewport.handle_input_locally = true
 	sub_viewport.gui_disable_input = false
 	sub_viewport.physics_object_picking = true
 	sub_viewport.process_mode = Node.PROCESS_MODE_ALWAYS
 
 	sub_viewport_container.add_child(sub_viewport)
-	add_child(sub_viewport_container)
 
-	# Instantiate the target scene
+	# 4. Create floating in-viewport HUD control capsule
+	_create_hud_capsule(scene_path)
+
+	# 5. Mount onto Editor MainScreen (or BaseControl) to take over the center workspace
+	var mount_target: Control = EditorInterface.get_editor_main_screen()
+	if mount_target == null:
+		mount_target = EditorInterface.get_base_control()
+	if mount_target != null:
+		mount_target.add_child(sub_viewport_container)
+	else:
+		add_child(sub_viewport_container)
+
+	# 6. Instantiate the target scene inside SubViewport
 	var packed: PackedScene = load(scene_path) as PackedScene
 	if packed == null:
 		stop_simulation()
@@ -86,7 +123,8 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	is_running = true
 	running_scene_path = scene_path
 
-	print("[InEditorGameRunner] Simulation started for: %s (size: %dx%d)" % [scene_path, w, h])
+	simulation_started.emit(scene_path)
+	print("[InEditorGameRunner] Full-rect simulation started for: %s (size: %dx%d)" % [scene_path, w, h])
 
 	return {
 		"result": {
@@ -98,7 +136,53 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	}
 
 
-## Stop the active simulation and clean up nodes
+## Create in-viewport semi-transparent HUD capsule
+func _create_hud_capsule(scene_path: String) -> void:
+	hud_panel = PanelContainer.new()
+	hud_panel.name = "SimulationHUD"
+	
+	# Anchor to top right with 16px margins
+	hud_panel.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	hud_panel.anchor_left = 1.0
+	hud_panel.anchor_right = 1.0
+	hud_panel.anchor_top = 0.0
+	hud_panel.anchor_bottom = 0.0
+	hud_panel.offset_left = -260
+	hud_panel.offset_top = 16
+	hud_panel.offset_right = -16
+	hud_panel.offset_bottom = 54
+	hud_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.1, 0.12, 0.85)
+	style.set_corner_radius_all(8)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
+	style.content_margin_top = 6
+	style.content_margin_bottom = 6
+	hud_panel.add_theme_stylebox_override("panel", style)
+
+	var hbox := HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 10)
+	hud_panel.add_child(hbox)
+
+	var status_lbl := Label.new()
+	var scene_name := scene_path.get_file()
+	status_lbl.text = "🟢 %s" % scene_name
+	status_lbl.add_theme_color_override("font_color", Color(0.4, 0.9, 0.4))
+	status_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	hbox.add_child(status_lbl)
+
+	var stop_btn := Button.new()
+	stop_btn.text = "⏹ 退出"
+	stop_btn.tooltip_text = "停止当前仿真并返回 3D 编辑器"
+	stop_btn.pressed.connect(func(): stop_simulation())
+	hbox.add_child(stop_btn)
+
+	sub_viewport_container.add_child(hud_panel)
+
+
+## Stop the active simulation, restore background editor, and clean up nodes
 func stop_simulation() -> Dictionary:
 	if not is_running and sub_viewport == null:
 		return {"result": {"stopped": true, "was_running": false}}
@@ -107,6 +191,13 @@ func stop_simulation() -> Dictionary:
 	is_running = false
 	running_scene_path = ""
 
+	# 1. Restore background 3D editor scene visibility and processing
+	var edited_root := EditorInterface.get_edited_scene_root()
+	if edited_root and is_instance_valid(edited_root):
+		edited_root.process_mode = _saved_edited_process_mode
+		edited_root.visible = _saved_edited_visible
+
+	# 2. Free simulated game nodes and overlay container
 	if simulated_scene_root and is_instance_valid(simulated_scene_root):
 		simulated_scene_root.queue_free()
 		simulated_scene_root = null
@@ -115,11 +206,16 @@ func stop_simulation() -> Dictionary:
 		sub_viewport.queue_free()
 		sub_viewport = null
 
+	if hud_panel and is_instance_valid(hud_panel):
+		hud_panel.queue_free()
+		hud_panel = null
+
 	if sub_viewport_container and is_instance_valid(sub_viewport_container):
 		sub_viewport_container.queue_free()
 		sub_viewport_container = null
 
-	print("[InEditorGameRunner] Simulation stopped for: %s" % prev_scene)
+	simulation_stopped.emit(prev_scene)
+	print("[InEditorGameRunner] Full-rect simulation stopped for: %s" % prev_scene)
 
 	return {"result": {"stopped": true, "was_running": true, "scene": prev_scene}}
 

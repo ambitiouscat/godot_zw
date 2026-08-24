@@ -17,6 +17,8 @@ const _MCP_TEMP_FILES: Array[String] = [
 var websocket_server: Node
 var command_router: Node
 var status_panel: Control
+var sim_button: Button = null
+var _sim_runner: Node = null
 var auto_dismiss_dialogs: bool = false
 # Track which autoloads THIS session injected (vs project-owned)
 var _session_injected_autoloads: Array[String] = []
@@ -29,6 +31,19 @@ func _enter_tree() -> void:
 	command_router.name = "MCPCommandRouter"
 	command_router.editor_plugin = self
 	add_child(command_router)
+
+	# Register top toolbar simulation button
+	sim_button = Button.new()
+	sim_button.text = "▶ 视口仿真"
+	sim_button.tooltip_text = "在当前 3D 视口内运行场景仿真"
+	sim_button.focus_mode = Control.FOCUS_NONE
+	sim_button.pressed.connect(_on_sim_button_pressed)
+	add_control_to_container(EditorPlugin.CONTAINER_TOOLBAR, sim_button)
+
+	_sim_runner = command_router.get_node_or_null("InEditorGameRunner")
+	if _sim_runner:
+		_sim_runner.simulation_started.connect(_on_sim_started)
+		_sim_runner.simulation_stopped.connect(_on_sim_stopped)
 
 	# Create WebSocket server
 	websocket_server = preload("res://addons/godot_mcp/websocket_server.gd").new()
@@ -58,6 +73,11 @@ func _exit_tree() -> void:
 	_remove_autoloads()
 	_cleanup_temp_files()
 
+	if sim_button:
+		remove_control_from_container(EditorPlugin.CONTAINER_TOOLBAR, sim_button)
+		sim_button.queue_free()
+		sim_button = null
+
 	if websocket_server:
 		websocket_server.stop_server()
 
@@ -72,6 +92,28 @@ func _exit_tree() -> void:
 		websocket_server.queue_free()
 
 	print("[MCP] Godot MCP Pro stopped")
+
+
+func _on_sim_button_pressed() -> void:
+	if _sim_runner == null and is_instance_valid(command_router):
+		_sim_runner = command_router.get_node_or_null("InEditorGameRunner")
+	if _sim_runner:
+		if _sim_runner.is_running:
+			_sim_runner.stop_simulation()
+		else:
+			_sim_runner.start_simulation("")
+
+
+func _on_sim_started(_scene: String) -> void:
+	if sim_button and is_instance_valid(sim_button):
+		sim_button.text = "⏹ 停止仿真"
+		sim_button.modulate = Color(1.0, 0.45, 0.45)
+
+
+func _on_sim_stopped(_scene: String) -> void:
+	if sim_button and is_instance_valid(sim_button):
+		sim_button.text = "▶ 视口仿真"
+		sim_button.modulate = Color.WHITE
 
 
 ## Declares the opt-in connection token setting so it is discoverable in
