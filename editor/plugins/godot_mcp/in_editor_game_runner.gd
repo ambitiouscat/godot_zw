@@ -17,7 +17,6 @@ var sub_viewport_container: SubViewportContainer = null
 var backdrop: ColorRect = null
 var hud_panel: PanelContainer = null
 var simulated_scene_root: Node = null
-var ticker: InEditorSimulationTicker = null
 
 var _saved_edited_process_mode: int = Node.PROCESS_MODE_INHERIT
 var _saved_edited_visible: bool = true
@@ -119,13 +118,11 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 		stop_simulation()
 		return {"error": {"code": -32603, "message": "Failed to instantiate scene: %s" % scene_path}}
 
-	sub_viewport.add_child(simulated_scene_root)
+	# 8. Upgrade all scripts in-memory to tool scripts so Godot creates real GDScriptInstances (not Placeholders)
+	_upgrade_to_tool_scripts(simulated_scene_root)
+	simulated_scene_root.child_entered_tree.connect(_on_dynamic_child_entered)
 
-	# 8. Attach Simulation Ticker to drive _process and _physics_process on all non-@tool game scripts
-	ticker = InEditorSimulationTicker.new()
-	ticker.name = "SimulationTicker"
-	ticker.target_root = simulated_scene_root
-	sub_viewport.add_child(ticker)
+	sub_viewport.add_child(simulated_scene_root)
 
 	# 9. Create floating in-viewport HUD control capsule
 	_create_hud_capsule(scene_path)
@@ -164,6 +161,43 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 			"viewport_size": {"width": w, "height": h}
 		}
 	}
+
+
+## Recursively upgrade non-tool GDScripts in memory to tool scripts to avoid Placeholder instances
+func _upgrade_to_tool_scripts(node: Node) -> void:
+	if not is_instance_valid(node):
+		return
+
+	var scr: Script = node.get_script()
+	if scr is GDScript:
+		if not scr.is_tool():
+			var src: String = scr.source_code
+			if not src.begins_with("@tool"):
+				var tool_scr := GDScript.new()
+				tool_scr.source_code = "@tool\n" + src
+				var err := tool_scr.reload()
+				if err == OK:
+					var prop_values := {}
+					for p in scr.get_script_property_list():
+						var p_name: String = p.name
+						if not p_name.begins_with("@") and not p_name.begins_with("resource_"):
+							var val = node.get(p_name)
+							if val != null:
+								prop_values[p_name] = val
+
+					node.set_script(tool_scr)
+
+					for p_name in prop_values:
+						node.set(p_name, prop_values[p_name])
+				else:
+					push_warning("[InEditorGameRunner] Failed to compile tool script wrapper for %s (err: %d)" % [node.name, err])
+
+	for child in node.get_children():
+		_upgrade_to_tool_scripts(child)
+
+
+func _on_dynamic_child_entered(child: Node) -> void:
+	_upgrade_to_tool_scripts(child)
 
 
 ## Update overlay position and size to match the 3D main screen area exactly
@@ -254,11 +288,7 @@ func stop_simulation() -> Dictionary:
 		edited_root.process_mode = _saved_edited_process_mode
 		edited_root.visible = _saved_edited_visible
 
-	# 4. Free simulation ticker and simulated game nodes
-	if ticker and is_instance_valid(ticker):
-		ticker.queue_free()
-		ticker = null
-
+	# 4. Free simulated game nodes and overlay
 	if simulated_scene_root and is_instance_valid(simulated_scene_root):
 		simulated_scene_root.queue_free()
 		simulated_scene_root = null
@@ -306,72 +336,3 @@ func capture_frame_image() -> Image:
 		if tex:
 			return tex.get_image()
 	return null
-
-
-## =============================================================================
-## Inner Class: InEditorSimulationTicker
-## Drives continuous _process(delta) and _physics_process(delta) callbacks
-## across all non-@tool game script nodes in the SubViewport simulation sandbox.
-## =============================================================================
-class InEditorSimulationTicker extends Node:
-	var target_root: Node = null
-	var _process_nodes: Array[Node] = []
-	var _physics_nodes: Array[Node] = []
-
-	func _ready() -> void:
-		process_mode = Node.PROCESS_MODE_ALWAYS
-		_rescan_nodes()
-		if target_root and is_instance_valid(target_root):
-			target_root.child_entered_tree.connect(_on_child_entered)
-			target_root.child_exiting_tree.connect(_on_child_exiting)
-
-	func _process(delta: float) -> void:
-		for i in range(_process_nodes.size() - 1, -1, -1):
-			var node := _process_nodes[i]
-			if not is_instance_valid(node) or not node.is_inside_tree():
-				_process_nodes.remove_at(i)
-				continue
-			if node.process_mode == Node.PROCESS_MODE_DISABLED:
-				continue
-			if node.has_method("_process"):
-				node.call("_process", delta)
-
-	func _physics_process(delta: float) -> void:
-		for i in range(_physics_nodes.size() - 1, -1, -1):
-			var node := _physics_nodes[i]
-			if not is_instance_valid(node) or not node.is_inside_tree():
-				_physics_nodes.remove_at(i)
-				continue
-			if node.process_mode == Node.PROCESS_MODE_DISABLED:
-				continue
-			if node.has_method("_physics_process"):
-				node.call("_physics_process", delta)
-
-	func _on_child_entered(node: Node) -> void:
-		_register_node_recursive(node)
-
-	func _on_child_exiting(node: Node) -> void:
-		_unregister_node_recursive(node)
-
-	func _rescan_nodes() -> void:
-		_process_nodes.clear()
-		_physics_nodes.clear()
-		if target_root and is_instance_valid(target_root):
-			_register_node_recursive(target_root)
-
-	func _register_node_recursive(node: Node) -> void:
-		if not is_instance_valid(node):
-			return
-		if node.get_script() != null:
-			if node.has_method("_process") and not _process_nodes.has(node):
-				_process_nodes.append(node)
-			if node.has_method("_physics_process") and not _physics_nodes.has(node):
-				_physics_nodes.append(node)
-		for child in node.get_children():
-			_register_node_recursive(child)
-
-	func _unregister_node_recursive(node: Node) -> void:
-		_process_nodes.erase(node)
-		_physics_nodes.erase(node)
-		for child in node.get_children():
-			_unregister_node_recursive(child)
