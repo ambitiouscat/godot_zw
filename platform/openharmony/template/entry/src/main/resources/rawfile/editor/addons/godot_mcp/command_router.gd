@@ -55,6 +55,31 @@ func _register_commands() -> void:
 		for method_name: String in methods:
 			_command_handlers[method_name] = methods[method_name]
 
+	# In-Editor Simulation Runner (OpenHarmony Zero-Subprocess Architecture)
+	var game_runner = preload("res://addons/godot_mcp/in_editor_game_runner.gd").new()
+	game_runner.name = "InEditorGameRunner"
+	game_runner.editor_plugin = editor_plugin
+	add_child(game_runner)
+
+	_command_handlers["play_scene"] = func(p: Dictionary):
+		var path: String = p.get("path", p.get("scene", ""))
+		return game_runner.start_simulation(path)
+	_command_handlers["play_main_scene"] = func(p: Dictionary):
+		var path: String = p.get("scene", p.get("path", ""))
+		return game_runner.start_simulation(path)
+	_command_handlers["run_project"] = _command_handlers["play_main_scene"]
+	_command_handlers["play_current_scene"] = func(p: Dictionary):
+		var cur := ""
+		if editor_plugin and EditorInterface.get_edited_scene_root():
+			cur = EditorInterface.get_edited_scene_root().scene_file_path
+		return game_runner.start_simulation(cur)
+	_command_handlers["stop_project"] = func(_p: Dictionary):
+		return game_runner.stop_simulation()
+	_command_handlers["stop_scene"] = _command_handlers["stop_project"]
+	_command_handlers["stop_playing_scene"] = _command_handlers["stop_project"]
+	_command_handlers["is_simulation_running"] = func(_p: Dictionary):
+		return {"result": {"is_running": game_runner.is_running, "scene": game_runner.running_scene_path}}
+
 	# Compatibility aliases
 	if _command_handlers.has("add_node"):
 		_command_handlers["create_node"] = _command_handlers["add_node"]
@@ -140,10 +165,6 @@ func _register_commands() -> void:
 		_command_handlers["set_main_scene"] = func(p: Dictionary):
 			var scene: String = p.get("scene", p.get("path", p.get("main_scene", "")))
 			return _command_handlers["set_project_setting"].call({"key": "application/run/main_scene", "value": scene})
-	if _command_handlers.has("run_project"):
-		_command_handlers["play_main_scene"] = _command_handlers["run_project"]
-		_command_handlers["play_scene"] = _command_handlers["run_scene"]
-		_command_handlers["play_current_scene"] = _command_handlers["run_current_scene"]
 
 	# Additional tool aliases
 	_command_handlers["get_editor_state"] = func(p: Dictionary):
@@ -207,10 +228,6 @@ func _register_commands() -> void:
 				elif cp.has("source"): cp["node_path"] = cp["source"]
 			return _command_handlers["move_node"].call(cp)
 
-	if _command_handlers.has("stop_scene"):
-		_command_handlers["stop_project"] = _command_handlers["stop_scene"]
-		_command_handlers["stop_playing_scene"] = _command_handlers["stop_scene"]
-
 	_command_handlers["save_project_settings"] = func(p: Dictionary):
 		var err := ProjectSettings.save()
 		if err == OK:
@@ -227,6 +244,19 @@ func _register_commands() -> void:
 			var cp := p.duplicate()
 			if not cp.has("action") and cp.has("action_name"):
 				cp["action"] = cp["action_name"]
+			if not cp.has("events") or not (cp["events"] is Array):
+				var ev_list: Array = []
+				if cp.has("key") or cp.has("keycode"):
+					var k_str: String = str(cp.get("key", cp.get("keycode", "Space")))
+					if k_str.begins_with("Key_"):
+						k_str = k_str.substr(4)
+					var k_code: int = OS.find_keycode_from_string(k_str)
+					if k_code == 0:
+						k_code = KEY_SPACE
+					ev_list.append({"type": "key", "keycode": k_code})
+				else:
+					ev_list.append({"type": "key", "keycode": KEY_SPACE})
+				cp["events"] = ev_list
 			return await _command_handlers["set_input_action"].call(cp)
 
 	_command_handlers["list_methods"] = func(_p: Dictionary):

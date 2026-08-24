@@ -30,6 +30,7 @@
     "commands/test_commands.gd",
     "commands/theme_commands.gd",
     "commands/tilemap_commands.gd",
+    "in_editor_game_runner.gd",
     "mcp_game_inspector_service.gd",
     "mcp_input_service.gd",
     "mcp_screenshot_service.gd",

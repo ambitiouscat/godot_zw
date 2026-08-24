@@ -158,10 +158,44 @@ func _simulate_sequence(params: Dictionary) -> Dictionary:
 
 
 func _write_commands(events: Array) -> void:
+	var runner = get_tree().root.find_child("InEditorGameRunner", true, false)
+	if runner and runner.has_method("forward_input_event") and runner.is_running:
+		for ev_data in events:
+			var ev: InputEvent = null
+			var etype: String = ev_data.get("type", "")
+			if etype == "key":
+				var ikey := InputEventKey.new()
+				var kstr: String = ev_data.get("keycode", "")
+				if kstr.begins_with("Key_"):
+					kstr = kstr.substr(4)
+				var code: int = OS.find_keycode_from_string(kstr)
+				ikey.keycode = code if code != 0 else KEY_SPACE
+				ikey.pressed = ev_data.get("pressed", true)
+				ikey.shift_pressed = ev_data.get("shift", false)
+				ikey.ctrl_pressed = ev_data.get("ctrl", false)
+				ikey.alt_pressed = ev_data.get("alt", false)
+				ev = ikey
+			elif etype == "mouse_button":
+				var imouse := InputEventMouseButton.new()
+				imouse.button_index = ev_data.get("button", MOUSE_BUTTON_LEFT)
+				imouse.pressed = ev_data.get("pressed", true)
+				imouse.double_click = ev_data.get("double_click", false)
+				var pos_dict: Dictionary = ev_data.get("position", {})
+				imouse.position = Vector2(pos_dict.get("x", 0.0), pos_dict.get("y", 0.0))
+				ev = imouse
+			elif etype == "mouse_move":
+				var imove := InputEventMouseMotion.new()
+				var pos_dict: Dictionary = ev_data.get("position", {})
+				imove.position = Vector2(pos_dict.get("x", 0.0), pos_dict.get("y", 0.0))
+				var rel_dict: Dictionary = ev_data.get("relative", {})
+				imove.relative = Vector2(rel_dict.get("x", 0.0), rel_dict.get("y", 0.0))
+				ev = imove
+			if ev:
+				runner.forward_input_event(ev)
+
 	var json := JSON.stringify(events)
 	var file := FileAccess.open(COMMANDS_PATH, FileAccess.WRITE)
 	if file == null:
-		push_error("[MCP Input] Failed to write commands: %s" % error_string(FileAccess.get_open_error()))
 		return
 	file.store_string(json)
 	file.close()

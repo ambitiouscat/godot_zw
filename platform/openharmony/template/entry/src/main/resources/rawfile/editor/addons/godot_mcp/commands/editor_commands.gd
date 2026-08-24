@@ -284,9 +284,31 @@ func _get_editor_screenshot(params: Dictionary) -> Dictionary:
 
 
 func _get_game_screenshot(params: Dictionary) -> Dictionary:
+	var runner = get_tree().root.find_child("InEditorGameRunner", true, false)
+	if runner and runner.has_method("capture_frame_image") and runner.is_running:
+		var image: Image = runner.capture_frame_image()
+		if image != null:
+			var save_path_param: String = params.get("save_path", params.get("path", ""))
+			var return_path := "res://screenshots/game_viewport.png"
+			if not save_path_param.is_empty():
+				return_path = save_path_param
+			var abs_path := _resolve_save_path(return_path)
+			DirAccess.make_dir_recursive_absolute(abs_path.get_base_dir())
+			var save_err := image.save_png(abs_path)
+			if save_err != OK:
+				return error_internal("Failed to save screenshot to %s: %s" % [abs_path, error_string(save_err)])
+			return success({
+				"path": return_path,
+				"global_path": abs_path,
+				"width": image.get_width(),
+				"height": image.get_height(),
+				"format": "png",
+				"source": "in_editor_subviewport"
+			})
+
 	var ei := get_editor()
 	if not ei.is_playing_scene():
-		return error(-32000, "No scene is currently playing", {"suggestion": "Use play_scene first"})
+		return await _get_editor_screenshot(params)
 
 	# Communicate with the game process via file system
 	var user_dir := get_game_user_dir()
