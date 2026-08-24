@@ -107,6 +107,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	var w: int = int(ProjectSettings.get_setting("display/window/size/viewport_width", 1280))
 	var h: int = int(ProjectSettings.get_setting("display/window/size/viewport_height", 720))
 	sub_viewport.size = Vector2i(w, h)
+	sub_viewport.own_world_3d = true
 	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	sub_viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	sub_viewport.handle_input_locally = true
