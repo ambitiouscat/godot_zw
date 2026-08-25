@@ -46,7 +46,7 @@ func _register_commands() -> void:
 
 	process_mode = Node.PROCESS_MODE_ALWAYS
 
-	for cmd_class in command_classes:
+	for cmd_class: GDScript in command_classes:
 		var cmd: Node = cmd_class.new()
 		cmd.process_mode = Node.PROCESS_MODE_ALWAYS
 		cmd.editor_plugin = editor_plugin
@@ -56,28 +56,28 @@ func _register_commands() -> void:
 			_command_handlers[method_name] = methods[method_name]
 
 	# In-Editor Simulation Runner (OpenHarmony Zero-Subprocess Architecture)
-	var game_runner = preload("res://addons/godot_mcp/in_editor_game_runner.gd").new()
+	var game_runner: Node = preload("res://addons/godot_mcp/in_editor_game_runner.gd").new()
 	game_runner.name = "InEditorGameRunner"
 	game_runner.editor_plugin = editor_plugin
 	add_child(game_runner)
 
-	_command_handlers["play_scene"] = func(p: Dictionary):
+	_command_handlers["play_scene"] = func(p: Dictionary) -> Dictionary:
 		var path: String = p.get("path", p.get("scene", ""))
 		return game_runner.start_simulation(path)
-	_command_handlers["play_main_scene"] = func(p: Dictionary):
+	_command_handlers["play_main_scene"] = func(p: Dictionary) -> Dictionary:
 		var path: String = p.get("scene", p.get("path", ""))
 		return game_runner.start_simulation(path)
 	_command_handlers["run_project"] = _command_handlers["play_main_scene"]
-	_command_handlers["play_current_scene"] = func(p: Dictionary):
-		var cur := ""
+	_command_handlers["play_current_scene"] = func(_p: Dictionary) -> Dictionary:
+		var cur: String = ""
 		if editor_plugin and EditorInterface.get_edited_scene_root():
 			cur = EditorInterface.get_edited_scene_root().scene_file_path
 		return game_runner.start_simulation(cur)
-	_command_handlers["stop_project"] = func(_p: Dictionary):
+	_command_handlers["stop_project"] = func(_p: Dictionary) -> Dictionary:
 		return game_runner.stop_simulation()
 	_command_handlers["stop_scene"] = _command_handlers["stop_project"]
 	_command_handlers["stop_playing_scene"] = _command_handlers["stop_project"]
-	_command_handlers["is_simulation_running"] = func(_p: Dictionary):
+	_command_handlers["is_simulation_running"] = func(_p: Dictionary) -> Dictionary:
 		return {"result": {"is_running": game_runner.is_running, "scene": game_runner.running_scene_path}}
 
 	# Compatibility aliases

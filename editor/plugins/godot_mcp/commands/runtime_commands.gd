@@ -29,15 +29,22 @@ func get_commands() -> Dictionary:
 	}
 
 
+func _get_active_runner() -> Node:
+	var runner: Node = preload("res://addons/godot_mcp/in_editor_game_runner.gd").get_instance()
+	if runner == null and is_instance_valid(get_tree()) and is_instance_valid(get_tree().root):
+		runner = get_tree().root.find_child("InEditorGameRunner", true, false)
+	return runner
+
+
 func _get_active_simulated_root() -> Node:
-	var runner = get_tree().root.find_child("InEditorGameRunner", true, false)
+	var runner: Node = _get_active_runner()
 	if runner and runner.has_method("get_simulated_root"):
 		return runner.get_simulated_root()
 	return null
 
 
 func _serialize_simulated_node(node: Node, max_depth: int, current_depth: int) -> Dictionary:
-	var data := {
+	var data: Dictionary = {
 		"name": node.name,
 		"class": node.get_class(),
 		"path": str(node.get_path()),
@@ -47,8 +54,8 @@ func _serialize_simulated_node(node: Node, max_depth: int, current_depth: int) -
 	if node.get_script():
 		data["script"] = node.get_script().resource_path
 	if max_depth < 0 or current_depth < max_depth:
-		var children: Array = []
-		for child in node.get_children():
+		var children: Array[Dictionary] = []
+		for child: Node in node.get_children():
 			children.append(_serialize_simulated_node(child, max_depth, current_depth + 1))
 		data["children"] = children
 	return data
@@ -57,20 +64,20 @@ func _serialize_simulated_node(node: Node, max_depth: int, current_depth: int) -
 func _find_simulated_node(root: Node, path_str: String) -> Node:
 	if path_str.is_empty() or path_str == "." or path_str == root.name or path_str == "/root":
 		return root
-	var clean_path := path_str.trim_prefix(".").trim_prefix("/")
+	var clean_path: String = path_str.trim_prefix(".").trim_prefix("/")
 	if root.has_node(clean_path):
 		return root.get_node(clean_path)
 	return root.find_child(clean_path.get_file(), true, false)
 
 
 func _get_game_scene_tree(params: Dictionary) -> Dictionary:
-	var sim_root := _get_active_simulated_root()
+	var sim_root: Node = _get_active_simulated_root()
 	var max_depth: int = optional_int(params, "max_depth", -1)
 	if sim_root and is_instance_valid(sim_root):
-		var tree_data := _serialize_simulated_node(sim_root, max_depth, 0)
+		var tree_data: Dictionary = _serialize_simulated_node(sim_root, max_depth, 0)
 		return success({"tree": tree_data, "mode": "in_editor_viewport", "root_name": sim_root.name})
 
-	var cmd_params := {"max_depth": max_depth}
+	var cmd_params: Dictionary = {"max_depth": max_depth}
 	var script_filter: String = optional_string(params, "script_filter")
 	if not script_filter.is_empty():
 		cmd_params["script_filter"] = script_filter
@@ -85,28 +92,28 @@ func _get_game_scene_tree(params: Dictionary) -> Dictionary:
 
 
 func _get_game_node_properties(params: Dictionary) -> Dictionary:
-	var result := require_string(params, "node_path")
+	var result: Array = require_string(params, "node_path")
 	if result[1] != null:
 		return result[1]
 
-	var sim_root := _get_active_simulated_root()
+	var sim_root: Node = _get_active_simulated_root()
 	if sim_root and is_instance_valid(sim_root):
-		var target := _find_simulated_node(sim_root, result[0])
+		var target: Node = _find_simulated_node(sim_root, result[0])
 		if target == null:
 			return error_not_found("Node '%s' not found in active simulation" % result[0])
 		var props: Dictionary = {}
 		var requested_props: Array = params.get("properties", [])
 		if requested_props.is_empty():
-			for p in target.get_property_list():
-				var pname: String = p["name"]
+			for p: Dictionary in target.get_property_list():
+				var pname: String = str(p.get("name", ""))
 				if not pname.begins_with("_"):
 					props[pname] = target.get(pname)
 		else:
-			for pname in requested_props:
+			for pname: Variant in requested_props:
 				props[str(pname)] = target.get(str(pname))
 		return success({"node_path": str(target.get_path()), "properties": props, "mode": "in_editor_viewport"})
 
-	var cmd_params := {"node_path": result[0]}
+	var cmd_params: Dictionary = {"node_path": result[0]}
 	if params.has("properties") and params["properties"] is Array:
 		cmd_params["properties"] = params["properties"]
 
@@ -171,12 +178,12 @@ func _capture_frames(params: Dictionary) -> Dictionary:
 	var frame_interval: int = optional_int(params, "frame_interval", 10)
 	var half_resolution: bool = optional_bool(params, "half_resolution", true)
 
-	var runner = get_tree().root.find_child("InEditorGameRunner", true, false)
+	var runner: Node = _get_active_runner()
 	if runner and runner.has_method("capture_frame_image") and runner.is_running:
-		var frames: Array = []
-		var dir_path := ProjectSettings.globalize_path("res://screenshots")
+		var frames: Array[Dictionary] = []
+		var dir_path: String = ProjectSettings.globalize_path("res://screenshots")
 		DirAccess.make_dir_recursive_absolute(dir_path)
-		for i in range(count):
+		for i: int in range(count):
 			var img: Image = runner.capture_frame_image()
 			if img:
 				var path := "res://screenshots/frame_%d_%d.png" % [Time.get_ticks_msec(), i]

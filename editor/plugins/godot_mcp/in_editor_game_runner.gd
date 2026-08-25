@@ -318,7 +318,7 @@ func _create_hud_capsule(scene_path: String) -> void:
 	stop_btn.text = "⏹ 退出"
 	stop_btn.tooltip_text = "停止当前仿真并返回 3D 编辑器"
 	stop_btn.focus_mode = Control.FOCUS_NONE
-	stop_btn.pressed.connect(func(): stop_simulation())
+	stop_btn.pressed.connect(func() -> void: stop_simulation())
 	hbox.add_child(stop_btn)
 
 	hud_layer.add_child(hud_panel)
@@ -359,7 +359,7 @@ func stop_simulation() -> Dictionary:
 		edited_root.visible = _saved_edited_visible
 
 	# 6. Free simulated game nodes, instantiated autoloads, input proxy, and overlay
-	for auto_node in _instantiated_autoloads:
+	for auto_node: Node in _instantiated_autoloads:
 		if is_instance_valid(auto_node):
 			auto_node.queue_free()
 	_instantiated_autoloads.clear()
