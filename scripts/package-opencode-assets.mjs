@@ -473,8 +473,31 @@ export function applyHarmonyPatches(stagingRoot) {
     if (c.includes(oldRelRootLF)) c = c.replace(oldRelRootLF, newRelRoot);
     else if (c.includes(oldRelRootCRLF)) c = c.replace(oldRelRootCRLF, newRelRoot);
 
+    // 6. Safeguard createOpenAICompatible URL resolution & alias normalization
+    const oldCreateOpenAI = `function createOpenAICompatible(options10) {\n  const baseURL = withoutTrailingSlash(options10.baseURL);`;
+    const oldCreateOpenAICRLF = `function createOpenAICompatible(options10) {\r\n  const baseURL = withoutTrailingSlash(options10.baseURL);`;
+    const newCreateOpenAI = `function createOpenAICompatible(options10) {\n  const rawBaseURL = options10.baseURL || options10.baseUrl || options10.endpoint || options10.url || "";\n  const baseURL = withoutTrailingSlash(rawBaseURL ? String(rawBaseURL).trim() : "");`;
+    if (c.includes(oldCreateOpenAI)) {
+      c = c.replace(oldCreateOpenAI, newCreateOpenAI);
+      console.log("    ✓ Patched createOpenAICompatible baseURL resolution");
+    } else if (c.includes(oldCreateOpenAICRLF)) {
+      c = c.replace(oldCreateOpenAICRLF, newCreateOpenAI);
+      console.log("    ✓ Patched createOpenAICompatible baseURL resolution (CRLF)");
+    }
+
+    const oldUrlConstructor = `url: ({ path: path23 }) => {\n      const url3 = new URL(\`\${baseURL}\${path23}\`);`;
+    const oldUrlConstructorCRLF = `url: ({ path: path23 }) => {\r\n      const url3 = new URL(\`\${baseURL}\${path23}\`);`;
+    const newUrlConstructor = `url: ({ path: path23 }) => {\n      const base = baseURL || "https://api.openai.com/v1";\n      const p = String(path23).startsWith("/") ? path23 : "/" + path23;\n      const url3 = new URL(\`\${base}\${p}\`);`;
+    if (c.includes(oldUrlConstructor)) {
+      c = c.replace(oldUrlConstructor, newUrlConstructor);
+      console.log("    ✓ Patched createOpenAICompatible url construction");
+    } else if (c.includes(oldUrlConstructorCRLF)) {
+      c = c.replace(oldUrlConstructorCRLF, newUrlConstructor);
+      console.log("    ✓ Patched createOpenAICompatible url construction (CRLF)");
+    }
+
     writeFileSync(runtimePath, c, "utf8");
-    console.log("    ✓ Patched opencode-harmony-runtime.mjs in staging (SkillTool, no-rg, clean template, sandbox)");
+    console.log("    ✓ Patched opencode-harmony-runtime.mjs in staging (SkillTool, no-rg, clean template, sandbox, custom provider)");
   }
 
   if (existsSync(appJsPath)) {
