@@ -101,7 +101,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	sub_viewport_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	overlay_root.add_child(sub_viewport_container)
 
-	# 6. Create SubViewport with 100% isolated 3D world and enabled audio listeners
+	# 6. Create SubViewport with 100% isolated 3D/2D world and enabled audio listeners
 	sub_viewport = SubViewport.new()
 	sub_viewport.name = "InEditorGameViewport"
 	
@@ -109,6 +109,7 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 	var h: int = int(ProjectSettings.get_setting("display/window/size/viewport_height", 720))
 	sub_viewport.size = Vector2i(w, h)
 	sub_viewport.own_world_3d = true
+	sub_viewport.world_2d = World2D.new()
 	sub_viewport.audio_listener_enable_3d = true
 	sub_viewport.audio_listener_enable_2d = true
 	sub_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -136,7 +137,10 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 
 	# 9. Upgrade all scripts in-memory to tool scripts so Godot creates real GDScriptInstances (not Placeholders)
 	_upgrade_to_tool_scripts(simulated_scene_root)
-	simulated_scene_root.child_entered_tree.connect(_on_dynamic_child_entered)
+
+	# Hook global SceneTree node_added to upgrade deep dynamic descendants instantiated at runtime
+	if get_tree() and not get_tree().node_added.is_connected(_on_tree_node_added):
+		get_tree().node_added.connect(_on_tree_node_added)
 
 	sub_viewport.add_child(simulated_scene_root)
 
@@ -193,8 +197,8 @@ func start_simulation(scene_path: String = "") -> Dictionary:
 ## Instantiate project Autoload singletons into the simulation SubViewport
 func _instantiate_autoloads() -> void:
 	_instantiated_autoloads.clear()
-	for prop in ProjectSettings.get_property_list():
-		var p_name: String = prop.name
+	for prop: Dictionary in ProjectSettings.get_property_list():
+		var p_name: String = str(prop.get("name", ""))
 		if p_name.begins_with("autoload/"):
 			var auto_name: String = p_name.trim_prefix("autoload/")
 			# Skip MCP internal autoloads
@@ -217,6 +221,13 @@ func _instantiate_autoloads() -> void:
 					_instantiated_autoloads.append(auto_node)
 
 
+## Global SceneTree hook to upgrade any deeply dynamically spawned child nodes
+func _on_tree_node_added(node: Node) -> void:
+	if is_running and sub_viewport and is_instance_valid(sub_viewport) and is_instance_valid(node):
+		if sub_viewport.is_ancestor_of(node):
+			_upgrade_to_tool_scripts(node)
+
+
 ## Recursively upgrade non-tool GDScripts in memory to tool scripts to avoid Placeholder instances
 func _upgrade_to_tool_scripts(node: Node) -> void:
 	if not is_instance_valid(node):
@@ -229,29 +240,25 @@ func _upgrade_to_tool_scripts(node: Node) -> void:
 			if not src.begins_with("@tool"):
 				var tool_scr := GDScript.new()
 				tool_scr.source_code = "@tool\n" + src
-				var err := tool_scr.reload()
+				var err: Error = tool_scr.reload()
 				if err == OK:
-					var prop_values := {}
-					for p in scr.get_script_property_list():
-						var p_name: String = p.name
+					var prop_values: Dictionary = {}
+					for p: Dictionary in scr.get_script_property_list():
+						var p_name: String = str(p.get("name", ""))
 						if not p_name.begins_with("@") and not p_name.begins_with("resource_"):
-							var val = node.get(p_name)
+							var val: Variant = node.get(p_name)
 							if val != null:
 								prop_values[p_name] = val
 
 					node.set_script(tool_scr)
 
-					for p_name in prop_values:
+					for p_name: String in prop_values:
 						node.set(p_name, prop_values[p_name])
 				else:
 					push_warning("[InEditorGameRunner] Failed to compile tool script wrapper for %s (err: %d)" % [node.name, err])
 
-	for child in node.get_children():
+	for child: Node in node.get_children():
 		_upgrade_to_tool_scripts(child)
-
-
-func _on_dynamic_child_entered(child: Node) -> void:
-	_upgrade_to_tool_scripts(child)
 
 
 ## Update overlay position and size to match the 3D main screen area exactly
@@ -327,13 +334,17 @@ func stop_simulation() -> Dictionary:
 	is_running = false
 	running_scene_path = ""
 
-	# 1. Restore editor cursor mode
+	# 1. Unhook global node_added signal
+	if get_tree() and get_tree().node_added.is_connected(_on_tree_node_added):
+		get_tree().node_added.disconnect(_on_tree_node_added)
+
+	# 2. Restore editor cursor mode
 	Input.mouse_mode = Input.MOUSE_MODE_VISIBLE
 
-	# 2. Restore editor low-processor power saving mode
+	# 3. Restore editor low-processor power saving mode
 	OS.low_processor_usage_mode = _saved_low_processor_mode
 
-	# 3. Unbind main_screen resize events
+	# 4. Unbind main_screen resize events
 	var main_screen: Control = EditorInterface.get_editor_main_screen()
 	if main_screen and is_instance_valid(main_screen):
 		if main_screen.resized.is_connected(_update_overlay_rect):
@@ -341,13 +352,13 @@ func stop_simulation() -> Dictionary:
 		if main_screen.item_rect_changed.is_connected(_update_overlay_rect):
 			main_screen.item_rect_changed.disconnect(_update_overlay_rect)
 
-	# 4. Restore background 3D editor scene visibility and processing
+	# 5. Restore background 3D editor scene visibility and processing
 	var edited_root := EditorInterface.get_edited_scene_root()
 	if edited_root and is_instance_valid(edited_root):
 		edited_root.process_mode = _saved_edited_process_mode
 		edited_root.visible = _saved_edited_visible
 
-	# 5. Free simulated game nodes, instantiated autoloads, input proxy, and overlay
+	# 6. Free simulated game nodes, instantiated autoloads, input proxy, and overlay
 	for auto_node in _instantiated_autoloads:
 		if is_instance_valid(auto_node):
 			auto_node.queue_free()
