@@ -158774,7 +158774,8 @@ async function fileToBlob2(file5) {
   return new Blob([data2], { type: file5.mediaType });
 }
 function createOpenAICompatible(options10) {
-  const baseURL = withoutTrailingSlash(options10.baseURL);
+  const rawBaseURL = options10.baseURL || options10.baseUrl || options10.endpoint || options10.url || "";
+  const baseURL = withoutTrailingSlash(rawBaseURL ? String(rawBaseURL).trim() : "");
   const providerName = options10.name;
   const headers = {
     ...options10.apiKey && { Authorization: `Bearer ${options10.apiKey}` },
@@ -158784,7 +158785,9 @@ function createOpenAICompatible(options10) {
   const getCommonModelConfig = (modelType) => ({
     provider: `${providerName}.${modelType}`,
     url: ({ path: path23 }) => {
-      const url3 = new URL(`${baseURL}${path23}`);
+      const base = baseURL || "https://api.openai.com/v1";
+      const p = String(path23).startsWith("/") ? path23 : "/" + path23;
+      const url3 = new URL(`${base}${p}`);
       if (options10.queryParams) {
         url3.search = new URLSearchParams(options10.queryParams).toString();
       }
