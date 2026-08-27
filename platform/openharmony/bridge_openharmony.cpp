@@ -53,6 +53,7 @@
 #endif
 
 #include "core/config/project_settings.h"
+#include "core/io/file_access.h"
 #include "core/input/input.h"
 #include "core/input/input_event.h"
 #include "core/variant/variant.h"
@@ -73,6 +74,137 @@ static String restart_arguments;
 // Project directory set from ArkTS (persistent directory for editor projects)
 static String project_directory;
 static CharString project_directory_utf8;
+
+static constexpr const char *RUNTIME_SCREENSHOT_AUTOLOAD_NAME = "__GodotMCPRuntimeCapture";
+static constexpr const char *RUNTIME_SCREENSHOT_SCRIPT_PATH = "res://addons/godot_mcp/mcp_screenshot_service.gd";
+static constexpr const char *RUNTIME_SCREENSHOT_SESSION_ENV = "GODOT_MCP_RUNTIME_SESSION_ID";
+static constexpr const char *RUNTIME_SCREENSHOT_OPERATION_ENV = "GODOT_MCP_RUNTIME_OPERATION_ID";
+static constexpr const char *RUNTIME_SCREENSHOT_NONCE_ENV = "GODOT_MCP_RUNTIME_BOOT_NONCE";
+
+// This context is deliberately process-local. It is only set by GameAbility's
+// ArkTS bootstrap before setup, and is erased at finalize or before a later
+// bootstrap. It must never be serialized to project settings.
+static String runtime_screenshot_session_id;
+static String runtime_screenshot_operation_id;
+static String runtime_screenshot_boot_nonce;
+static bool runtime_screenshot_autoload_injected = false;
+static bool runtime_screenshot_init_started = false;
+
+static bool _is_runtime_correlation_token(const String &p_value) {
+	if (p_value.is_empty() || p_value.length() > 160) {
+		return false;
+	}
+	if (p_value == "." || p_value == "..") {
+		return false;
+	}
+	for (int i = 0; i < p_value.length(); i++) {
+		const char32_t c = p_value[i];
+		const bool allowed = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+				(c >= '0' && c <= '9') || c == '.' || c == '_' || c == ':' || c == '-';
+		if (!allowed) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static bool _has_valid_runtime_screenshot_context() {
+	return _is_runtime_correlation_token(runtime_screenshot_session_id) &&
+			_is_runtime_correlation_token(runtime_screenshot_operation_id) &&
+			_is_runtime_correlation_token(runtime_screenshot_boot_nonce);
+}
+
+static void _clear_injected_runtime_screenshot_autoload() {
+	if (!runtime_screenshot_autoload_injected) {
+		return;
+	}
+	ProjectSettings *settings = ProjectSettings::get_singleton();
+	const StringName autoload_name = StringName(RUNTIME_SCREENSHOT_AUTOLOAD_NAME);
+	if (settings && settings->has_autoload(autoload_name)) {
+		const ProjectSettings::AutoloadInfo info = settings->get_autoload(autoload_name);
+		if (info.path == RUNTIME_SCREENSHOT_SCRIPT_PATH && !info.is_singleton) {
+			settings->remove_autoload(autoload_name);
+		} else {
+			ERR_PRINT("Refused to remove a changed __GodotMCPRuntimeCapture Autoload while clearing the runtime capture bridge.");
+		}
+	}
+	runtime_screenshot_autoload_injected = false;
+}
+
+bool godot_set_runtime_screenshot_context(const char *p_session_id, const char *p_operation_id, const char *p_boot_nonce) {
+	if (runtime_screenshot_init_started) {
+		ERR_PRINT("Runtime screenshot context must be supplied before godot_init.");
+		return false;
+	}
+
+	// A pre-init retry replaces only bridge-owned ephemeral state.
+	_clear_injected_runtime_screenshot_autoload();
+	runtime_screenshot_session_id = p_session_id ? String::utf8(p_session_id) : String();
+	runtime_screenshot_operation_id = p_operation_id ? String::utf8(p_operation_id) : String();
+	runtime_screenshot_boot_nonce = p_boot_nonce ? String::utf8(p_boot_nonce) : String();
+	if (!_has_valid_runtime_screenshot_context()) {
+		ERR_PRINT("Refused incomplete or invalid GameAbility screenshot correlation context.");
+		godot_clear_runtime_screenshot_context();
+		return false;
+	}
+
+	setenv(RUNTIME_SCREENSHOT_SESSION_ENV, runtime_screenshot_session_id.utf8().get_data(), 1);
+	setenv(RUNTIME_SCREENSHOT_OPERATION_ENV, runtime_screenshot_operation_id.utf8().get_data(), 1);
+	setenv(RUNTIME_SCREENSHOT_NONCE_ENV, runtime_screenshot_boot_nonce.utf8().get_data(), 1);
+	return true;
+}
+
+void godot_clear_runtime_screenshot_context() {
+	_clear_injected_runtime_screenshot_autoload();
+	runtime_screenshot_session_id = String();
+	runtime_screenshot_operation_id = String();
+	runtime_screenshot_boot_nonce = String();
+	unsetenv(RUNTIME_SCREENSHOT_SESSION_ENV);
+	unsetenv(RUNTIME_SCREENSHOT_OPERATION_ENV);
+	unsetenv(RUNTIME_SCREENSHOT_NONCE_ENV);
+}
+
+static bool _is_game_command_line(const Vector<String> &p_args) {
+	for (const String &arg : p_args) {
+		if (arg == "--editor" || arg == "--project-manager") {
+			return false;
+		}
+	}
+	return true;
+}
+
+static Error _inject_runtime_screenshot_autoload(const Vector<String> &p_args) {
+	if (!_has_valid_runtime_screenshot_context()) {
+		return OK;
+	}
+	if (!_is_game_command_line(p_args)) {
+		ERR_PRINT("Refused GameAbility screenshot Autoload injection outside game mode.");
+		return ERR_INVALID_PARAMETER;
+	}
+	if (!FileAccess::exists(RUNTIME_SCREENSHOT_SCRIPT_PATH)) {
+		ERR_PRINT(vformat("GameAbility screenshot service is missing: %s", RUNTIME_SCREENSHOT_SCRIPT_PATH));
+		return ERR_FILE_NOT_FOUND;
+	}
+
+	ProjectSettings *settings = ProjectSettings::get_singleton();
+	if (!settings) {
+		ERR_PRINT("GameAbility screenshot Autoload injection requires initialized project settings.");
+		return ERR_UNCONFIGURED;
+	}
+	const StringName autoload_name = StringName(RUNTIME_SCREENSHOT_AUTOLOAD_NAME);
+	if (settings->has_autoload(autoload_name)) {
+		ERR_PRINT("Refused to overwrite existing Autoload '__GodotMCPRuntimeCapture' while enabling GameAbility screenshot capture.");
+		return ERR_ALREADY_EXISTS;
+	}
+
+	ProjectSettings::AutoloadInfo capture_autoload;
+	capture_autoload.name = autoload_name;
+	capture_autoload.path = RUNTIME_SCREENSHOT_SCRIPT_PATH;
+	capture_autoload.is_singleton = false;
+	settings->add_autoload(capture_autoload, true);
+	runtime_screenshot_autoload_injected = true;
+	return OK;
+}
 
 void godot_set_restart_arguments(const char *p_arguments) {
 	if (p_arguments) {
@@ -203,6 +335,7 @@ static std::mutex vsync_frame_mutex;
 static std::condition_variable vsync_frame_cv;
 static std::atomic<bool> vsync_frame_ready{false};
 static std::atomic<bool> godot_engine_running{false};
+static std::atomic<bool> runtime_first_frame_emitted{false};
 
 enum GodotStartupStep {
 	STEP_TERMINATED = -1,
@@ -227,6 +360,7 @@ void godot_finalize() {
 
 	if (os_openharmony) {
 		os_openharmony->main_loop_end();
+		godot_clear_runtime_screenshot_context();
 		Main::cleanup();
 		memdelete(os_openharmony);
 		os_openharmony = nullptr;
@@ -236,6 +370,7 @@ void godot_finalize() {
 		OH_NativeVSync_Destroy(native_vsync);
 		native_vsync = nullptr;
 	}
+	runtime_screenshot_init_started = false;
 }
 
 void godot_step(long long timestamp, void *data) {
@@ -325,6 +460,13 @@ static void godot_step_internal() {
 				godot_finalize();
 				return;
 			}
+			// The first completed engine main-loop iteration is the earliest native
+			// point after the GameAbility surface is attached at which ArkTS can
+			// report REAL_READY. Do not use Ability onCreate/window callbacks: they
+			// precede engine startup and can produce false-ready events.
+			if (!runtime_first_frame_emitted.exchange(true)) {
+				godot_emit_runtime_ready();
+			}
 			break;
 	}
 
@@ -358,7 +500,12 @@ static void *godot_engine_thread_func(void *p_arg) {
 }
 
 int64_t godot_init(NativeResourceManager *p_resource_manager, void *p_native_window, int32_t window_id, int64_t window_width, int64_t window_height, const char *p_allowed_permissions) {
+	runtime_screenshot_init_started = true;
+	// A prior failed/reused bootstrap must not carry an injected Autoload into
+	// this run. Preserve only the freshly supplied pre-init correlation context.
+	_clear_injected_runtime_screenshot_autoload();
 	step = STEP_SETUP;
+	runtime_first_frame_emitted.store(false);
 	OHNativeWindow *window = static_cast<OHNativeWindow *>(p_native_window);
 
 	FileAccessOpenHarmony::setup(p_resource_manager);
@@ -482,6 +629,23 @@ int64_t godot_init(NativeResourceManager *p_resource_manager, void *p_native_win
 
 	if (err != OK) {
 		g_godot_init_in_progress = false;
+		godot_clear_runtime_screenshot_context();
+		runtime_screenshot_init_started = false;
+		return err;
+	}
+
+	// Main::setup has initialized ProjectSettings, while Main::start (which
+	// loads Autoloads) has not yet run. Register only the scoped capture agent
+	// in memory; never write or save user project settings.
+	err = _inject_runtime_screenshot_autoload(args);
+	if (err != OK) {
+		ERR_PRINT("GameAbility screenshot capture bootstrap failed; refusing uncorrelated runtime capture.");
+		godot_clear_runtime_screenshot_context();
+		Main::cleanup();
+		memdelete(os_openharmony);
+		os_openharmony = nullptr;
+		g_godot_init_in_progress = false;
+		runtime_screenshot_init_started = false;
 		return err;
 	}
 
@@ -831,6 +995,22 @@ void godot_request_restart(const char *p_arguments) {
 }
 
 // ============================================================
+// Runtime first-frame ready signal
+// ============================================================
+
+static GodotRuntimeReadyCallback runtime_ready_callback = nullptr;
+
+void godot_set_runtime_ready_callback(GodotRuntimeReadyCallback p_callback) {
+	runtime_ready_callback = p_callback;
+}
+
+void godot_emit_runtime_ready() {
+	if (runtime_ready_callback) {
+		runtime_ready_callback();
+	}
+}
+
+// ============================================================
 // Process kill
 // ============================================================
 
@@ -1101,4 +1281,3 @@ void godot_notify_opencode_dock_geometry(float p_x, float p_y, float p_width, fl
 		g_opencode_dock_geometry_cb(p_x, p_y, p_width, p_height, p_is_visible);
 	}
 }
-

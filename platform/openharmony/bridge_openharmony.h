@@ -180,6 +180,12 @@ typedef void (*GodotRestartCallback)(const char *p_arguments);
 void godot_set_restart_callback(GodotRestartCallback p_callback);
 void godot_request_restart(const char *p_arguments);
 
+// Runtime first-frame callback. Emitted after the GameAbility engine has
+// completed its first main-loop iteration on the attached native surface.
+typedef void (*GodotRuntimeReadyCallback)();
+void godot_set_runtime_ready_callback(GodotRuntimeReadyCallback p_callback);
+void godot_emit_runtime_ready();
+
 // Process kill — sends kill signal to running GameAbility from Editor
 typedef void (*GodotProcessKillCallback)();
 void godot_set_process_kill_callback(GodotProcessKillCallback p_callback);
@@ -191,6 +197,13 @@ void godot_ohos_reset_editor_run_state();
 
 // Set restart arguments passed from ArkTS (used when app is restarted)
 void godot_set_restart_arguments(const char *p_arguments);
+
+// Authoritative GameAbility-only screenshot capture context. ArkTS must set a
+// complete correlation envelope before godot_init. The bridge validates it,
+// exposes it only to the GameAbility process, and injects the capture service
+// into the in-memory Autoload list without saving project settings.
+bool godot_set_runtime_screenshot_context(const char *p_session_id, const char *p_operation_id, const char *p_boot_nonce);
+void godot_clear_runtime_screenshot_context();
 
 // Set project directory (persistent directory for editor projects, from ArkTS)
 void godot_set_project_dir(const char *p_path);

@@ -40,6 +40,21 @@ let g_godotMode: string = 'pm'
 let g_projectPath: string | null = null
 let g_restartArgs: string[] | null = null
 
+/**
+ * Correlation envelope for one authoritative GameAbility launch.
+ *
+ * This module is process-local by design.  EditorAbility records the envelope
+ * while launching GameAbility; GameAbility reconstructs the same envelope from
+ * its Want parameters before it reports lifecycle events back to EditorAbility.
+ */
+export interface RuntimeLaunchMetadata {
+  sessionId: string
+  operationId: string
+  bootNonce: string
+}
+
+let g_runtimeLaunchMetadata: RuntimeLaunchMetadata | null = null
+
 export function setGodotMode(mode: string): void {
   g_godotMode = mode
 }
@@ -62,6 +77,22 @@ export function setRestartArgs(args: string[] | null): void {
 
 export function getRestartArgs(): string[] | null {
   return g_restartArgs
+}
+
+export function setRuntimeLaunchMetadata(sessionId: string, operationId: string, bootNonce: string): void {
+  g_runtimeLaunchMetadata = {
+    sessionId: sessionId,
+    operationId: operationId,
+    bootNonce: bootNonce
+  }
+}
+
+export function getRuntimeLaunchMetadata(): RuntimeLaunchMetadata | null {
+  return g_runtimeLaunchMetadata
+}
+
+export function clearRuntimeLaunchMetadata(): void {
+  g_runtimeLaunchMetadata = null
 }
 
 // Track whether Editor has launched GameAbility.

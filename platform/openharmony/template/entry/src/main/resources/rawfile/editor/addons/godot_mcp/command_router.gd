@@ -1,7 +1,11 @@
 @tool
 extends Node
 
+const Schemas = preload("res://addons/godot_mcp/lifecycle/command_schemas.gd")
+const MCPLifecycleCoordinator = preload("res://addons/godot_mcp/lifecycle/lifecycle_coordinator.gd")
+
 var editor_plugin: EditorPlugin
+var coordinator: MCPLifecycleCoordinator = null
 
 var _command_handlers: Dictionary = {}  # method_name -> Callable
 var _disabled_tools: Dictionary = {}  # method_name -> true
@@ -55,32 +59,118 @@ func _register_commands() -> void:
 		for method_name: String in methods:
 			_command_handlers[method_name] = methods[method_name]
 
-	# In-Editor Simulation Runner (OpenHarmony Zero-Subprocess Architecture)
-	var game_runner: Node = preload("res://addons/godot_mcp/in_editor_game_runner.gd").new()
-	game_runner.name = "InEditorGameRunner"
-	game_runner.editor_plugin = editor_plugin
-	add_child(game_runner)
+	# Central Lifecycle Coordinator
+	coordinator = MCPLifecycleCoordinator.new()
+	coordinator.name = "LifecycleCoordinator"
+	add_child(coordinator)
 
-	_command_handlers["play_scene"] = func(p: Dictionary) -> Dictionary:
-		var path: String = p.get("path", p.get("scene", ""))
-		return game_runner.start_simulation(path)
-	_command_handlers["play_main_scene"] = func(p: Dictionary) -> Dictionary:
-		var path: String = p.get("scene", p.get("path", ""))
-		return game_runner.start_simulation(path)
-	_command_handlers["run_project"] = _command_handlers["play_main_scene"]
-	_command_handlers["play_current_scene"] = func(_p: Dictionary) -> Dictionary:
+	# =========================================================================
+	# GameAbility Canonical Execution Commands
+	# =========================================================================
+
+	_command_handlers["run_project"] = func(p: Dictionary) -> Dictionary:
+		var scene: String = str(ProjectSettings.get_setting("application/run/main_scene", ""))
+		var sp: String = p.get("save_policy", Schemas.SAVE_POLICY_REQUIRE_CLEAN)
+		var op_id: String = p.get("operation_id", "")
+		var res: Dictionary = coordinator.request_start(Schemas.MODE_REAL_RUN, scene, sp, op_id)
+		if res.has("error"): return res
+		return {"result": res}
+
+	_command_handlers["run_scene"] = func(p: Dictionary) -> Dictionary:
+		var path: String = p.get("path", p.get("scene_path", p.get("scene", "")))
+		var sp: String = p.get("save_policy", Schemas.SAVE_POLICY_REQUIRE_CLEAN)
+		var op_id: String = p.get("operation_id", "")
+		var res: Dictionary = coordinator.request_start(Schemas.MODE_REAL_RUN, path, sp, op_id)
+		if res.has("error"): return res
+		return {"result": res}
+
+	_command_handlers["run_current_scene"] = func(p: Dictionary) -> Dictionary:
 		var cur: String = ""
 		if editor_plugin and EditorInterface.get_edited_scene_root():
 			cur = EditorInterface.get_edited_scene_root().scene_file_path
-		return game_runner.start_simulation(cur)
-	_command_handlers["stop_project"] = func(_p: Dictionary) -> Dictionary:
-		return game_runner.stop_simulation()
-	_command_handlers["stop_scene"] = _command_handlers["stop_project"]
-	_command_handlers["stop_playing_scene"] = _command_handlers["stop_project"]
-	_command_handlers["is_simulation_running"] = func(_p: Dictionary) -> Dictionary:
-		return {"result": {"is_running": game_runner.is_running, "scene": game_runner.running_scene_path}}
+		var sp: String = p.get("save_policy", Schemas.SAVE_POLICY_REQUIRE_CLEAN)
+		var op_id: String = p.get("operation_id", "")
+		var res: Dictionary = coordinator.request_start(Schemas.MODE_REAL_RUN, cur, sp, op_id)
+		if res.has("error"): return res
+		return {"result": res}
 
-	# Compatibility aliases
+	_command_handlers["stop_project"] = func(p: Dictionary) -> Dictionary:
+		var sess_id: String = p.get("session_id", "")
+		var op_id: String = p.get("operation_id", "")
+		var res: Dictionary = coordinator.request_stop(sess_id, op_id)
+		if res.has("error"): return res
+		return {"result": res}
+
+	# Lifecycle State Introspection
+	_command_handlers["get_execution_state"] = func(_p: Dictionary) -> Dictionary:
+		return {"result": coordinator.get_execution_state()}
+
+	# 4. Compatibility Aliases (Real Run)
+	_command_handlers["run_main_scene"] = _command_handlers["run_project"]
+	_command_handlers["stop_playing_scene"] = _command_handlers["stop_project"]
+
+	_command_handlers["play_main_scene"] = func(p: Dictionary) -> Dictionary:
+		var res: Dictionary = _command_handlers["run_project"].call(p)
+		if res.has("result"):
+			res["result"]["deprecated_alias"] = true
+			res["result"]["replacement"] = "run_project"
+		return res
+
+	_command_handlers["play_scene"] = func(p: Dictionary) -> Dictionary:
+		var res: Dictionary = _command_handlers["run_scene"].call(p)
+		if res.has("result"):
+			res["result"]["deprecated_alias"] = true
+			res["result"]["replacement"] = "run_scene"
+		return res
+
+	_command_handlers["play_current_scene"] = func(p: Dictionary) -> Dictionary:
+		var res: Dictionary = _command_handlers["run_current_scene"].call(p)
+		if res.has("result"):
+			res["result"]["deprecated_alias"] = true
+			res["result"]["replacement"] = "run_current_scene"
+		return res
+
+	_command_handlers["stop_scene"] = func(p: Dictionary) -> Dictionary:
+		var res: Dictionary = _command_handlers["stop_project"].call(p)
+		if res.has("result"):
+			res["result"]["deprecated_alias"] = true
+			res["result"]["replacement"] = "stop_project"
+		return res
+
+	# 5. Strict Screenshot Router with Zero Cross-Source Fallback
+	var base_editor_shot: Callable = _command_handlers.get("get_editor_screenshot", Callable())
+	var base_game_shot: Callable = _command_handlers.get("get_game_screenshot", Callable())
+
+	_command_handlers["take_screenshot"] = func(p: Dictionary) -> Dictionary:
+		var src: String = p.get("source", p.get("viewport", Schemas.SOURCE_EDITOR))
+		if src == Schemas.SOURCE_GAME:
+			if base_game_shot.is_valid():
+				return await base_game_shot.call(p)
+			return {"error": {"code": Schemas.ERR_CODE_CAPTURE_BACKEND_UNAVAILABLE, "message": "GameAbility screenshot backend not initialized", "symbol": "CAPTURE_BACKEND_UNAVAILABLE"}}
+		elif src == Schemas.SOURCE_EDITOR:
+			if base_editor_shot.is_valid():
+				return await base_editor_shot.call(p)
+			return {"error": {"code": Schemas.ERR_CODE_CAPTURE_BACKEND_UNAVAILABLE, "message": "Editor screenshot backend not initialized", "symbol": "CAPTURE_BACKEND_UNAVAILABLE"}}
+		return {"error": {"code": Schemas.ERR_CODE_INVALID_ARGUMENT, "message": "Invalid screenshot source '%s'. Must be 'editor' or 'game'." % src, "symbol": "INVALID_ARGUMENT"}}
+
+	_command_handlers["capture_screenshot"] = func(p: Dictionary) -> Dictionary:
+		var res: Dictionary = await _command_handlers["take_screenshot"].call(p)
+		if res.has("result"):
+			res["result"]["deprecated_alias"] = true
+			res["result"]["replacement"] = "take_screenshot(source=\"editor\")"
+		return res
+	_command_handlers["get_screenshot"] = _command_handlers["capture_screenshot"]
+
+	_command_handlers["capture_game_screenshot"] = func(p: Dictionary) -> Dictionary:
+		var cp := p.duplicate()
+		cp["source"] = Schemas.SOURCE_GAME
+		var res: Dictionary = await _command_handlers["take_screenshot"].call(cp)
+		if res.has("result"):
+			res["result"]["deprecated_alias"] = true
+			res["result"]["replacement"] = "take_screenshot(source=\"game\")"
+		return res
+
+	# Resource and Scene creation aliases
 	if _command_handlers.has("add_node"):
 		_command_handlers["create_node"] = _command_handlers["add_node"]
 	if _command_handlers.has("update_property"):
@@ -96,78 +186,78 @@ func _register_commands() -> void:
 			var val: Variant = p.get("value", null)
 			return _command_handlers["edit_resource"].call({"path": path, "properties": {prop: val}})
 	if _command_handlers.has("create_resource"):
-		_command_handlers["create_material"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://material.tres")
+		_command_handlers["create_material"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/materials/material.tres")
 			var type: String = p.get("type", p.get("resource_type", "StandardMaterial3D"))
 			var props: Dictionary = p.get("properties", {})
 			if p.has("albedo_color"): props["albedo_color"] = p["albedo_color"]
 			return _command_handlers["create_resource"].call({"path": path, "type": type, "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_standard_material_3d"] = _command_handlers["create_material"]
-		_command_handlers["create_box_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://box_mesh.tres")
+		_command_handlers["create_box_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/box_mesh.tres")
 			var type: String = p.get("type", p.get("resource_type", "BoxMesh"))
 			var props: Dictionary = p.get("properties", {})
 			if p.has("size"): props["size"] = p["size"]
 			return _command_handlers["create_resource"].call({"path": path, "type": type, "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_mesh"] = _command_handlers["create_box_mesh"]
-		_command_handlers["create_cylinder_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://cylinder_mesh.tres")
+		_command_handlers["create_cylinder_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/cylinder_mesh.tres")
 			var props: Dictionary = p.get("properties", {})
 			if p.has("top_radius"): props["top_radius"] = p["top_radius"]
 			if p.has("bottom_radius"): props["bottom_radius"] = p["bottom_radius"]
 			if p.has("height"): props["height"] = p["height"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "CylinderMesh", "properties": props, "overwrite": p.get("overwrite", true)})
-		_command_handlers["create_sphere_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://sphere_mesh.tres")
+		_command_handlers["create_sphere_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/sphere_mesh.tres")
 			var props: Dictionary = p.get("properties", {})
 			if p.has("radius"): props["radius"] = p["radius"]
 			if p.has("height"): props["height"] = p["height"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "SphereMesh", "properties": props, "overwrite": p.get("overwrite", true)})
-		_command_handlers["create_capsule_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://capsule_mesh.tres")
+		_command_handlers["create_capsule_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/capsule_mesh.tres")
 			var props: Dictionary = p.get("properties", {})
 			if p.has("radius"): props["radius"] = p["radius"]
 			if p.has("height"): props["height"] = p["height"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "CapsuleMesh", "properties": props, "overwrite": p.get("overwrite", true)})
-		_command_handlers["create_plane_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://plane_mesh.tres")
+		_command_handlers["create_plane_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/plane_mesh.tres")
 			var props: Dictionary = p.get("properties", {})
 			if p.has("size"): props["size"] = p["size"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "PlaneMesh", "properties": props, "overwrite": p.get("overwrite", true)})
-		_command_handlers["create_box_shape_3d"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://box_shape_3d.tres")
+		_command_handlers["create_box_shape_3d"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/box_shape_3d.tres")
 			var props: Dictionary = {}
 			if p.has("size"): props["size"] = p["size"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "BoxShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_box_shape"] = _command_handlers["create_box_shape_3d"]
-		_command_handlers["create_cylinder_shape_3d"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://cylinder_shape_3d.tres")
+		_command_handlers["create_cylinder_shape_3d"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/cylinder_shape_3d.tres")
 			var props: Dictionary = {}
 			if p.has("radius"): props["radius"] = p["radius"]
 			if p.has("height"): props["height"] = p["height"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "CylinderShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_cylinder_shape"] = _command_handlers["create_cylinder_shape_3d"]
-		_command_handlers["create_sphere_shape_3d"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://sphere_shape_3d.tres")
+		_command_handlers["create_sphere_shape_3d"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/sphere_shape_3d.tres")
 			var props: Dictionary = {}
 			if p.has("radius"): props["radius"] = p["radius"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "SphereShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_sphere_shape"] = _command_handlers["create_sphere_shape_3d"]
-		_command_handlers["create_capsule_shape_3d"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://capsule_shape_3d.tres")
+		_command_handlers["create_capsule_shape_3d"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/capsule_shape_3d.tres")
 			var props: Dictionary = {}
 			if p.has("radius"): props["radius"] = p["radius"]
 			if p.has("height"): props["height"] = p["height"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "CapsuleShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_capsule_shape"] = _command_handlers["create_capsule_shape_3d"]
+
 	if _command_handlers.has("set_project_setting"):
 		_command_handlers["set_setting"] = _command_handlers["set_project_setting"]
-		_command_handlers["set_main_scene"] = func(p: Dictionary):
+		_command_handlers["set_main_scene"] = func(p: Dictionary) -> Dictionary:
 			var scene: String = p.get("scene", p.get("path", p.get("main_scene", "")))
 			return _command_handlers["set_project_setting"].call({"key": "application/run/main_scene", "value": scene})
 
-	# Additional tool aliases
-	_command_handlers["get_editor_state"] = func(p: Dictionary):
+	_command_handlers["get_editor_state"] = func(p: Dictionary) -> Dictionary:
 		var tree := get_tree()
 		var current_scene: Node = tree.edited_scene_root if tree else null
 		var selected_paths: Array = []
@@ -183,17 +273,18 @@ func _register_commands() -> void:
 				"active_root_name": current_scene.name if current_scene else "",
 				"open_scenes": EditorInterface.get_open_scenes(),
 				"selected_nodes": selected_paths,
-				"is_playing": EditorInterface.is_playing_scene()
+				"is_playing": EditorInterface.is_playing_scene(),
+				"execution_state": coordinator.get_execution_state()
 			}
 		}
 
 	if _command_handlers.has("add_node"):
-		_command_handlers["create_camera_3d"] = func(p: Dictionary):
+		_command_handlers["create_camera_3d"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			cp["type"] = "Camera3D"
 			if not cp.has("name"): cp["name"] = "Camera3D"
 			return _command_handlers["add_node"].call(cp)
-		_command_handlers["create_light_3d"] = func(p: Dictionary):
+		_command_handlers["create_light_3d"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			var light_type: String = cp.get("light_type", cp.get("type", "DirectionalLight3D"))
 			if not light_type.ends_with("Light3D"):
@@ -201,19 +292,19 @@ func _register_commands() -> void:
 			cp["type"] = light_type
 			if not cp.has("name"): cp["name"] = light_type
 			return _command_handlers["add_node"].call(cp)
-		_command_handlers["create_mesh_instance_3d"] = func(p: Dictionary):
+		_command_handlers["create_mesh_instance_3d"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			cp["type"] = "MeshInstance3D"
 			if not cp.has("name"): cp["name"] = "MeshInstance3D"
 			return _command_handlers["add_node"].call(cp)
-		_command_handlers["create_collision_shape_3d"] = func(p: Dictionary):
+		_command_handlers["create_collision_shape_3d"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			cp["type"] = "CollisionShape3D"
 			if not cp.has("name"): cp["name"] = "CollisionShape3D"
 			return _command_handlers["add_node"].call(cp)
 
 	if _command_handlers.has("move_node"):
-		_command_handlers["reparent_node"] = func(p: Dictionary):
+		_command_handlers["reparent_node"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			if not cp.has("new_parent_path"):
 				if cp.has("new_parent"): cp["new_parent_path"] = cp["new_parent"]
@@ -228,19 +319,19 @@ func _register_commands() -> void:
 				elif cp.has("source"): cp["node_path"] = cp["source"]
 			return _command_handlers["move_node"].call(cp)
 
-	_command_handlers["save_project_settings"] = func(p: Dictionary):
+	_command_handlers["save_project_settings"] = func(p: Dictionary) -> Dictionary:
 		var err := ProjectSettings.save()
 		if err == OK:
 			return {"result": {"saved": true}}
 		return {"error": {"code": -32603, "message": "Failed to save project settings: %d" % err}}
 
-	_command_handlers["refresh_filesystem"] = func(p: Dictionary):
+	_command_handlers["refresh_filesystem"] = func(p: Dictionary) -> Dictionary:
 		EditorInterface.get_resource_filesystem().scan()
 		return {"result": {"rescanned": true}}
 	_command_handlers["rescan_filesystem"] = _command_handlers["refresh_filesystem"]
 
 	if _command_handlers.has("set_input_action"):
-		_command_handlers["add_input_action"] = func(p: Dictionary):
+		_command_handlers["add_input_action"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			if not cp.has("action") and cp.has("action_name"):
 				cp["action"] = cp["action_name"]
@@ -259,35 +350,46 @@ func _register_commands() -> void:
 				cp["events"] = ev_list
 			return await _command_handlers["set_input_action"].call(cp)
 
-	_command_handlers["list_methods"] = func(_p: Dictionary):
+	_command_handlers["list_methods"] = func(_p: Dictionary) -> Dictionary:
 		var keys: Array = _command_handlers.keys()
 		keys.sort()
-		return {"result": {"methods": keys, "count": keys.size()}}
+		return {
+			"result": {
+				"methods": keys,
+				"count": keys.size(),
+				"canonical_commands": Schemas.get_canonical_commands().keys(),
+				"alias_map": Schemas.get_alias_map()
+			}
+		}
 
-	_command_handlers["get_documentation"] = func(p: Dictionary):
+	_command_handlers["get_documentation"] = func(p: Dictionary) -> Dictionary:
 		var method: String = p.get("method", p.get("name", p.get("tool", "")))
 		if _command_handlers.has(method):
-			return {"result": {"method": method, "available": true, "is_disabled": _disabled_tools.get(method, false)}}
+			var canonical_map := Schemas.get_canonical_commands()
+			var alias_map := Schemas.get_alias_map()
+			var doc := {
+				"method": method,
+				"available": true,
+				"is_disabled": _disabled_tools.get(method, false)
+			}
+			if canonical_map.has(method):
+				doc["schema"] = canonical_map[method]
+			elif alias_map.has(method):
+				doc["alias_info"] = alias_map[method]
+			return {"result": doc}
 		return {"error": {"code": -32601, "message": "Method '%s' not found" % method}}
-
-	if _command_handlers.has("get_game_screenshot"):
-		_command_handlers["capture_game_screenshot"] = _command_handlers["get_game_screenshot"]
-	if _command_handlers.has("get_editor_screenshot"):
-		_command_handlers["take_screenshot"] = func(p: Dictionary):
-			var src: String = p.get("source", p.get("viewport", "editor"))
-			if src == "game" and _command_handlers.has("get_game_screenshot"):
-				return await _command_handlers["get_game_screenshot"].call(p)
-			return await _command_handlers["get_editor_screenshot"].call(p)
-		_command_handlers["capture_screenshot"] = _command_handlers["take_screenshot"]
-		_command_handlers["get_screenshot"] = _command_handlers["take_screenshot"]
 
 	if _command_handlers.has("read_resource"):
 		_command_handlers["load_resource"] = _command_handlers["read_resource"]
 
-	print("[MCP] Registered %d commands" % _command_handlers.size())
+	print("[MCP] Registered %d commands with authoritative GameAbility lifecycle" % _command_handlers.size())
 
 
 func execute(method: String, params: Dictionary) -> Dictionary:
+	# Internal GameAbility -> editor notification. It is deliberately not part of
+	# the AI tool schema and bypasses user-configurable tool disabling.
+	if method == "runtime_lifecycle":
+		return _handle_runtime_lifecycle(params)
 	if not _command_handlers.has(method):
 		return {
 			"error": {
@@ -331,6 +433,24 @@ func execute(method: String, params: Dictionary) -> Dictionary:
 			}
 		}
 	return result
+
+
+func _handle_runtime_lifecycle(params: Dictionary) -> Dictionary:
+	if coordinator == null:
+		return {"error": {"code": Schemas.ERR_CODE_INTERNAL, "message": "Lifecycle coordinator is not initialized", "symbol": "INTERNAL_ERROR"}}
+	var source := str(params.get("source", ""))
+	var session_id := str(params.get("session_id", ""))
+	var operation_id := str(params.get("operation_id", ""))
+	var boot_nonce := str(params.get("boot_nonce", ""))
+	var event_id := str(params.get("event_id", ""))
+	var timestamp_ms := int(params.get("timestamp_ms", 0))
+	if source != "game_ability" or session_id.is_empty() or operation_id.is_empty() or boot_nonce.is_empty() or event_id.is_empty() or timestamp_ms <= 0:
+		return {"error": {"code": Schemas.ERR_CODE_INVALID_ARGUMENT, "message": "runtime_lifecycle requires complete GameAbility correlation fields", "symbol": "INVALID_ARGUMENT"}}
+	if operation_id != coordinator.current_operation_id:
+		return {"error": {"code": Schemas.ERR_CODE_STATE_CONFLICT, "message": "runtime_lifecycle operation_id does not match the active GameAbility session", "symbol": "STATE_CONFLICT"}}
+	if not coordinator.process_event(params):
+		return {"error": {"code": Schemas.ERR_CODE_STATE_CONFLICT, "message": "runtime_lifecycle event was rejected as stale, malformed, or invalid for the current state", "symbol": "STATE_CONFLICT"}}
+	return {"result": {"accepted": true, "state": coordinator.current_state, "session_id": coordinator.current_session_id}}
 
 
 func get_available_methods() -> Array:

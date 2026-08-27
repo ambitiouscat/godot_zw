@@ -11,10 +11,6 @@ extends "res://addons/godot_mcp/commands/base_command.gd"
 ## pipe: a pipe's buffer fills up on verbose runs and deadlocks the child, and
 ## OS.execute() would block the whole editor until the run finished.
 
-## Set in the child's environment so the MCP IPC autoloads disable themselves
-## there. Referenced by mcp_screenshot_service.gd and its two siblings.
-const HEADLESS_CHILD_ENV := "GODOT_MCP_HEADLESS_CHILD"
-
 const _DEFAULT_TIMEOUT_SEC := 120.0
 const _MAX_TIMEOUT_SEC := 900.0
 const _POLL_INTERVAL_SEC := 0.25
@@ -233,21 +229,16 @@ func _shell_invocation(godot_bin: String, godot_args: Array, paths: RunPaths, is
 	for a: Variant in godot_args:
 		command += " " + _quote_arg(str(a), is_windows)
 
-	# The child runs the same editor binary and shares user://, so it would
-	# otherwise pass the OS.has_feature("editor") check and start the MCP IPC
-	# autoloads — which then race the editor's own play session for the
-	# mcp_* request files. This marker tells the services to stand down.
 	var body := ""
 	if is_windows:
 		# DisableDelayedExpansion matters when the machine has delayed expansion
 		# on by default (a registry setting): a `!` in a path or argument would
 		# otherwise be eaten or expanded.
-		body = "@echo off\r\nsetlocal DisableDelayedExpansion\r\nset \"%s=1\"\r\n%s > %s 2>&1\r\necho %%errorlevel%% > %s\r\n" % [
-			HEADLESS_CHILD_ENV, command, _quote_arg(native_log, true), _quote_arg(native_exit, true)
+		body = "@echo off\r\nsetlocal DisableDelayedExpansion\r\n%s > %s 2>&1\r\necho %%errorlevel%% > %s\r\n" % [
+			command, _quote_arg(native_log, true), _quote_arg(native_exit, true)
 		]
 	else:
-		body = "#!/bin/sh\n%s=1\nexport %s\n%s > %s 2>&1\necho $? > %s\n" % [
-			HEADLESS_CHILD_ENV, HEADLESS_CHILD_ENV,
+		body = "#!/bin/sh\n%s > %s 2>&1\necho $? > %s\n" % [
 			command, _quote_arg(native_log, false), _quote_arg(native_exit, false)
 		]
 

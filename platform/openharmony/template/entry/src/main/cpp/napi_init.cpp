@@ -114,9 +114,18 @@ static napi_value NAPI_Global_setup(napi_env env, napi_callback_info info) {
 	if (napi_ok != napi_get_value_string_utf8(env, args[0], &allowed_permissions[0], 2048, nullptr)) {
 		return nullptr;
 	}
-	godot_init(resourceManager, nativeWindow, windowId, windowWidth, windowHeight, &allowed_permissions[0]);
+	const int64_t init_result = godot_init(resourceManager, nativeWindow, windowId, windowWidth, windowHeight, &allowed_permissions[0]);
+	if (init_result != 0) {
+		OH_LOG_ERROR(LOG_APP, "godot_init failed: %{public}lld", static_cast<long long>(init_result));
+		g_initialized = false;
+		napi_value failed;
+		napi_get_boolean(env, false, &failed);
+		return failed;
+	}
 	g_initialized = true;
-	return nullptr;
+	napi_value result;
+	napi_get_boolean(env, true, &result);
+	return result;
 }
 
 static napi_value NAPI_Global_sendWindowEvent(napi_env env, napi_callback_info info) {
@@ -816,6 +825,50 @@ static napi_value NAPI_Global_setProcessKillCallback(napi_env env, napi_callback
 	return result;
 }
 
+// Runtime first-frame callback — forwarded from the engine thread to ArkTS.
+// This is intentionally separate from window lifecycle callbacks: a WindowStage
+// can exist before the Godot main loop has completed a frame.
+static napi_threadsafe_function runtime_ready_tsf = nullptr;
+
+static void runtime_ready_tsf_callback(napi_env env, napi_value callback, void *, void *) {
+	if (!callback) {
+		return;
+	}
+	napi_value undefined;
+	napi_get_undefined(env, &undefined);
+	napi_value result;
+	napi_call_function(env, undefined, callback, 0, nullptr, &result);
+}
+
+static void napi_runtime_ready_callback() {
+	if (runtime_ready_tsf) {
+		napi_call_threadsafe_function(runtime_ready_tsf, nullptr, napi_tsfn_nonblocking);
+	}
+}
+
+static napi_value NAPI_Global_setRuntimeReadyCallback(napi_env env, napi_callback_info info) {
+	size_t argc = 1;
+	napi_value args[1] = { nullptr };
+	if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr)) {
+		return nullptr;
+	}
+
+	napi_value resource_name;
+	napi_create_string_utf8(env, "runtime_ready_tsf", NAPI_AUTO_LENGTH, &resource_name);
+	napi_value async_resource;
+	napi_create_object(env, &async_resource);
+	napi_create_threadsafe_function(
+		env, args[0], async_resource, resource_name,
+		0, 1, nullptr, nullptr, nullptr,
+		runtime_ready_tsf_callback, &runtime_ready_tsf
+	);
+	godot_set_runtime_ready_callback(napi_runtime_ready_callback);
+
+	napi_value result;
+	napi_get_boolean(env, true, &result);
+	return result;
+}
+
 // --- alert callback ---
 static napi_threadsafe_function alert_tsf = nullptr;
 
@@ -1136,6 +1189,39 @@ static napi_value NAPI_Global_setRestartArguments(napi_env env, napi_callback_in
 
 	napi_value result;
 	napi_get_undefined(env, &result);
+	return result;
+}
+
+// Supply the authoritative GameAbility capture context before godot_init.
+// This is intentionally a dedicated API rather than the generic setEnv API:
+// native code validates all three tokens before it can inject an Autoload.
+static napi_value NAPI_Global_setRuntimeScreenshotContext(napi_env env, napi_callback_info info) {
+	size_t argc = 3;
+	napi_value args[3] = { nullptr, nullptr, nullptr };
+	if (napi_ok != napi_get_cb_info(env, info, &argc, args, nullptr, nullptr) || argc != 3) {
+		return nullptr;
+	}
+
+	std::string values[3];
+	for (size_t index = 0; index < 3; index++) {
+		size_t value_length = 0;
+		if (napi_ok != napi_get_value_string_utf8(env, args[index], nullptr, 0, &value_length) || value_length == 0 || value_length > 160) {
+			napi_value failed;
+			napi_get_boolean(env, false, &failed);
+			return failed;
+		}
+		values[index].resize(value_length + 1);
+		if (napi_ok != napi_get_value_string_utf8(env, args[index], &values[index][0], values[index].size(), &value_length)) {
+			napi_value failed;
+			napi_get_boolean(env, false, &failed);
+			return failed;
+		}
+		values[index].resize(value_length);
+	}
+
+	const bool accepted = godot_set_runtime_screenshot_context(values[0].c_str(), values[1].c_str(), values[2].c_str());
+	napi_value result;
+	napi_get_boolean(env, accepted, &result);
 	return result;
 }
 
@@ -1509,8 +1595,10 @@ static napi_value Init(napi_env env, napi_value exports) {
 		{ "inputDialogResult", nullptr, NAPI_Global_inputDialogResult, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "setLocale", nullptr, NAPI_Global_setLocale, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "setProcessKillCallback", nullptr, NAPI_Global_setProcessKillCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "setRuntimeReadyCallback", nullptr, NAPI_Global_setRuntimeReadyCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
 	{ "setRestartCallback", nullptr, NAPI_Global_setRestartCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "setRestartArguments", nullptr, NAPI_Global_setRestartArguments, nullptr, nullptr, nullptr, napi_default, nullptr },
+		{ "setRuntimeScreenshotContext", nullptr, NAPI_Global_setRuntimeScreenshotContext, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "setProjectDir", nullptr, NAPI_Global_setProjectDir, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "setFsRequestCallback", nullptr, NAPI_Global_setFsRequestCallback, nullptr, nullptr, nullptr, napi_default, nullptr },
 		{ "fsResult", nullptr, NAPI_Global_fsResult, nullptr, nullptr, nullptr, napi_default, nullptr },

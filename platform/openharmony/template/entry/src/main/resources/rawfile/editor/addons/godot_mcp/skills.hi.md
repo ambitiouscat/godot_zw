@@ -8,6 +8,8 @@
 
 आपके पास 169 MCP tools उपलब्ध हैं जो सीधे Godot 4 editor से कनेक्ट होते हैं। आप scenes बना सकते हैं, scripts लिख सकते हैं, player input simulate कर सकते हैं, running games को inspect कर सकते हैं, और बहुत कुछ — सब कुछ बिना user को इस conversation से बाहर जाए। हर बदलाव Godot के UndoRedo system से होता है, इसलिए user हमेशा Ctrl+Z कर सकता है।
 
+> **Current runtime contract:** `run_project`, `run_scene`, and `run_current_scene` start the standalone authoritative `GameAbility`; `stop_project` stops it. Stage 4 uses the run-scoped GameAbility root-viewport agent through `take_screenshot(source="game")`. Runtime inspection, input, profiling, and runtime tests remain `CAPABILITY_UNAVAILABLE` until their own correlated agents exist. Never fall back to an editor or OS screenshot.
+
 ## ज़रूरी Workflows
 
 ### 1. प्रोजेक्ट को Explore करें

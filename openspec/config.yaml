@@ -1,0 +1,27 @@
+schema: spec-driven
+
+context: |
+  The canonical repository root is godot_zw. Godot editor/plugin code, the
+  OpenHarmony EditorAbility/GameAbility bridge, packaging assets, and OpenSpec
+  planning artifacts are versioned from this directory.
+  Authoritative GameAbility real-run and editor-inspection behavior must follow AGENTS.md and
+  GODOT_GAME_DEV_PROTOCOL.md, including the two approval gates.
+
+rules:
+  proposal:
+    - Distinguish verified current behavior from planned behavior.
+    - Mark command semantic changes and deprecated aliases as breaking changes.
+  specs:
+    - Define observable API, lifecycle, provenance, failure, and compatibility behavior.
+    - Never claim preview-to-runtime parity or background GPU suspension without evidence.
+  tasks:
+    - Keep lifecycle, bridge, screenshot, packaging, and device verification tasks independently checkable.
+
+operations:
+  apply:
+    guidance:
+      - Do not begin implementation until Approval Gate 1 is explicitly approved.
+      - Do not mark a task complete without the evidence required by that task.
+  archive:
+    guidance:
+      - Archive only after device acceptance and Approval Gate 2 are complete.

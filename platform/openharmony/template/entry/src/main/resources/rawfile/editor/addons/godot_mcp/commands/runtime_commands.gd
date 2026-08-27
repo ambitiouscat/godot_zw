@@ -2,7 +2,11 @@
 extends "res://addons/godot_mcp/commands/base_command.gd"
 
 ## Editor-side commands for runtime game inspection.
-## Communicates with MCPGameInspector autoload via file-based IPC.
+##
+## Runtime inspection is intentionally unavailable until the platform bridge
+## creates a scoped GameAbility service. The plugin must not install an
+## Autoload or send requests to an absent service, because either approach
+## creates persistent project mutation or misleading timeouts.
 
 
 func get_commands() -> Dictionary:
@@ -29,54 +33,17 @@ func get_commands() -> Dictionary:
 	}
 
 
-func _get_active_runner() -> Node:
-	var runner: Node = preload("res://addons/godot_mcp/in_editor_game_runner.gd").get_instance()
-	if runner == null and is_instance_valid(get_tree()) and is_instance_valid(get_tree().root):
-		runner = get_tree().root.find_child("InEditorGameRunner", true, false)
-	return runner
-
-
-func _get_active_simulated_root() -> Node:
-	var runner: Node = _get_active_runner()
-	if runner and runner.has_method("get_simulated_root"):
-		return runner.get_simulated_root()
-	return null
-
-
-func _serialize_simulated_node(node: Node, max_depth: int, current_depth: int) -> Dictionary:
-	var data: Dictionary = {
-		"name": node.name,
-		"class": node.get_class(),
-		"path": str(node.get_path()),
-		"child_count": node.get_child_count(),
-		"process_mode": node.process_mode
-	}
-	if node.get_script():
-		data["script"] = node.get_script().resource_path
-	if max_depth < 0 or current_depth < max_depth:
-		var children: Array[Dictionary] = []
-		for child: Node in node.get_children():
-			children.append(_serialize_simulated_node(child, max_depth, current_depth + 1))
-		data["children"] = children
-	return data
-
-
-func _find_simulated_node(root: Node, path_str: String) -> Node:
-	if path_str.is_empty() or path_str == "." or path_str == root.name or path_str == "/root":
-		return root
-	var clean_path: String = path_str.trim_prefix(".").trim_prefix("/")
-	if root.has_node(clean_path):
-		return root.get_node(clean_path)
-	return root.find_child(clean_path.get_file(), true, false)
+func _ensure_game_running() -> Dictionary:
+	var envelope := get_authoritative_game_envelope()
+	return envelope if envelope.has("error") else {}
 
 
 func _get_game_scene_tree(params: Dictionary) -> Dictionary:
-	var sim_root: Node = _get_active_simulated_root()
-	var max_depth: int = optional_int(params, "max_depth", -1)
-	if sim_root and is_instance_valid(sim_root):
-		var tree_data: Dictionary = _serialize_simulated_node(sim_root, max_depth, 0)
-		return success({"tree": tree_data, "mode": "in_editor_viewport", "root_name": sim_root.name})
+	var check := _ensure_game_running()
+	if not check.is_empty():
+		return check
 
+	var max_depth: int = optional_int(params, "max_depth", -1)
 	var cmd_params: Dictionary = {"max_depth": max_depth}
 	var script_filter: String = optional_string(params, "script_filter")
 	if not script_filter.is_empty():
@@ -92,26 +59,13 @@ func _get_game_scene_tree(params: Dictionary) -> Dictionary:
 
 
 func _get_game_node_properties(params: Dictionary) -> Dictionary:
+	var check := _ensure_game_running()
+	if not check.is_empty():
+		return check
+
 	var result: Array = require_string(params, "node_path")
 	if result[1] != null:
 		return result[1]
-
-	var sim_root: Node = _get_active_simulated_root()
-	if sim_root and is_instance_valid(sim_root):
-		var target: Node = _find_simulated_node(sim_root, result[0])
-		if target == null:
-			return error_not_found("Node '%s' not found in active simulation" % result[0])
-		var props: Dictionary = {}
-		var requested_props: Array = params.get("properties", [])
-		if requested_props.is_empty():
-			for p: Dictionary in target.get_property_list():
-				var pname: String = str(p.get("name", ""))
-				if not pname.begins_with("_"):
-					props[pname] = target.get(pname)
-		else:
-			for pname: Variant in requested_props:
-				props[str(pname)] = target.get(str(pname))
-		return success({"node_path": str(target.get_path()), "properties": props, "mode": "in_editor_viewport"})
 
 	var cmd_params: Dictionary = {"node_path": result[0]}
 	if params.has("properties") and params["properties"] is Array:
@@ -121,6 +75,10 @@ func _get_game_node_properties(params: Dictionary) -> Dictionary:
 
 
 func _set_game_node_property(params: Dictionary) -> Dictionary:
+	var check := _ensure_game_running()
+	if not check.is_empty():
+		return check
+
 	var result := require_string(params, "node_path")
 	if result[1] != null:
 		return result[1]
@@ -132,19 +90,6 @@ func _set_game_node_property(params: Dictionary) -> Dictionary:
 	if not params.has("value"):
 		return error_invalid_params("Missing required parameter: value")
 
-	var sim_root := _get_active_simulated_root()
-	if sim_root and is_instance_valid(sim_root):
-		var target := _find_simulated_node(sim_root, result[0])
-		if target == null:
-			return error_not_found("Node '%s' not found in active simulation" % result[0])
-		target.set(prop_result[0], params["value"])
-		return success({
-			"node_path": str(target.get_path()),
-			"property": prop_result[0],
-			"value": target.get(prop_result[0]),
-			"mode": "in_editor_viewport"
-		})
-
 	return await _send_game_command("set_node_property", {
 		"node_path": result[0],
 		"property": prop_result[0],
@@ -153,20 +98,13 @@ func _set_game_node_property(params: Dictionary) -> Dictionary:
 
 
 func _execute_game_script(params: Dictionary) -> Dictionary:
+	var check := _ensure_game_running()
+	if not check.is_empty():
+		return check
+
 	var result := require_string(params, "code")
 	if result[1] != null:
 		return result[1]
-
-	var sim_root := _get_active_simulated_root()
-	if sim_root and is_instance_valid(sim_root):
-		var expr := Expression.new()
-		var err := expr.parse(result[0])
-		if err == OK:
-			var res = expr.execute([], sim_root)
-			if not expr.has_execute_failed():
-				return success({"result": res, "mode": "in_editor_viewport"})
-			return error_internal("Expression execution error: %s" % expr.get_error_text())
-		return error_internal("Expression parse error: %d" % err)
 
 	return await _send_game_command("execute_script", {
 		"code": result[0],
@@ -178,19 +116,6 @@ func _capture_frames(params: Dictionary) -> Dictionary:
 	var frame_interval: int = optional_int(params, "frame_interval", 10)
 	var half_resolution: bool = optional_bool(params, "half_resolution", true)
 
-	var runner: Node = _get_active_runner()
-	if runner and runner.has_method("capture_frame_image") and runner.is_running:
-		var frames: Array[Dictionary] = []
-		var dir_path: String = ProjectSettings.globalize_path("res://screenshots")
-		DirAccess.make_dir_recursive_absolute(dir_path)
-		for i: int in range(count):
-			var img: Image = runner.capture_frame_image()
-			if img:
-				var path := "res://screenshots/frame_%d_%d.png" % [Time.get_ticks_msec(), i]
-				img.save_png(ProjectSettings.globalize_path(path))
-				frames.append({"index": i, "path": path, "width": img.get_width(), "height": img.get_height()})
-			await get_tree().process_frame
-		return success({"frames": frames, "count": frames.size(), "mode": "in_editor_viewport"})
 
 	var estimated_seconds: float = (count * frame_interval) / 60.0 + 2.0
 	var timeout := minf(estimated_seconds, 25.0)
@@ -407,67 +332,13 @@ func _watch_signals(params: Dictionary) -> Dictionary:
 # ── IPC Helper ────────────────────────────────────────────────────────────────
 
 func _send_game_command(command: String, params: Dictionary, timeout_sec: float = 5.0) -> Dictionary:
-	var ei := get_editor()
-	if not ei.is_playing_scene():
-		return error(-32000, "No scene is currently playing", {"suggestion": "Use play_scene first"})
-
-	var user_dir := get_game_user_dir()
-	var request_path := user_dir + "/mcp_game_request"
-	var response_path := user_dir + "/mcp_game_response"
-
-	# Clean stale response
-	if FileAccess.file_exists(response_path):
-		DirAccess.remove_absolute(response_path)
-
-	# Write request
-	var request_data := JSON.stringify({"command": command, "params": params})
-	var req := FileAccess.open(request_path, FileAccess.WRITE)
-	if req == null:
-		return error_internal("Could not create game request file")
-	req.store_string(request_data)
-	req.close()
-
-	# Poll for response
-	var attempts := int(timeout_sec / 0.1)
-	while attempts > 0:
-		await get_tree().create_timer(0.1).timeout
-		if FileAccess.file_exists(response_path):
-			break
-		# Check if game is still running
-		if not ei.is_playing_scene():
-			if FileAccess.file_exists(request_path):
-				DirAccess.remove_absolute(request_path)
-			return error(-32000, "Game stopped during command execution")
-		attempts -= 1
-
-	if not FileAccess.file_exists(response_path):
-		# Try to auto-resume the debugger (runtime error may have paused the game)
-		if ei.is_playing_scene():
-			try_debugger_continue()
-			# Give the game a chance to recover and write a response
-			for _retry in 20:
-				await get_tree().create_timer(0.1).timeout
-				if FileAccess.file_exists(response_path):
-					break
-
-	if not FileAccess.file_exists(response_path):
-		if FileAccess.file_exists(request_path):
-			DirAccess.remove_absolute(request_path)
-		return build_timeout_error(timeout_sec)
-
-	# Read response
-	var file := FileAccess.open(response_path, FileAccess.READ)
-	if file == null:
-		return error_internal("Could not read game response file")
-	var text := file.get_as_text()
-	file.close()
-	DirAccess.remove_absolute(response_path)
-
-	var parsed = JSON.parse_string(text)
-	if parsed == null or not parsed is Dictionary:
-		return error_internal("Invalid response JSON from game")
-
-	if parsed.has("error"):
-		return error(-32000, str(parsed["error"]))
-
-	return success(parsed)
+	var envelope := get_authoritative_game_envelope()
+	if envelope.has("error"):
+		return envelope
+	return error_conflict("Runtime inspection is unavailable: no scoped GameAbility command service is attached to this run.", {
+		"symbol": "CAPABILITY_UNAVAILABLE",
+		"capability": "game_ability_runtime_inspection",
+		"command": command,
+		"session_id": str(envelope.get("session_id", "")),
+		"boot_nonce": str(envelope.get("boot_nonce", "")),
+	})

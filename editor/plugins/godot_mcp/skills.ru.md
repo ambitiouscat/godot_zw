@@ -8,6 +8,8 @@
 
 Вам доступны 169 MCP-инструмента, которые напрямую подключаются к редактору Godot 4. Вы можете создавать сцены, писать скрипты, симулировать ввод игрока, инспектировать запущенные игры и многое другое — всё это без выхода пользователя из данного разговора. Все изменения проходят через систему UndoRedo Godot, поэтому пользователь всегда может нажать Ctrl+Z.
 
+> **Current runtime contract:** `run_project`, `run_scene`, and `run_current_scene` start the standalone authoritative `GameAbility`; `stop_project` stops it. Stage 4 uses the run-scoped GameAbility root-viewport agent through `take_screenshot(source="game")`. Runtime inspection, input, profiling, and runtime tests remain `CAPABILITY_UNAVAILABLE` until their own correlated agents exist. Never fall back to an editor or OS screenshot.
+
 ## Основные рабочие процессы
 
 ### 1. Изучение проекта

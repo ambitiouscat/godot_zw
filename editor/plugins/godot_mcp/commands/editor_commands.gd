@@ -1,6 +1,8 @@
 @tool
 extends "res://addons/godot_mcp/commands/base_command.gd"
 
+const CaptureProtocol = preload("res://addons/godot_mcp/lifecycle/runtime_capture_protocol.gd")
+
 
 func get_commands() -> Dictionary:
 	return {
@@ -8,10 +10,6 @@ func get_commands() -> Dictionary:
 		"get_output_log": _get_output_log,
 		"get_editor_screenshot": _get_editor_screenshot,
 		"get_game_screenshot": _get_game_screenshot,
-		"take_screenshot": _get_editor_screenshot,
-		"capture_screenshot": _get_editor_screenshot,
-		"get_screenshot": _get_editor_screenshot,
-		"capture_game_screenshot": _get_game_screenshot,
 		"execute_editor_script": _execute_editor_script,
 		"clear_output": _clear_output,
 		"reload_plugin": _reload_plugin,
@@ -21,12 +19,6 @@ func get_commands() -> Dictionary:
 		"set_auto_dismiss": _set_auto_dismiss,
 		"get_editor_camera": _get_editor_camera,
 		"set_editor_camera": _set_editor_camera,
-		"run_project": _run_project,
-		"run_main_scene": _run_project,
-		"run_scene": _run_scene,
-		"run_current_scene": _run_current_scene,
-		"stop_project": _stop_project,
-		"stop_playing_scene": _stop_project,
 	}
 
 
@@ -238,7 +230,6 @@ func _find_rtl(node: Node, depth: int = 0) -> RichTextLabel:
 
 
 func _get_editor_screenshot(params: Dictionary) -> Dictionary:
-	# Capture the editor's main viewport - no await to avoid timeout
 	var base_control: Control = get_editor().get_base_control()
 	if base_control == null:
 		return error_internal("Could not access editor base control")
@@ -255,6 +246,13 @@ func _get_editor_screenshot(params: Dictionary) -> Dictionary:
 	if image == null:
 		return error_internal("Could not get image from viewport")
 
+	var png_buffer: PackedByteArray = image.save_png_to_buffer()
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update(png_buffer)
+	var sha: String = ctx.finish().hex_encode()
+	var now: int = Time.get_ticks_msec()
+
 	var save_path: String = params.get("save_path", params.get("path", ""))
 	if save_path != "":
 		var abs_path := _resolve_save_path(save_path)
@@ -262,121 +260,255 @@ func _get_editor_screenshot(params: Dictionary) -> Dictionary:
 		if err != OK:
 			return error_internal("Failed to save screenshot: %s" % error_string(err))
 		return success({
+			"requested_source": "editor",
+			"actual_source": "editor_viewport",
+			"backend": "editor_viewport",
 			"path": save_path,
 			"saved_path": save_path,
 			"global_path": abs_path,
 			"width": image.get_width(),
 			"height": image.get_height(),
 			"format": "png",
-			"source": "editor_viewport"
+			"sha256": sha,
+			"capture_timestamp_ms": now,
+			"source": "editor"
 		})
 
-	var png_buffer := image.save_png_to_buffer()
 	var base64 := Marshalls.raw_to_base64(png_buffer)
-
 	return success({
+		"requested_source": "editor",
+		"actual_source": "editor_viewport",
+		"backend": "editor_viewport",
 		"image_base64": base64,
 		"width": image.get_width(),
 		"height": image.get_height(),
 		"format": "png",
-		"source": "editor_viewport"
+		"sha256": sha,
+		"capture_timestamp_ms": now,
+		"source": "editor"
 	})
+
+
+
 
 
 func _get_game_screenshot(params: Dictionary) -> Dictionary:
-	var runner = get_tree().root.find_child("InEditorGameRunner", true, false)
-	if runner and runner.has_method("capture_frame_image") and runner.is_running:
-		var image: Image = runner.capture_frame_image()
-		if image != null:
-			var save_path_param: String = params.get("save_path", params.get("path", ""))
-			var return_path := "res://screenshots/game_viewport.png"
-			if not save_path_param.is_empty():
-				return_path = save_path_param
-			var abs_path := _resolve_save_path(return_path)
-			DirAccess.make_dir_recursive_absolute(abs_path.get_base_dir())
-			var save_err := image.save_png(abs_path)
-			if save_err != OK:
-				return error_internal("Failed to save screenshot to %s: %s" % [abs_path, error_string(save_err)])
-			return success({
-				"path": return_path,
-				"global_path": abs_path,
-				"width": image.get_width(),
-				"height": image.get_height(),
-				"format": "png",
-				"source": "in_editor_subviewport"
+	var envelope := get_authoritative_game_envelope()
+	if envelope.has("error"):
+		return envelope
+
+	var session_id := str(envelope.get("session_id", ""))
+	var operation_id := str(envelope.get("operation_id", ""))
+	var boot_nonce := str(envelope.get("boot_nonce", ""))
+	var requested_operation_id := optional_string(params, "operation_id", "")
+	if not requested_operation_id.is_empty() and requested_operation_id != operation_id:
+		return error_conflict("Screenshot operation_id does not match the active GameAbility session.", {
+			"symbol": "INVALID_OPERATION_ID",
+			"session_id": session_id,
+			"operation_id": operation_id,
+		})
+
+	var request_id := _generate_capture_request_id()
+	if request_id.is_empty():
+		return error_internal("Failed to generate a secure screenshot request ID")
+	var game_user_dir := get_game_user_dir()
+	var capture_dir := CaptureProtocol.session_dir(game_user_dir, session_id)
+	if capture_dir.is_empty():
+		return error_internal("Active GameAbility session ID cannot be used for the capture transport")
+	var mkdir_error := DirAccess.make_dir_recursive_absolute(capture_dir)
+	if mkdir_error != OK and not DirAccess.dir_exists_absolute(capture_dir):
+		return error_internal("Could not create the GameAbility capture session directory: %s" % error_string(mkdir_error))
+	var request_path := CaptureProtocol.request_path(capture_dir, request_id)
+	var request_tmp_path := request_path + CaptureProtocol.TEMP_SUFFIX
+	var response_path := CaptureProtocol.response_path(capture_dir, request_id)
+	var image_path := CaptureProtocol.image_path(capture_dir, request_id)
+	var artifacts: Array[String] = [request_tmp_path, request_path, response_path, image_path]
+	_cleanup_capture_artifacts(artifacts)
+
+	var request := {
+		"request_id": request_id,
+		"session_id": session_id,
+		"operation_id": operation_id,
+		"boot_nonce": boot_nonce,
+		"requested_at_ms": int(Time.get_unix_time_from_system() * 1000.0),
+	}
+	var request_file := FileAccess.open(request_tmp_path, FileAccess.WRITE)
+	if request_file == null:
+		return error_internal("Could not create the GameAbility screenshot request in %s" % game_user_dir)
+	request_file.store_string(JSON.stringify(request))
+	request_file.close()
+	var publish_error := DirAccess.rename_absolute(request_tmp_path, request_path)
+	if publish_error != OK:
+		_cleanup_capture_artifacts(artifacts)
+		return error_internal("Could not publish the GameAbility screenshot request: %s" % error_string(publish_error))
+
+	var deadline_ms := Time.get_ticks_msec() + 5000
+	while Time.get_ticks_msec() < deadline_ms and not FileAccess.file_exists(response_path):
+		await get_tree().create_timer(0.05).timeout
+		var current := get_authoritative_game_envelope()
+		if current.has("error") or str(current.get("session_id", "")) != session_id or str(current.get("operation_id", "")) != operation_id or str(current.get("boot_nonce", "")) != boot_nonce:
+			_cleanup_capture_artifacts(artifacts)
+			return error_conflict("GameAbility session ended or changed while capturing the screenshot.", {
+				"symbol": "SESSION_ENDED",
+				"session_id": session_id,
+				"request_id": request_id,
 			})
 
-	var ei := get_editor()
-	if not ei.is_playing_scene():
-		return await _get_editor_screenshot(params)
-
-	# Communicate with the game process via file system
-	var user_dir := get_game_user_dir()
-	var request_path := user_dir + "/mcp_screenshot_request"
-	var screenshot_path := user_dir + "/mcp_screenshot.png"
-
-	# Clean up any stale screenshot file
-	if FileAccess.file_exists(screenshot_path):
-		DirAccess.remove_absolute(screenshot_path)
-
-	# Create the request file to signal the game process
-	var req := FileAccess.open(request_path, FileAccess.WRITE)
-	if req == null:
-		return error_internal("Could not create screenshot request file")
-	req.close()
-
-	# Poll for the screenshot file (max 3 seconds, 0.1s interval)
-	var attempts := 30
-	while attempts > 0:
-		await get_tree().create_timer(0.1).timeout
-		if FileAccess.file_exists(screenshot_path):
-			break
-		attempts -= 1
-
-	if not FileAccess.file_exists(screenshot_path):
-		# Clean up request file if it still exists
-		if FileAccess.file_exists(request_path):
-			DirAccess.remove_absolute(request_path)
-		return error(-32000, "Screenshot timed out", {
-			"suggestion": "Ensure the game is running and MCPScreenshot autoload is active",
+	if not FileAccess.file_exists(response_path):
+		_cleanup_capture_artifacts(artifacts)
+		return error_conflict("GameAbility screenshot capture timed out without a correlated response.", {
+			"symbol": "CAPTURE_BACKEND_UNAVAILABLE",
+			"session_id": session_id,
+			"request_id": request_id,
+			"backend": CaptureProtocol.BACKEND,
 		})
 
-	# Load the PNG file
+	var response := _read_capture_response(response_path)
+	if response.is_empty():
+		_cleanup_capture_artifacts(artifacts)
+		return error_internal("GameAbility returned an unreadable screenshot response", {
+			"symbol": "STALE_CAPTURE_RESPONSE",
+			"session_id": session_id,
+			"request_id": request_id,
+		})
+	if str(response.get("status", "")) != "ok":
+		var runtime_error := str(response.get("error", "GameAbility screenshot capture failed"))
+		_cleanup_capture_artifacts(artifacts)
+		return error_conflict(runtime_error, {
+			"symbol": "CAPTURE_BACKEND_UNAVAILABLE",
+			"session_id": session_id,
+			"request_id": request_id,
+			"backend": CaptureProtocol.BACKEND,
+		})
+
+	var validation_error := CaptureProtocol.validate_success_response(response, session_id, operation_id, boot_nonce, request_id)
+	if not validation_error.is_empty():
+		_cleanup_capture_artifacts(artifacts)
+		return error_conflict(validation_error, {
+			"symbol": "STALE_CAPTURE_RESPONSE",
+			"session_id": session_id,
+			"request_id": request_id,
+		})
+	if not FileAccess.file_exists(image_path):
+		_cleanup_capture_artifacts(artifacts)
+		return error_internal("Correlated GameAbility response did not publish its PNG artifact", {
+			"symbol": "STALE_CAPTURE_RESPONSE",
+			"session_id": session_id,
+			"request_id": request_id,
+		})
+
+	var image_file := FileAccess.open(image_path, FileAccess.READ)
+	if image_file == null:
+		_cleanup_capture_artifacts(artifacts)
+		return error_internal("Could not read the GameAbility screenshot artifact")
+	var png_buffer := image_file.get_buffer(image_file.get_length())
+	image_file.close()
+	var computed_sha := _sha256_bytes(png_buffer)
+	var reported_sha := str(response.get("sha256", ""))
+	if computed_sha.is_empty() or computed_sha != reported_sha:
+		_cleanup_capture_artifacts(artifacts)
+		return error_internal("GameAbility screenshot SHA-256 integrity check failed", {
+			"symbol": "STALE_CAPTURE_RESPONSE",
+			"session_id": session_id,
+			"request_id": request_id,
+			"reported_sha256": reported_sha,
+			"computed_sha256": computed_sha,
+		})
+	if png_buffer.size() != int(response.get("byte_count", 0)):
+		_cleanup_capture_artifacts(artifacts)
+		return error_internal("GameAbility screenshot byte count does not match the correlated response", {
+			"symbol": "STALE_CAPTURE_RESPONSE",
+			"session_id": session_id,
+			"request_id": request_id,
+		})
+
 	var image := Image.new()
-	var err := image.load(screenshot_path)
-	if err != OK:
-		DirAccess.remove_absolute(screenshot_path)
-		return error_internal("Failed to load screenshot: %s" % error_string(err))
-
-	# Clean up temp file
-	DirAccess.remove_absolute(screenshot_path)
-
-	var save_path_param: String = params.get("save_path", params.get("path", ""))
-	if save_path_param != "":
-		var abs_path := _resolve_save_path(save_path_param)
-		var save_err := image.save_png(abs_path)
-		if save_err != OK:
-			return error_internal("Failed to save screenshot: %s" % error_string(save_err))
-		return success({
-			"path": save_path_param,
-			"saved_path": save_path_param,
-			"global_path": abs_path,
-			"width": image.get_width(),
-			"height": image.get_height(),
-			"format": "png",
-			"source": "game_viewport"
+	var image_error := image.load_png_from_buffer(png_buffer)
+	if image_error != OK:
+		_cleanup_capture_artifacts(artifacts)
+		return error_internal("Failed to decode the correlated GameAbility PNG: %s" % error_string(image_error))
+	if image.get_width() != int(response.get("width", 0)) or image.get_height() != int(response.get("height", 0)):
+		_cleanup_capture_artifacts(artifacts)
+		return error_internal("GameAbility screenshot dimensions do not match the correlated response", {
+			"symbol": "STALE_CAPTURE_RESPONSE",
+			"session_id": session_id,
+			"request_id": request_id,
 		})
 
-	var png_buffer := image.save_png_to_buffer()
-	var base64 := Marshalls.raw_to_base64(png_buffer)
-
-	return success({
-		"image_base64": base64,
+	_cleanup_capture_artifacts(artifacts)
+	var result := {
+		"requested_source": "game",
+		"actual_source": "game_ability",
+		"backend": CaptureProtocol.BACKEND,
+		"session_id": session_id,
+		"request_id": request_id,
 		"width": image.get_width(),
 		"height": image.get_height(),
 		"format": "png",
-		"source": "game_viewport"
-	})
+		"byte_count": png_buffer.size(),
+		"sha256": computed_sha,
+		"capture_timestamp_ms": int(response.get("capture_timestamp_ms", 0)),
+		"source": "game",
+		"provenance": {
+			"source": "game_ability",
+			"backend": CaptureProtocol.BACKEND,
+			"session_id": session_id,
+			"operation_id": operation_id,
+			"request_id": request_id,
+		},
+	}
+	var save_path := optional_string(params, "save_path", optional_string(params, "path", ""))
+	if save_path.is_empty():
+		result["image_base64"] = Marshalls.raw_to_base64(png_buffer)
+		return success(result)
+
+	var absolute_save_path := _resolve_save_path(save_path)
+	var parent_dir := absolute_save_path.get_base_dir()
+	if not parent_dir.is_empty():
+		var output_mkdir_error := DirAccess.make_dir_recursive_absolute(parent_dir)
+		if output_mkdir_error != OK and not DirAccess.dir_exists_absolute(parent_dir):
+			return error_internal("Failed to create screenshot output directory %s: %s" % [parent_dir, error_string(output_mkdir_error)])
+	var output_file := FileAccess.open(absolute_save_path, FileAccess.WRITE)
+	if output_file == null:
+		return error_internal("Failed to open screenshot output path %s" % absolute_save_path)
+	output_file.store_buffer(png_buffer)
+	output_file.close()
+	result["path"] = save_path
+	result["saved_path"] = save_path
+	result["global_path"] = absolute_save_path
+	return success(result)
+
+
+func _generate_capture_request_id() -> String:
+	var crypto := Crypto.new()
+	var random_bytes := crypto.generate_random_bytes(16)
+	if random_bytes.size() != 16:
+		return ""
+	return "req_" + random_bytes.hex_encode()
+
+
+func _read_capture_response(path: String) -> Dictionary:
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return {}
+	var text := file.get_as_text()
+	file.close()
+	var parsed: Variant = JSON.parse_string(text)
+	return parsed if parsed is Dictionary else {}
+
+
+func _sha256_bytes(bytes: PackedByteArray) -> String:
+	var context := HashingContext.new()
+	if context.start(HashingContext.HASH_SHA256) != OK:
+		return ""
+	context.update(bytes)
+	return context.finish().hex_encode()
+
+
+func _cleanup_capture_artifacts(paths: Array[String]) -> void:
+	for path: String in paths:
+		if FileAccess.file_exists(path):
+			DirAccess.remove_absolute(path)
 
 
 func _resolve_save_path(path: String) -> String:
@@ -729,49 +861,3 @@ func _set_auto_dismiss(params: Dictionary) -> Dictionary:
 		"auto_dismiss": enabled,
 		"message": "Auto-dismiss dialogs %s" % ("enabled" if enabled else "disabled"),
 	})
-
-
-func _run_project(params: Dictionary = {}) -> Dictionary:
-	if EditorInterface.get_edited_scene_root() != null:
-		EditorInterface.save_scene()
-	EditorInterface.call_deferred("play_main_scene")
-	return success({
-		"action": "play_main_scene",
-		"running": true,
-	})
-
-
-func _run_scene(params: Dictionary) -> Dictionary:
-	var scene_path: String = optional_string(params, "path", "")
-	if scene_path.is_empty():
-		scene_path = optional_string(params, "scene_path", "")
-	if scene_path.is_empty():
-		return _run_current_scene(params)
-	if EditorInterface.get_edited_scene_root() != null:
-		EditorInterface.save_scene()
-	EditorInterface.call_deferred("play_custom_scene", scene_path)
-	return success({
-		"action": "play_custom_scene",
-		"path": scene_path,
-		"running": true,
-	})
-
-
-func _run_current_scene(params: Dictionary = {}) -> Dictionary:
-	if EditorInterface.get_edited_scene_root() != null:
-		EditorInterface.save_scene()
-	EditorInterface.call_deferred("play_current_scene")
-	return success({
-		"action": "play_current_scene",
-		"running": true,
-	})
-
-
-func _stop_project(params: Dictionary = {}) -> Dictionary:
-	EditorInterface.call_deferred("stop_playing_scene")
-	return success({
-		"action": "stop_playing_scene",
-		"running": false,
-	})
-
-

@@ -33,7 +33,7 @@ import { window } from '@kit.ArkUI';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import plugin from 'libentry.so';
 import { Logger } from '../core/Logger';
-import { setGodotMode, setProjectPath, setRestartArgs, isGameLaunched, setGameLaunched } from '../core/AbilityState';
+import { setGodotMode, setProjectPath, setRestartArgs, setGameLaunched } from '../core/AbilityState';
 import { BridgeCallbacks } from '../core/BridgeCallbacks';
 import { GodotMcpInstaller } from '../core/GodotMcpInstaller';
 import { GodotMcpServerGateway } from '../core/GodotMcpServerGateway';
@@ -110,10 +110,11 @@ export default class EditorAbility extends UIAbility {
   onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
     logger.info('Ability onNewWant');
     if (want.parameters) {
-      // Layer 3: Best-effort notification from GameAbility (onWindowStageDestroy)
+      // Lifecycle events are carried on the editor-owned loopback gateway, not
+      // by starting this UIAbility from GameAbility (which could steal focus).
+      // Legacy notifications have no correlation envelope and are ignored.
       if (want.parameters['gameDied']) {
-        logger.info('GameAbility death notification via onNewWant — resetting editor run state');
-        this.resetEditorRunState();
+        logger.warn('Ignored legacy uncorrelated GameAbility death notification');
         return;
       }
       if (want.parameters['godotMode']) {
@@ -129,12 +130,6 @@ export default class EditorAbility extends UIAbility {
 
   onForeground(): void {
     logger.info('Ability onForeground');
-    // Layer 2 fallback: Editor coming to foreground with gameLaunched flag
-    // means Game was likely closed while Editor was in background.
-    if (isGameLaunched()) {
-      logger.info('onForeground with gameLaunched — Game likely died externally');
-      this.resetEditorRunState();
-    }
   }
 
   onBackground(): void {

@@ -122,8 +122,16 @@ export const setRestartCallback: (callback: (args: string) => void) => void;
 // Process kill - register callback for terminating GameAbility from Editor
 export const setProcessKillCallback: (callback: () => void) => void;
 
+// Called after the Godot main loop completes its first frame on the attached
+// native surface. Used for authoritative GameAbility REAL_READY reporting.
+export const setRuntimeReadyCallback: (callback: () => void) => void;
+
 // Set restart arguments before engine init (used when app is restarted)
 export const setRestartArguments: (args: string) => void;
+
+// Supplies the validated correlation envelope for the current GameAbility.
+// Must be called before setup(); false means runtime capture will not start.
+export const setRuntimeScreenshotContext: (sessionId: string, operationId: string, bootNonce: string) => boolean;
 
 // Set project directory (persistent directory for editor projects)
 export const setProjectDir: (path: string) => void;

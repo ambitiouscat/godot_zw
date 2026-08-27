@@ -38,8 +38,8 @@ func error_no_scene() -> Dictionary:
 	return error(-32000, "No scene is currently open", {"suggestion": "Use open_scene to open a scene first"})
 
 
-func error_internal(message: String) -> Dictionary:
-	return error(-32603, "Internal error: %s" % message)
+func error_internal(message: String, data: Dictionary = {}) -> Dictionary:
+	return error(-32603, "Internal error: %s" % message, data)
 
 
 func error_conflict(message: String, data: Dictionary = {}) -> Dictionary:
@@ -129,6 +129,9 @@ func require_dictionary_array(params: Dictionary, key: String) -> Dictionary:
 ## The game process reads the name from disk, so we must do the same.
 func get_game_user_dir() -> String:
 	var cached_dir := OS.get_user_data_dir()
+	if OS.has_feature("openharmony") or OS.has_feature("mobile") or OS.has_feature("android"):
+		return cached_dir
+
 	var cfg := ConfigFile.new()
 	var err := cfg.load(ProjectSettings.globalize_path("res://project.godot"))
 	if err != OK:
@@ -156,6 +159,59 @@ func get_game_user_dir() -> String:
 ## Get EditorInterface
 func get_editor() -> EditorInterface:
 	return editor_plugin.get_editor_interface()
+
+
+## Return the correlation envelope for the one authoritative game process.
+##
+## EditorInterface.is_playing_scene() is deliberately not used here. It only
+## says that Godot's editor believes something is playing; it cannot identify
+## a GameAbility instance or distinguish a stale process from the session that
+## initiated the request. Runtime-facing commands must therefore gate on the
+## lifecycle coordinator's REAL_RUNNING state and use its session nonce.
+func get_authoritative_game_envelope() -> Dictionary:
+	var coordinator: Node = get_tree().root.find_child("LifecycleCoordinator", true, false)
+	if coordinator == null or not coordinator.has_method("get_execution_state") or not coordinator.has_method("get_active_capture_context"):
+		return error_conflict("Authoritative GameAbility lifecycle service is unavailable.", {
+			"symbol": "CAPABILITY_UNAVAILABLE",
+			"capability": "authoritative_game_runtime",
+		})
+
+	var execution_state: Variant = coordinator.call("get_execution_state")
+	if not execution_state is Dictionary:
+		return error_internal("Lifecycle coordinator returned an invalid execution state.")
+	var state: Dictionary = execution_state
+	var lifecycle_state: String = str(state.get("state", ""))
+	var mode: String = str(state.get("mode", ""))
+	if lifecycle_state != "REAL_RUNNING" or mode != "real_run":
+		return error_conflict("GameAbility is not in the authoritative REAL_RUNNING state.", {
+			"symbol": "RUN_STATE_CONFLICT",
+			"state": lifecycle_state,
+			"mode": mode,
+		})
+
+	var capture_context: Variant = coordinator.call("get_active_capture_context")
+	if not capture_context is Dictionary:
+		return error_internal("Lifecycle coordinator returned an invalid capture context.")
+	var context: Dictionary = capture_context
+	var session_id: String = str(context.get("session_id", ""))
+	var operation_id: String = str(context.get("operation_id", ""))
+	var boot_nonce: String = str(context.get("boot_nonce", ""))
+	if session_id.is_empty() or operation_id.is_empty() or boot_nonce.is_empty():
+		return error_conflict("GameAbility session correlation data is incomplete.", {
+			"symbol": "RUN_STATE_CONFLICT",
+			"state": lifecycle_state,
+			"session_id_present": not session_id.is_empty(),
+			"operation_id_present": not operation_id.is_empty(),
+			"boot_nonce_present": not boot_nonce.is_empty(),
+		})
+
+	return {
+		"session_id": session_id,
+		"operation_id": operation_id,
+		"boot_nonce": boot_nonce,
+		"state": lifecycle_state,
+		"mode": mode,
+	}
 
 
 ## Get the edited scene root
@@ -271,117 +327,6 @@ func ensure_parent_dir(path: String) -> Dictionary:
 	return {}
 
 
-## Helper: unwrap the (possibly multi-)wrapped {"result": ...} envelope returned
-## by the game IPC channel. The game writes its own {"result": ...} envelope and
-## the transport wraps it again, so consumers must unwrap defensively.
-func unwrap_game_result(result: Dictionary) -> Dictionary:
-	var payload: Variant = result
-	while payload is Dictionary and payload.has("result") and payload["result"] is Dictionary:
-		payload = payload["result"]
-	return payload if payload is Dictionary else {}
-
-
-## Shared IPC helper: send a command to the running game and await its response.
-## Only one game command may be in flight: the request and response files are
-## shared, so two at once would overwrite each other's request and consume each
-## other's reply. Static, because each command file has its own instance.
-static var _game_command_busy := false
-static var _game_command_seq := 0
-
-
-func send_game_command(command: String, params: Dictionary = {}, timeout_sec: float = 5.0) -> Dictionary:
-	var ei := get_editor()
-	if not ei.is_playing_scene():
-		return error(-32000, "No scene is currently playing", {"suggestion": "Use play_scene first"})
-
-	# Wait for any in-flight game command rather than trampling it.
-	var waited := 0.0
-	var queue_limit := timeout_sec + 5.0
-	while _game_command_busy and waited < queue_limit:
-		await get_tree().create_timer(0.05).timeout
-		waited += 0.05
-	if _game_command_busy:
-		return error(-32000, "Another game command is still running", {
-			"suggestion": "Retry once it finishes; game commands are serialised because they share one request channel.",
-		})
-
-	_game_command_busy = true
-	var result := await _send_game_command_locked(command, params, timeout_sec)
-	_game_command_busy = false
-	return result
-
-
-func _send_game_command_locked(command: String, params: Dictionary, timeout_sec: float) -> Dictionary:
-	var ei := get_editor()
-	var user_dir := get_game_user_dir()
-	var request_path := user_dir + "/mcp_game_request"
-	var response_path := user_dir + "/mcp_game_response"
-
-	# Clean stale response
-	if FileAccess.file_exists(response_path):
-		DirAccess.remove_absolute(response_path)
-
-	# Write request, tagged so a late reply from a command that already timed
-	# out is recognised and discarded instead of being read as this one's.
-	_game_command_seq += 1
-	var request_id := "%d-%d" % [Time.get_ticks_msec(), _game_command_seq]
-	var request_data := JSON.stringify({"command": command, "params": params, "request_id": request_id})
-	var req := FileAccess.open(request_path, FileAccess.WRITE)
-	if req == null:
-		return error_internal("Could not create game request file")
-	req.store_string(request_data)
-	req.close()
-
-	# Poll for response
-	var attempts := int(timeout_sec / 0.1)
-	while attempts > 0:
-		await get_tree().create_timer(0.1).timeout
-		if FileAccess.file_exists(response_path):
-			break
-		if not ei.is_playing_scene():
-			if FileAccess.file_exists(request_path):
-				DirAccess.remove_absolute(request_path)
-			return error(-32000, "Game stopped during command execution")
-		attempts -= 1
-
-	if not FileAccess.file_exists(response_path):
-		# Try to auto-resume the debugger (runtime error may have paused the game)
-		if ei.is_playing_scene():
-			try_debugger_continue()
-			for _retry in 20:
-				await get_tree().create_timer(0.1).timeout
-				if FileAccess.file_exists(response_path):
-					break
-
-	if not FileAccess.file_exists(response_path):
-		if FileAccess.file_exists(request_path):
-			DirAccess.remove_absolute(request_path)
-		return build_timeout_error(timeout_sec)
-
-	# Read response
-	var file := FileAccess.open(response_path, FileAccess.READ)
-	if file == null:
-		return error_internal("Could not read game response file")
-	var text := file.get_as_text()
-	file.close()
-	DirAccess.remove_absolute(response_path)
-
-	var parsed = JSON.parse_string(text)
-	if parsed == null or not parsed is Dictionary:
-		return error_internal("Invalid response JSON from game")
-
-	var reply_id := str(parsed.get("request_id", ""))
-	if not reply_id.is_empty() and reply_id != request_id:
-		return error_internal(
-			"Discarded a stale game response belonging to an earlier command. Retry this one."
-		)
-
-	if parsed.has("error"):
-		return error(-32000, str(parsed["error"]))
-
-	return success(parsed)
-
-
 func is_shader_resource_path(path: String) -> bool:
 	var ext := path.get_extension().to_lower()
 	return ext == "gdshader" or ext == "gdshaderinc" or ext == "shader"
@@ -442,148 +387,6 @@ func set_property_with_undo(target: Object, property: String, new_value: Variant
 	if old_value is Resource:
 		undo_redo.add_undo_reference(old_value)
 	undo_redo.commit_action()
-
-
-## ── Game-command timeout diagnostics ──────────────────────────────────────────
-## Shared by the file-IPC `_send_game_command` helpers (runtime/test commands).
-## The goal is to never tell the agent "the game isn't running / autoload missing"
-## when the game IS running and merely paused by a runtime error.
-
-## Locate the editor's ScriptEditorDebugger node (BFS from base control).
-func _find_script_editor_debugger() -> Node:
-	var base := EditorInterface.get_base_control()
-	if base == null:
-		return null
-	var queue: Array[Node] = [base]
-	while not queue.is_empty():
-		var node := queue.pop_front()
-		if node.get_class() == "ScriptEditorDebugger":
-			return node
-		for child in node.get_children():
-			queue.append(child)
-	return null
-
-
-## Look up an editor theme icon by name (locale-independent), or null.
-func _get_editor_icon(icon_name: String) -> Texture2D:
-	var base := EditorInterface.get_base_control()
-	if base != null and base.has_theme_icon(icon_name, "EditorIcons"):
-		return base.get_theme_icon(icon_name, "EditorIcons")
-	return null
-
-
-## Find the debugger "Continue" button without relying on UI text.
-## The editor is translated, so matching tooltip/label text breaks for
-## non-English editors (issue #34: Italian → "Continua"). Match by the editor
-## theme icon "DebugContinue" first, falling back to the English text only if
-## the icon can't be resolved.
-func _find_debugger_continue_button() -> Button:
-	var dbg := _find_script_editor_debugger()
-	if dbg == null:
-		return null
-	var continue_icon := _get_editor_icon("DebugContinue")
-	var fallback: Button = null
-	var inner: Array[Node] = [dbg]
-	while not inner.is_empty():
-		var n := inner.pop_front()
-		if n is Button:
-			var b := n as Button
-			if continue_icon != null and b.icon == continue_icon:
-				return b
-			if b.tooltip_text == "Continue":
-				fallback = b
-		for c in n.get_children():
-			inner.append(c)
-	return fallback
-
-
-## True when the running game is halted at a breakpoint or runtime error
-## (the debugger's "Continue" button is present and enabled).
-func is_debugger_paused() -> bool:
-	var btn := _find_debugger_continue_button()
-	return btn != null and not btn.disabled
-
-
-## Read recent runtime errors from the debugger's "Errors" tab tree, so a
-## timeout caused by a script error can report the actual cause inline.
-func collect_debugger_errors(max_errors: int = 10) -> Array:
-	var out: Array = []
-	var dbg := _find_script_editor_debugger()
-	if dbg == null:
-		return out
-	for child in dbg.get_children():
-		if child is TabContainer:
-			var tab_container := child as TabContainer
-			for tab_idx in range(tab_container.get_tab_count()):
-				var tab_control: Control = tab_container.get_tab_control(tab_idx)
-				if tab_control is VBoxContainer and tab_control.name.begins_with("Errors"):
-					for vchild in tab_control.get_children():
-						if vchild is Tree:
-							var tree := vchild as Tree
-							var root_item: TreeItem = tree.get_root()
-							if root_item:
-								var item: TreeItem = root_item.get_first_child()
-								while item and out.size() < max_errors:
-									var col0: String = item.get_text(0).strip_edges()
-									var col1: String = item.get_text(1).strip_edges()
-									var msg: String = col0
-									if not col1.is_empty():
-										msg = (msg + " " + col1) if not msg.is_empty() else col1
-									if not msg.is_empty():
-										out.append(msg)
-									item = item.get_next()
-					break
-			break
-	return out
-
-
-## Press the debugger "Continue" button to resume a paused game process.
-func try_debugger_continue() -> void:
-	var btn := _find_debugger_continue_button()
-	if btn != null and not btn.disabled:
-		btn.emit_signal("pressed")
-		push_warning("[MCP] Auto-resumed debugger after runtime error")
-
-
-## Build an accurate error for a file-IPC game-command timeout.
-## Distinguishes "game not running" from "game running but unresponsive
-## (likely paused by a runtime error / breakpoint)" so callers aren't misled
-## into thinking the MCP connection is dead or the autoload is missing.
-func build_timeout_error(timeout_sec: float) -> Dictionary:
-	# Re-check play state at the moment we give up.
-	if not get_editor().is_playing_scene():
-		return error(
-			-32000,
-			"Game command timed out after %.1fs and the game process is no longer running." % timeout_sec,
-			{
-				"game_running": false,
-				"suggestion": "The scene stopped. Call play_scene to start it again before sending runtime commands.",
-			}
-		)
-
-	# The game IS running. Figure out *why* it didn't answer.
-	var paused := is_debugger_paused()
-	var runtime_errors := collect_debugger_errors(10)
-	var data := {
-		"game_running": true,
-		"debugger_paused": paused,
-	}
-	if not runtime_errors.is_empty():
-		data["runtime_errors"] = runtime_errors
-
-	var msg: String
-	if paused or not runtime_errors.is_empty():
-		msg = ("Game command timed out after %.1fs, but the game IS running. " % timeout_sec) \
-			+ "A runtime/script error paused the scene, so it could not respond to the command."
-		data["suggestion"] = "This is NOT a connection or autoload problem. Fix the error in 'runtime_errors' " \
-			+ "(or call get_editor_errors for the full list), then retry. The debugger was auto-resumed; " \
-			+ "if errors persist, call stop_scene then play_scene to restart cleanly."
-	else:
-		msg = ("Game command timed out after %.1fs. The game is running but did not respond in time." % timeout_sec)
-		data["suggestion"] = "The MCP server connection is fine and the game is running. The command may be slow " \
-			+ "or the game may be busy/blocked. Retry with a longer timeout, and call get_editor_errors to check " \
-			+ "for runtime errors. In rare cases (custom projects) verify the MCPGameInspector autoload is active."
-	return error(-32000, msg, data)
 
 
 ## Find node by path in edited scene

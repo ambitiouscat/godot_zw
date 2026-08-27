@@ -1,201 +1,29 @@
 @tool
 extends "res://addons/godot_mcp/commands/base_command.gd"
 
-const COMMANDS_PATH := "user://mcp_input_commands"
+## Runtime input injection must be implemented by a session-scoped
+## GameAbility agent. The former shared, unacknowledged mailbox could report
+## success even when no game service consumed the event. Keep the public
+## methods discoverable but fail honestly.
 
 
 func get_commands() -> Dictionary:
 	return {
-		"simulate_key": _simulate_key,
-		"simulate_mouse_click": _simulate_mouse_click,
-		"simulate_mouse_move": _simulate_mouse_move,
-		"simulate_action": _simulate_action,
-		"simulate_sequence": _simulate_sequence,
+		"simulate_key": _input_capability_unavailable,
+		"simulate_mouse_click": _input_capability_unavailable,
+		"simulate_mouse_move": _input_capability_unavailable,
+		"simulate_action": _input_capability_unavailable,
+		"simulate_sequence": _input_capability_unavailable,
 	}
 
 
-func _simulate_key(params: Dictionary) -> Dictionary:
-	var result := require_string(params, "keycode")
-	if result[1] != null:
-		return result[1]
-	var keycode: String = result[0]
-
-	var pressed: bool = optional_bool(params, "pressed", true)
-	var shift: bool = optional_bool(params, "shift", false)
-	var ctrl: bool = optional_bool(params, "ctrl", false)
-	var alt: bool = optional_bool(params, "alt", false)
-
-	var event := {
-		"type": "key",
-		"keycode": keycode,
-		"pressed": pressed,
-		"shift": shift,
-		"ctrl": ctrl,
-		"alt": alt,
-	}
-	_write_commands([event])
-	return success({"sent": true, "event": event})
-
-
-func _simulate_mouse_click(params: Dictionary) -> Dictionary:
-	var button: int = optional_int(params, "button", 1)  # MOUSE_BUTTON_LEFT
-	var pressed: bool = optional_bool(params, "pressed", true)
-	var double_click: bool = optional_bool(params, "double_click", false)
-	var auto_release: bool = optional_bool(params, "auto_release", true)
-	var x: float = optional_float(params, "x", 0.0)
-	var y: float = optional_float(params, "y", 0.0)
-
-	var press_event := {
-		"type": "mouse_button",
-		"button": button,
-		"pressed": pressed,
-		"double_click": double_click,
-		"position": {"x": x, "y": y},
-	}
-
-	# Auto-release: send press + release in sequence so UI buttons actually fire
-	if pressed and auto_release:
-		var release_event := press_event.duplicate()
-		release_event["pressed"] = false
-		var sequence_data := {
-			"sequence_events": [press_event, release_event],
-			"frame_delay": 1,
-		}
-		var json := JSON.stringify(sequence_data)
-		var file := FileAccess.open(COMMANDS_PATH, FileAccess.WRITE)
-		if file == null:
-			return error_internal("Failed to write commands: %s" % error_string(FileAccess.get_open_error()))
-		file.store_string(json)
-		file.close()
-		return success({"sent": true, "event": press_event, "auto_release": true})
-
-	_write_commands([press_event])
-	return success({"sent": true, "event": press_event})
-
-
-func _simulate_mouse_move(params: Dictionary) -> Dictionary:
-	var x: float = optional_float(params, "x", 0.0)
-	var y: float = optional_float(params, "y", 0.0)
-	var rel_x: float = optional_float(params, "relative_x", 0.0)
-	var rel_y: float = optional_float(params, "relative_y", 0.0)
-	var button_mask: int = optional_int(params, "button_mask", 0)
-	var unhandled_explicit: bool = params.has("unhandled")
-	var unhandled: bool = optional_bool(params, "unhandled", false)
-
-	var event := {
-		"type": "mouse_motion",
-		"position": {"x": x, "y": y},
-		"relative": {"x": rel_x, "y": rel_y},
-		"button_mask": button_mask,
-	}
-	# Auto-enable unhandled for drag motions (camera-pan use case) ONLY when
-	# the caller did NOT explicitly pass an "unhandled" key. If they passed
-	# one — true or false — honor it. This lets UI drag-and-drop tests opt
-	# back into normal GUI dispatch by passing unhandled: false explicitly.
-	if unhandled_explicit:
-		event["unhandled"] = unhandled
-	elif button_mask > 0:
-		event["unhandled"] = true
-	_write_commands([event])
-	return success({"sent": true, "event": event})
-
-
-func _simulate_action(params: Dictionary) -> Dictionary:
-	var result := require_string(params, "action")
-	if result[1] != null:
-		return result[1]
-	var action_name: String = result[0]
-
-	var pressed: bool = optional_bool(params, "pressed", true)
-	var strength: float = optional_float(params, "strength", 1.0)
-
-	var event := {
-		"type": "action",
-		"action": action_name,
-		"pressed": pressed,
-		"strength": strength,
-	}
-	_write_commands([event])
-	return success({"sent": true, "event": event})
-
-
-func _simulate_sequence(params: Dictionary) -> Dictionary:
-	if not params.has("events") or not params["events"] is Array:
-		return error_invalid_params("Missing required parameter: events (Array)")
-
-	var events: Array = params["events"]
-	if events.is_empty():
-		return error_invalid_params("Events array is empty")
-
-	var frame_delay: int = optional_int(params, "frame_delay", 1)
-
-	for entry: Variant in events:
-		# Typed iteration would raise on a non-Dictionary entry, and `as String`
-		# raises on a non-String type — both abort before any response is sent.
-		if not entry is Dictionary:
-			return error_invalid_params("Each sequence event must be an object, got %s" % type_string(typeof(entry)))
-		var event_data: Dictionary = entry
-		if not event_data.has("type") or not event_data["type"] is String or (event_data["type"] as String).is_empty():
-			return error_invalid_params("Invalid event in sequence: %s" % str(event_data))
-
-	if frame_delay <= 0:
-		# All events in one frame - write as plain array
-		_write_commands(events)
-	else:
-		# Sequence with frame delay - game side handles timing
-		var sequence_data := {
-			"sequence_events": events,
-			"frame_delay": frame_delay,
-		}
-		var json := JSON.stringify(sequence_data)
-		var file := FileAccess.open(COMMANDS_PATH, FileAccess.WRITE)
-		if file == null:
-			return error_internal("Failed to write commands: %s" % error_string(FileAccess.get_open_error()))
-		file.store_string(json)
-		file.close()
-
-	return success({"sent": true, "event_count": events.size(), "frame_delay": frame_delay})
-
-
-func _write_commands(events: Array) -> void:
-	var runner = get_tree().root.find_child("InEditorGameRunner", true, false)
-	if runner and runner.has_method("forward_input_event") and runner.is_running:
-		for ev_data in events:
-			var ev: InputEvent = null
-			var etype: String = ev_data.get("type", "")
-			if etype == "key":
-				var ikey := InputEventKey.new()
-				var kstr: String = ev_data.get("keycode", "")
-				if kstr.begins_with("Key_"):
-					kstr = kstr.substr(4)
-				var code: int = OS.find_keycode_from_string(kstr)
-				ikey.keycode = code if code != 0 else KEY_SPACE
-				ikey.pressed = ev_data.get("pressed", true)
-				ikey.shift_pressed = ev_data.get("shift", false)
-				ikey.ctrl_pressed = ev_data.get("ctrl", false)
-				ikey.alt_pressed = ev_data.get("alt", false)
-				ev = ikey
-			elif etype == "mouse_button":
-				var imouse := InputEventMouseButton.new()
-				imouse.button_index = ev_data.get("button", MOUSE_BUTTON_LEFT)
-				imouse.pressed = ev_data.get("pressed", true)
-				imouse.double_click = ev_data.get("double_click", false)
-				var pos_dict: Dictionary = ev_data.get("position", {})
-				imouse.position = Vector2(pos_dict.get("x", 0.0), pos_dict.get("y", 0.0))
-				ev = imouse
-			elif etype == "mouse_move":
-				var imove := InputEventMouseMotion.new()
-				var pos_dict: Dictionary = ev_data.get("position", {})
-				imove.position = Vector2(pos_dict.get("x", 0.0), pos_dict.get("y", 0.0))
-				var rel_dict: Dictionary = ev_data.get("relative", {})
-				imove.relative = Vector2(rel_dict.get("x", 0.0), rel_dict.get("y", 0.0))
-				ev = imove
-			if ev:
-				runner.forward_input_event(ev)
-
-	var json := JSON.stringify(events)
-	var file := FileAccess.open(COMMANDS_PATH, FileAccess.WRITE)
-	if file == null:
-		return
-	file.store_string(json)
-	file.close()
+func _input_capability_unavailable(params: Dictionary) -> Dictionary:
+	var envelope := get_authoritative_game_envelope()
+	if envelope.has("error"):
+		return envelope
+	return error_conflict("Runtime input injection is unavailable: no scoped GameAbility input agent is attached to this run.", {
+		"symbol": "CAPABILITY_UNAVAILABLE",
+		"capability": "game_ability_input",
+		"session_id": str(envelope.get("session_id", "")),
+		"requested_parameters": params.keys(),
+	})
