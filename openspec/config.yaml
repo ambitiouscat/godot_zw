@@ -4,7 +4,7 @@ context: |
   The canonical repository root is godot_zw. Godot editor/plugin code, the
   OpenHarmony EditorAbility/GameAbility bridge, packaging assets, and OpenSpec
   planning artifacts are versioned from this directory.
-  Runtime and viewport-preview behavior must follow AGENTS.md and
+  Authoritative GameAbility real-run and editor-inspection behavior must follow AGENTS.md and
   GODOT_GAME_DEV_PROTOCOL.md, including the two approval gates.
 
 rules:

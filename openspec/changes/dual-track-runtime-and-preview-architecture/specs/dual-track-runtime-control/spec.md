@@ -1,164 +1,108 @@
-## Purpose
-
-Defines observable command, lifecycle, correlation, screenshot-provenance, and
-source-file immutability contracts for authoritative Godot GameAbility execution
-and standard editor inspection.
-
 ## ADDED Requirements
 
-### Requirement: Canonical Runtime Command Contract
-The system SHALL route `run_project`, `run_scene`, and `run_current_scene` only to standalone `GameAbility`; SHALL route `stop_project` only to real run; SHALL reject `simulate_*` commands and `source="preview"` with `INVALID_ARGUMENT`; and SHALL treat standalone `GameAbility` as the sole authoritative gameplay execution and Stage 4 QA acceptance runtime.
+### Requirement: Canonical Gameplay Commands Target Only GameAbility
 
-#### Scenario: Start the configured main scene in real mode
-- **WHEN** a client invokes `run_project` from `IDLE`
-- **THEN** the system accepts a real-run operation, assigns a UUID `session_id`, launches `GameAbility`, and transitions to `REAL_STARTING`
+The system SHALL route every canonical gameplay start and stop command to standalone `GameAbility`. It SHALL NOT register or dispatch editor simulation commands.
 
-#### Scenario: Reject removed simulation commands
-- **WHEN** a client invokes `simulate_project`, `simulate_scene`, or `simulate_current_scene`
-- **THEN** the system returns `INVALID_ARGUMENT` indicating simulation has been removed in favor of authoritative `GameAbility` execution
+#### Scenario: Start project
 
-#### Scenario: Stop real run
-- **WHEN** a client invokes `stop_project` while real run is active
-- **THEN** the system terminates `GameAbility`, transitions to `REAL_STOPPING`, and returns to `IDLE` upon process exit
+- **WHEN** a client calls `run_project` from `IDLE`
+- **THEN** the system starts a correlated `GameAbility` session and reports `REAL_STARTING`
+- **AND** it does not create an editor SubViewport simulation
 
-### Requirement: Command Compatibility and Deprecation
-The system SHALL preserve the alias mapping defined in `design.md`, SHALL return `deprecated_alias: true` and a canonical `replacement` for deprecated aliases, and SHALL NOT preserve the fork-specific behavior in which `play_*` starts preview.
+#### Scenario: Removed simulation command
 
-#### Scenario: Use a deprecated play alias
-- **WHEN** a client invokes `play_scene` with a scene path
-- **THEN** the system invokes canonical `run_scene`, reports the alias deprecation, and starts no preview session
+- **WHEN** a client calls any `simulate_*` command or `stop_simulation`
+- **THEN** the method is absent or rejected as unsupported
+- **AND** no lifecycle or scene-tree state changes
 
-#### Scenario: Use deprecated scene-path fields
-- **WHEN** a client invokes `run_scene` or `simulate_scene` with `scene_path` or `scene` instead of `path`
-- **THEN** the system normalizes the value, reports the deprecated field, and applies canonical command behavior
+### Requirement: Real-Only Correlated Lifecycle
 
-### Requirement: Asynchronous Lifecycle State Contract
-The system SHALL expose stable states `IDLE`, `PREVIEW_RUNNING`, and `REAL_RUNNING`, transitional states `PREVIEW_STARTING`, `PREVIEW_STOPPING`, `REAL_STARTING`, `REAL_STOPPING`, and `RECONCILING`, and SHALL enter a RUNNING state only after the matching runtime reports READY.
+The lifecycle coordinator SHALL use only `IDLE`, `REAL_STARTING`, `REAL_RUNNING`, `REAL_STOPPING`, and `RECONCILING`, and SHALL accept state-changing runtime events only when event, session, operation, and boot nonce match the active transition.
 
-#### Scenario: Real start remains transitional until ready
-- **WHEN** the real start request is accepted but matching `REAL_READY` has not arrived
-- **THEN** the command reports `accepted` and the execution state remains `REAL_STARTING`, not `REAL_RUNNING`
+#### Scenario: Runtime readiness
 
-#### Scenario: Real stop remains transitional until exit
-- **WHEN** `REAL_STOP_ACK` has arrived but matching `REAL_EXIT` has not arrived
-- **THEN** the state remains `REAL_STOPPING` and no pending preview is started
+- **WHEN** a matching `REAL_READY` arrives after the GameAbility surface and first frame are ready
+- **THEN** `REAL_STARTING` transitions to `REAL_RUNNING`
 
-#### Scenario: Reconcile uncertain state
-- **WHEN** the editor restarts, a lifecycle handshake times out, or observed runtime state conflicts with tracked state
-- **THEN** the system enters `RECONCILING`, rejects new starts, verifies actual runtime ownership, and only then selects a stable state
+#### Scenario: Stale readiness
 
-### Requirement: Session-Correlated and Idempotent Operations
-The system SHALL generate an immutable UUID-based `session_id` for each accepted start, SHALL correlate all lifecycle and capture messages to that session, SHALL serialize mutating operations, and SHALL deduplicate retries by `operation_id`.
+- **WHEN** a READY event has an empty, stale, or mismatched correlation field
+- **THEN** the event is ignored
+- **AND** the lifecycle state does not change
 
-#### Scenario: Ignore a stale exit event
-- **WHEN** an EXIT event for session A arrives after session B became current
-- **THEN** the system logs and ignores the event without changing session B
+#### Scenario: Uncertain transition timeout
 
-#### Scenario: Retry an accepted operation
-- **WHEN** a client repeats an operation with the same `operation_id` and identical normalized arguments
-- **THEN** the system returns the existing operation and does not start or stop a second runtime
+- **WHEN** a real start or stop handshake times out without conclusive runtime evidence
+- **THEN** the coordinator enters `RECONCILING`
+- **AND** it does not falsely report `IDLE`
 
-#### Scenario: Reject an operation ID collision
-- **WHEN** a client reuses an `operation_id` with different normalized arguments
-- **THEN** the system returns `INVALID_OPERATION_ID` without changing lifecycle state
+#### Scenario: Long-running game
 
-### Requirement: Explicit Conflict and Preemption Policy
-Every start command SHALL default to `conflict_policy: "reject"`; SHALL accept `conflict_policy: "preempt"` for an explicit mode switch; and SHALL complete the source session's terminal stop acknowledgement before starting the target session.
+- **WHEN** a session is confirmed `REAL_RUNNING`
+- **THEN** no duration-based timer terminates it or clears its state
 
-#### Scenario: Reject an implicit destructive switch
-- **WHEN** a preview start is requested while real run is active without explicit preemption
-- **THEN** the system returns `STATE_CONFLICT` and leaves the real session running
+### Requirement: Strict Screenshot Sources
 
-#### Scenario: Preempt real run with preview
-- **WHEN** a preview start is requested with `conflict_policy: "preempt"` while real run is active
-- **THEN** the system stops the matching real session, waits for `REAL_EXIT`, and only then starts the reserved preview session
+The screenshot API SHALL accept only `source="editor"` and `source="game"` and SHALL never substitute another source.
 
-#### Scenario: Abort target when source stop is uncertain
-- **WHEN** the source session's stop fails or times out during preemption
-- **THEN** the target session is not started and the system enters the verified source state or `RECONCILING`
+#### Scenario: Preview source rejected
 
-### Requirement: Real-Run Readiness, Longevity, and Exit
-The system SHALL correlate real-run readiness and termination to the active session, SHALL NOT infer readiness from a deferred editor call or process exit Promise, and SHALL NOT impose a duration timeout on a confirmed healthy game session.
+- **WHEN** a client requests `source="preview"`
+- **THEN** the API returns `INVALID_ARGUMENT`
+- **AND** no screenshot from another source is returned
 
-#### Scenario: Maintain a long-running game
-- **WHEN** a matching `REAL_READY` session continues for at least 60 seconds without an EXIT event
-- **THEN** the system remains `REAL_RUNNING` and continues to support state queries, game screenshots, and explicit stop
+#### Scenario: Game unavailable
 
-#### Scenario: Stop a matching real session
-- **WHEN** `stop_project` is invoked with the active session and `GameAbility` accepts and exits
-- **THEN** the system observes matching STOP and EXIT acknowledgements, records the terminal outcome, and transitions to `IDLE`
+- **WHEN** a client requests `source="game"` without a matching running and capture-ready GameAbility session
+- **THEN** the API returns `RUN_STATE_CONFLICT`, `GAME_NOT_READY`, or `CAPABILITY_UNAVAILABLE`
+- **AND** it does not capture the editor or OS screen
 
-#### Scenario: Foreground does not prove death
-- **WHEN** `EditorAbility` returns to foreground while a real session is tracked
-- **THEN** the system reconciles liveness and does not clear the session solely because of the foreground event
+#### Scenario: Verified game artifact
 
-### Requirement: Strict Screenshot Source and Provenance
-The system SHALL treat screenshot source as the exact enum `editor` or `game`; SHALL reject `preview` with `INVALID_ARGUMENT`; SHALL capture only the matching backend (`editor_viewport` or `game_ability_viewport`); and SHALL return `requested_source`, `actual_source`, `backend`, `session_id`, `request_id`, artifact integrity data (including SHA-256 bit-for-bit validation), and capture provenance on success.
+- **WHEN** a correlated GameAbility capture succeeds
+- **THEN** the response includes matching session/request identifiers, actual source, GameAbility backend, capture timestamp, dimensions, byte count, format, SHA-256, and provenance
+- **AND** the editor has independently validated the committed artifact bytes and correlation fields
 
-#### Scenario: Reject preview screenshot request
-- **WHEN** `take_screenshot` requests `source: "preview"`
-- **THEN** the system returns `INVALID_ARGUMENT` and does not capture any image
+### Requirement: Project Files Remain Immutable
 
-#### Scenario: Capture real-game evidence
-- **WHEN** `take_screenshot` requests `source: "game"` during capture-ready `REAL_RUNNING`
-- **THEN** the system captures the matching `GameAbility` surface or native root viewport, validates SHA-256 and session correlation, and reports `backend: "game_ability_viewport"` and matching session
+MCP runtime instrumentation SHALL NOT persist project Autoloads, call `ProjectSettings.save()` during launch/capture, mutate edited-scene nodes, or store transport artifacts in `res://`. The platform MAY register a correlated capture agent in the GameAbility process's in-memory `ProjectSettings`. A one-time migration MAY remove and save only exact legacy MCP Autoload entries previously persisted by the plugin.
 
-#### Scenario: Do not substitute game for editor or editor for game
-- **WHEN** `take_screenshot` requests `source: "game"` while no real session is running
-- **THEN** the system returns `RUN_STATE_CONFLICT` and does not return an editor image
+#### Scenario: Start, inspect, capture, and stop
 
-### Requirement: Correlated Capture Integrity
-Every real-game capture SHALL use a unique `request_id`, SHALL bind request and response to the active `session_id` and boot nonce, SHALL atomically commit the image before its response, and SHALL reject stale, incomplete, out-of-session, or integrity-invalid results.
+- **WHEN** a clean project completes a real-run acceptance sequence
+- **THEN** `project.godot` and every `.tscn` file retain their clean-baseline SHA-256 values
 
-#### Scenario: Reject a previous session's frame
-- **WHEN** a capture response has the expected request ID but a stale session ID, nonce, or capture timestamp
-- **THEN** the system rejects it as `STALE_CAPTURE_RESPONSE` and continues waiting only until the current request deadline
+#### Scenario: Legacy MCP Autoload migration
 
-#### Scenario: Complete concurrent captures without cross-talk
-- **WHEN** two game capture requests are accepted concurrently
-- **THEN** each request receives only its own correlated image and response, regardless of response order
+- **WHEN** an affected project contains an exact legacy MCP Autoload key/path pair
+- **THEN** a compatibility script permits startup and the editor removes and saves only that owned entry
+- **AND** a user-owned Autoload with the same name or a different path is preserved
 
-#### Scenario: End a capture with its session
-- **WHEN** the real session exits while a capture is pending
-- **THEN** the pending request returns `SESSION_ENDED` and no late frame satisfies a later request
+### Requirement: Runtime Commands Are Honest and Isolated
 
-### Requirement: No Cross-Source Screenshot Fallback
-The system SHALL return a stable capture or lifecycle error when the requested backend is unavailable, not ready, busy, timed out, or invalid, and SHALL NEVER substitute an editor or preview image for a requested game image.
+Runtime inspection and input commands SHALL operate only through a correlated GameAbility-side capability. If unavailable, they SHALL return a stable explicit error.
 
-#### Scenario: Game capture backend fails
-- **WHEN** both allowed GameAbility capture backends fail for the active session
-- **THEN** the system returns `CAPTURE_BACKEND_UNAVAILABLE` with correlation and recovery metadata and no image from another source
+#### Scenario: Runtime agent unavailable
 
-### Requirement: Clean Preflight and Source-File Immutability
-Start commands SHALL default to `save_policy: "require_clean"`, SHALL reject unsaved edited scenes without starting, and SHALL establish the source-file hash baseline only after an explicitly requested preflight save has completed. Runtime control and capture SHALL NOT modify `project.godot` or `.tscn` files after that baseline.
-
-#### Scenario: Reject an implicit save
-- **WHEN** a start command uses the default save policy while the edited scene has unsaved changes
-- **THEN** the system returns `UNSAVED_CHANGES`, does not save, and does not start either track
-
-#### Scenario: Establish a post-save baseline
-### Requirement: Runtime Command Isolation and Standalone Execution
-Runtime inspection and modification commands (`get_game_scene_tree`, `get_game_node_properties`, `set_game_node_property`, `execute_game_script`) SHALL communicate strictly with the standalone `GameAbility` process. The system SHALL NEVER inspect, query, or mutate the editor's `edited_scene_root` as a runtime instance or simulation fallback.
-
-#### Scenario: Query scene tree when game is not running
-- **WHEN** a client invokes `get_game_scene_tree` while `GameAbility` is not in `REAL_RUNNING`
-- **THEN** the system returns `PRECONDITION_FAILED` and does not query or mutate the active editor scene
-
-### Requirement: 5-Tier Category Directory Hierarchy for Resource Fallbacks
-Default fallback paths for resource creation MCP tools SHALL strictly adhere to the 5-tier directory hierarchy (`res://resources/materials/`, `res://resources/shapes/`, etc.) and SHALL NOT default to the `res://` root.
-
-#### Scenario: Create box mesh with default path
-- **WHEN** a client invokes `create_box_mesh` without specifying a path
-- **THEN** the system defaults to `res://resources/shapes/box_mesh.tres` rather than `res://box_mesh.tres`
-
-#### Scenario: Preserve project sources across a session
-- **WHEN** a clean-baseline preview or real run is started, captured, and stopped
-- **THEN** SHA-256 values for `project.godot` and all `.tscn` files match the baseline and no temporary MCP Autoload is present in `ProjectSettings`
+- **WHEN** a runtime inspection or input command is called and no matching GameAbility agent is ready
+- **THEN** the command returns `CAPABILITY_UNAVAILABLE` or `GAME_NOT_READY`
+- **AND** it does not inspect or mutate `edited_scene_root`
 
 ### Requirement: Observable Execution State
-The system SHALL expose `get_execution_state` in every state and SHALL return state, phase, mode, desired mode, current and pending session IDs, operation ID, target scene, cancellation status, transition time, capabilities, unresolved error, and last session outcome.
 
-#### Scenario: Inspect a transition
-- **WHEN** a client calls `get_execution_state` while real run is stopping for a preview preemption
-- **THEN** the response identifies `REAL_STOPPING`, the real source session, the reserved preview session, the composite operation, and the desired preview mode
+`get_execution_state` SHALL expose the active state, session and operation identifiers, target scene, timestamps, readiness/capability flags, and last terminal outcome without advertising preview support.
 
+#### Scenario: Idle capabilities
+
+- **WHEN** the editor is idle
+- **THEN** the response reports `IDLE`, `real_run_supported: true`, and `preview_supported: false`
+
+### Requirement: Reproducible Acceptance Evidence
+
+Completed device-acceptance tasks SHALL retain a runnable script and report tied to the exact build and device, including start/READY, live runtime behavior, strict game capture, longevity, stop/EXIT, final `IDLE`, and project-file hash assertions.
+
+#### Scenario: Evidence review
+
+- **WHEN** a reviewer reruns the retained acceptance procedure against the recorded build
+- **THEN** every claimed assertion can be reproduced without relying on narrative-only statements

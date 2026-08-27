@@ -110,10 +110,11 @@ export default class EditorAbility extends UIAbility {
   onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
     logger.info('Ability onNewWant');
     if (want.parameters) {
-      // Layer 3: Best-effort notification from GameAbility (onWindowStageDestroy)
+      // Lifecycle events are carried on the editor-owned loopback gateway, not
+      // by starting this UIAbility from GameAbility (which could steal focus).
+      // Legacy notifications have no correlation envelope and are ignored.
       if (want.parameters['gameDied']) {
-        logger.info('GameAbility death notification via onNewWant — resetting editor run state');
-        this.resetEditorRunState();
+        logger.warn('Ignored legacy uncorrelated GameAbility death notification');
         return;
       }
       if (want.parameters['godotMode']) {

@@ -33,7 +33,15 @@ import { window } from '@kit.ArkUI';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import plugin from 'libentry.so';
 import { Logger } from '../core/Logger';
-import { getGodotMode, setGodotMode, setProjectPath, setRestartArgs } from '../core/AbilityState';
+import {
+  clearRuntimeLaunchMetadata,
+  getGodotMode,
+  getRuntimeLaunchMetadata,
+  setGodotMode,
+  setProjectPath,
+  setRestartArgs,
+  setRuntimeLaunchMetadata
+} from '../core/AbilityState';
 import { BridgeCallbacks } from '../core/BridgeCallbacks';
 import { GodotMcpInstaller } from '../core/GodotMcpInstaller';
 import { GodotMcpServerGateway } from '../core/GodotMcpServerGateway';
@@ -41,6 +49,25 @@ import { GodotMcpServerGateway } from '../core/GodotMcpServerGateway';
 const logger = new Logger('GameAbility')
 
 export default class GameAbility extends UIAbility {
+  private async acknowledgeStopAndTerminate(): Promise<void> {
+    const acknowledged = await BridgeCallbacks.publishGameRuntimeLifecycle('REAL_STOP_ACK', 'editor_stop_requested');
+    if (!acknowledged) {
+      // Do not terminate before the only correlated stop acknowledgement has
+      // reached the editor loopback gateway. The caller can retry stop; the
+      // startAbilityForResult fallback still covers an external process kill.
+      logger.error('GameAbility stop acknowledgement was not delivered; refusing to terminate');
+      return;
+    }
+    try {
+      // EditorAbility launches us with startAbilityForResult(). Pair that API
+      // with terminateSelfWithResult() so the editor receives an OS-confirmed
+      // completion and can publish the authoritative REAL_EXIT event.
+      await this.context.terminateSelfWithResult({ resultCode: 0 });
+    } catch (e) {
+      logger.error('Failed to terminate GameAbility after stop acknowledgement', e);
+    }
+  }
+
   onCreate(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
     try {
       this.context.getApplicationContext().setColorMode(ConfigurationConstant.ColorMode.COLOR_MODE_NOT_SET);
@@ -51,6 +78,8 @@ export default class GameAbility extends UIAbility {
 
     // Default mode: game
     setGodotMode('game');
+    clearRuntimeLaunchMetadata();
+    BridgeCallbacks.resetGameLifecycleReadiness();
 
     // Read Want parameters from launching intent
     if (want.parameters) {
@@ -68,6 +97,15 @@ export default class GameAbility extends UIAbility {
         setGodotMode(want.parameters['godotMode'] as string);
         logger.info('Godot mode override', want.parameters['godotMode'] as string);
       }
+      const sessionId = String(want.parameters['session_id'] || '');
+      const operationId = String(want.parameters['operation_id'] || '');
+      const bootNonce = String(want.parameters['boot_nonce'] || '');
+      if (sessionId.length > 0 && operationId.length > 0 && bootNonce.length > 0) {
+        setRuntimeLaunchMetadata(sessionId, operationId, bootNonce);
+        logger.info(`Authoritative runtime correlation received for session ${sessionId}`);
+      } else {
+        logger.warn('GameAbility started without an authoritative runtime correlation envelope');
+      }
     }
 
     // Start Godot MCP Gateway for Editor mode
@@ -82,6 +120,7 @@ export default class GameAbility extends UIAbility {
     setGodotMode('pm');
     setProjectPath(null);
     setRestartArgs(null);
+    clearRuntimeLaunchMetadata();
   }
 
   onNewWant(want: Want, _launchParam: AbilityConstant.LaunchParam): void {
@@ -89,8 +128,17 @@ export default class GameAbility extends UIAbility {
     if (want.parameters) {
       // Handle kill signal from Editor
       if (want.parameters['key'] === 'kill') {
+        const metadata = getRuntimeLaunchMetadata();
+        const requestedSession = String(want.parameters['session_id'] || '');
+        const requestedOperation = String(want.parameters['operation_id'] || '');
+        const requestedNonce = String(want.parameters['boot_nonce'] || '');
+        if (!metadata || requestedSession !== metadata.sessionId ||
+            requestedOperation !== metadata.operationId || requestedNonce !== metadata.bootNonce) {
+          logger.error('Ignored uncorrelated or stale GameAbility kill request');
+          return;
+        }
         logger.info('Kill signal received, terminating GameAbility');
-        this.context.terminateSelf();
+        void this.acknowledgeStopAndTerminate();
         return;
       }
       if (want.parameters['projectPath']) {
@@ -152,23 +200,9 @@ export default class GameAbility extends UIAbility {
 
   onWindowStageDestroy(): void {
     logger.info('Ability onWindowStageDestroy');
-    // Notify EditorAbility that GameAbility window was closed (X button).
-    // At this point the context is still ACTIVE — startAbility is reliable,
-    // unlike onDestroy() where context is already in DESTROYED state.
-    // The AMS (Ability Manager Service) receives the Want and delivers it
-    // to EditorAbility independently, even after this process is killed.
-    try {
-      const notifyWant: Want = {
-        bundleName: this.context.abilityInfo.bundleName,
-        abilityName: 'EditorAbility',
-        parameters: { gameDied: true }
-      };
-      this.context.startAbility(notifyWant).catch((e: Error) => {
-        logger.error('Failed to notify EditorAbility of game death', e);
-      });
-    } catch (e) {
-      logger.error('Failed to send game death notification', e);
-    }
+    // This event has the full session envelope and is the primary normal-exit
+    // signal. startAbilityForResult remains the crash/system-kill fallback.
+    void BridgeCallbacks.publishGameRuntimeLifecycle('REAL_EXIT', 'window_stage_destroyed');
   }
 
   onForeground(): void {

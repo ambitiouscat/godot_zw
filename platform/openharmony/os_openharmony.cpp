@@ -518,6 +518,40 @@ Error OS_OpenHarmony::create_instance(const List<String> &p_arguments, ProcessID
 		args_str += arg;
 	}
 
+	// The editor MCP lifecycle coordinator stores its per-run correlation
+	// envelope in the process environment immediately before EditorRun starts
+	// this instance.  Carry it through the existing native restart bridge as
+	// private arguments; BridgeCallbacks consumes these flags before godot_init
+	// receives the game command line.  This keeps session state out of
+	// project.godot and avoids a cross-process global singleton.
+	const String session_id = get_environment("GODOT_MCP_REAL_SESSION_ID");
+	const String operation_id = get_environment("GODOT_MCP_REAL_OPERATION_ID");
+	const String boot_nonce = get_environment("GODOT_MCP_REAL_BOOT_NONCE");
+	unset_environment("GODOT_MCP_REAL_SESSION_ID");
+	unset_environment("GODOT_MCP_REAL_OPERATION_ID");
+	unset_environment("GODOT_MCP_REAL_BOOT_NONCE");
+	const auto is_runtime_token = [](const String &p_value) {
+		if (p_value.is_empty() || p_value.length() > 160) {
+			return false;
+		}
+		for (int i = 0; i < p_value.length(); i++) {
+			const char32_t c = p_value[i];
+			const bool allowed = (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') ||
+					(c >= '0' && c <= '9') || c == '.' || c == '_' || c == ':' || c == '-';
+			if (!allowed) {
+				return false;
+			}
+		}
+		return true;
+	};
+	if (is_runtime_token(session_id) && is_runtime_token(operation_id) && is_runtime_token(boot_nonce)) {
+		args_str += "\n--mcp-runtime-session-id\n" + session_id;
+		args_str += "\n--mcp-runtime-operation-id\n" + operation_id;
+		args_str += "\n--mcp-runtime-boot-nonce\n" + boot_nonce;
+	} else if (!session_id.is_empty() || !operation_id.is_empty() || !boot_nonce.is_empty()) {
+		WARN_PRINT("Discarded invalid or incomplete MCP runtime correlation envelope.");
+	}
+
 	// Request ArkTS to restart the app with new arguments
 	godot_request_restart(args_str.utf8().get_data());
 

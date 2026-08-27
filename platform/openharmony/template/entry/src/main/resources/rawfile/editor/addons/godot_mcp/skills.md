@@ -8,6 +8,8 @@
 
 You have access to 169 MCP tools that connect directly to the Godot 4 editor. You can create scenes, write scripts, simulate player input, inspect running games, and more — all without the user leaving this conversation. Every change goes through Godot's UndoRedo system, so the user can always Ctrl+Z.
 
+> **Current runtime contract:** `run_project`, `run_scene`, and `run_current_scene` start the standalone, authoritative `GameAbility`; `stop_project` stops it. Stage 4 screenshots use the run-scoped GameAbility root-viewport agent through `take_screenshot(source="game")`. Editor screenshots are static inspection only. Runtime inspection, input injection, profiling, and runtime test commands remain `CAPABILITY_UNAVAILABLE` until their own correlated agents exist; never fall back to the editor/OS screen.
+
 ## Essential Workflows
 
 ### 1. Explore a Project
@@ -70,27 +72,20 @@ read_script    → read current content before editing
 ### 5. Playtest & Debug
 
 ```
-play_scene             → launch the game (mode: "current", "main", or file path)
-get_game_screenshot    → see what the game looks like right now
-capture_frames         → capture multiple frames to observe motion/animation
-get_game_scene_tree    → inspect the live scene tree at runtime
-get_game_node_properties → read runtime values (position, health, state, etc.)
-set_game_node_property → modify values in the running game
-simulate_key           → press keys (WASD, SPACE, etc.) with duration
-simulate_mouse_click   → click at viewport coordinates
-simulate_action        → trigger InputMap actions (move_left, jump, etc.)
-get_editor_errors      → check for runtime errors
-stop_scene             → stop the game
+run_project / run_scene / run_current_scene → start standalone GameAbility
+get_execution_state    → wait for the matching REAL_RUNNING session
+take_screenshot        → source: "game" only for authoritative runtime evidence
+get_editor_errors      → check editor/compiler/runtime relay errors
+stop_project           → request stop; wait for correlated REAL_STOP_ACK or REAL_EXIT / IDLE
 ```
 
 **Playtesting loop:**
-1. `play_scene` → start the game
-2. `get_game_screenshot` → see current state
-3. `simulate_key` / `simulate_action` → interact with the game
-4. `capture_frames` → observe behavior over time
-5. `get_game_node_properties` → check specific values
-6. `stop_scene` → stop when done
-7. Fix issues in scripts → repeat
+1. `run_project` (or `run_scene`) → receive the session and operation IDs
+2. Poll `get_execution_state` until the matching session is `REAL_RUNNING`
+3. Call `take_screenshot(source="game")`; stop and report if capture is unavailable
+4. Use runtime inspection/input only when its correlated capability reports ready
+5. `stop_project` with the expected session → wait for `IDLE`
+6. Fix issues in scripts → repeat
 
 ### 6. Animations
 

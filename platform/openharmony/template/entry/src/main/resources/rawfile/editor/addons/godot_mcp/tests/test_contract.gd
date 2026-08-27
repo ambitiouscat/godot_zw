@@ -1,8 +1,7 @@
 @tool
 extends RefCounted
 
-## Contract validation test suite for Dual-Track MCP command definitions.
-## Validates routing, alias contracts, track separation, and source integrity.
+## Contract validation for the authoritative single-GameAbility command surface.
 
 const MCPCommandSchemas = preload("res://addons/godot_mcp/lifecycle/command_schemas.gd")
 
@@ -20,6 +19,7 @@ static func run_all_tests() -> Dictionary:
 	test_screenshot_source_enums(results)
 	test_deprecated_alias_metadata(results)
 	test_canonical_commands_completeness(results)
+	test_preview_commands_are_absent(results)
 
 	return results
 
@@ -83,3 +83,17 @@ static func test_canonical_commands_completeness(results: Dictionary) -> void:
 	]
 	for cmd: String in required_commands:
 		_assert(canonical.has(cmd), "Required canonical command '%s' must be present in schemas" % cmd, results)
+	for command_name: String in canonical:
+		_assert(not command_name.begins_with("simulate_"), "Simulation command '%s' must not be canonical" % command_name, results)
+		_assert(command_name != "stop_simulation", "stop_simulation must not be canonical", results)
+
+
+static func test_preview_commands_are_absent(results: Dictionary) -> void:
+	var aliases: Dictionary = MCPCommandSchemas.get_alias_map()
+	for alias: String in aliases:
+		_assert(not alias.contains("simulation"), "Simulation alias '%s' must be removed" % alias, results)
+	_assert(not MCPCommandSchemas.VALID_SOURCES.has("preview"), "preview must not be an allowed capture source", results)
+	var canonical: Dictionary = MCPCommandSchemas.get_canonical_commands()
+	for command_name: String in ["run_project", "run_scene", "run_current_scene"]:
+		var params: Dictionary = canonical[command_name]["params"]
+		_assert(not params.has("conflict_policy") and not params.has("preempt"), "%s must not expose cross-track preemption" % command_name, results)

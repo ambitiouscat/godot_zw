@@ -14,10 +14,11 @@
    - 🛑 **[Approval Gate 2]**: Present visual QA analysis to user.
    - Stage 5: Archive & Session Checkpoint
 
-2. **Dual-Track Runtime vs Viewport Preview**:
-   - **Real Run**: `run_project`, `run_scene`, `run_current_scene`, `stop_project` (Standalone `GameAbility`). Required for Stage 4 QA.
-   - **Preview**: `simulate_project`, `simulate_scene`, `simulate_current_scene`, `stop_simulation` (Script-free visual clone in 3D viewport).
-   - **Zero Cross-Source Fallback**: `take_screenshot` strictly enforces `source: "editor" | "preview" | "game"`.
+2. **Authoritative GameAbility Runtime**:
+   - **Real Run**: `run_project`, `run_scene`, `run_current_scene`, `stop_project` target standalone `GameAbility` and are the only gameplay execution path.
+   - **Editor Inspection**: `take_screenshot(source="editor")` is limited to static editor/scene inspection and cannot satisfy Stage 4 runtime acceptance.
+   - **Stage 4 Evidence**: `take_screenshot(source="game")` must come from the active correlated `GameAbility` session.
+   - **Zero Cross-Source Fallback**: screenshot source is strictly `"editor" | "game"`; unavailable game capture returns an explicit error and never falls back to the editor or OS screen.
 
 3. **MCP-First (No Manual .tscn Editing)**:
    - Always call live MCP tools (`create_scene`, `create_node`, `create_collision_shape_3d`, `set_node_property`, etc.) to build scene trees and bind resources.

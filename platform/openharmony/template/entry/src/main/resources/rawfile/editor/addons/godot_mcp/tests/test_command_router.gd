@@ -1,7 +1,7 @@
 @tool
 extends RefCounted
 
-## Unit test suite for MCPCommandRouter dual-track routing and alias deprecation metadata.
+## Unit test suite for authoritative single-runtime command contracts.
 
 const Schemas = preload("res://addons/godot_mcp/lifecycle/command_schemas.gd")
 
@@ -16,6 +16,7 @@ static func run_all_tests() -> Dictionary:
 
 	test_alias_deprecation_contract(results)
 	test_source_enum_validation(results)
+	test_preview_symbols_removed(results)
 	test_stable_error_codes(results)
 
 	return results
@@ -43,15 +44,20 @@ static func test_alias_deprecation_contract(results: Dictionary) -> void:
 	_assert(alias_map["stop_scene"]["deprecated"] == true, "stop_scene must be deprecated", results)
 	_assert(alias_map["stop_scene"]["replacement"] == "stop_project", "stop_scene replacement must be stop_project", results)
 
-	# is_simulation_running MUST point to get_execution_state
-	_assert(alias_map.has("is_simulation_running"), "is_simulation_running alias must exist", results)
-	_assert(alias_map["is_simulation_running"]["replacement"] == "get_execution_state", "is_simulation_running replacement must be get_execution_state", results)
+	_assert(not alias_map.has("is_simulation_running"), "Simulation alias must be removed", results)
 
 
 static func test_source_enum_validation(results: Dictionary) -> void:
 	_assert(Schemas.VALID_SOURCES.has("editor"), "Valid sources must contain 'editor'", results)
 	_assert(Schemas.VALID_SOURCES.has("game"), "Valid sources must contain 'game'", results)
 	_assert(Schemas.VALID_SOURCES.size() == 2, "Valid sources must contain exactly 2 sources ('editor', 'game')", results)
+
+
+static func test_preview_symbols_removed(results: Dictionary) -> void:
+	_assert(not Schemas.VALID_SOURCES.has("preview"), "preview must not be a screenshot source", results)
+	var canonical: Dictionary = Schemas.get_canonical_commands()
+	_assert(not canonical.has("simulate_project"), "simulate_project must not be canonical", results)
+	_assert(not canonical.has("stop_simulation"), "stop_simulation must not be canonical", results)
 
 
 static func test_stable_error_codes(results: Dictionary) -> void:

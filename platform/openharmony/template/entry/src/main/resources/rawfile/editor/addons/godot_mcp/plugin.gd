@@ -1,33 +1,16 @@
 @tool
 extends EditorPlugin
 
-const _MCP_AUTOLOADS: Array[Array] = [
-	["autoload/MCPScreenshot", "res://addons/godot_mcp/mcp_screenshot_service.gd"],
-	["autoload/MCPInputService", "res://addons/godot_mcp/mcp_input_service.gd"],
-	["autoload/MCPGameInspector", "res://addons/godot_mcp/mcp_game_inspector_service.gd"],
-]
-
-const _MCP_TEMP_FILES: Array[String] = [
-	"mcp_game_request",
-	"mcp_game_response",
-	"mcp_input_commands",
-	"mcp_screenshot_request",
-]
+const LegacyAutoloadMigration = preload("res://addons/godot_mcp/lifecycle/legacy_autoload_migration.gd")
 
 var websocket_server: Node
 var command_router: Node
 var status_panel: Control
 var auto_dismiss_dialogs: bool = false
-var _session_injected_autoloads: Array[String] = []
 
 
 func _enter_tree() -> void:
-	_register_project_settings()
-
-	# Register runtime GameAbility screenshot service
-	if not ProjectSettings.has_setting("autoload/MCPScreenshot"):
-		add_autoload_singleton("MCPScreenshot", "res://addons/godot_mcp/mcp_screenshot_service.gd")
-		ProjectSettings.save()
+	_migrate_legacy_autoloads()
 
 	# Create command router
 	command_router = preload("res://addons/godot_mcp/command_router.gd").new()
@@ -47,9 +30,6 @@ func _enter_tree() -> void:
 	add_control_to_bottom_panel(status_panel, "MCP Pro")
 	status_panel.call_deferred("setup", websocket_server, command_router)
 
-	# Clean up any stale MCP autoloads from project settings (Zero-pollution guarantee)
-	_cleanup_stale_autoloads()
-
 	websocket_server.start_server()
 	var cfg := ConfigFile.new()
 	var ver := "unknown"
@@ -58,10 +38,18 @@ func _enter_tree() -> void:
 	print("[MCP] Godot MCP Pro v%s started (port 6510)" % ver)
 
 
-func _exit_tree() -> void:
-	_cleanup_stale_autoloads()
-	_cleanup_temp_files()
+func _migrate_legacy_autoloads() -> void:
+	var removed := LegacyAutoloadMigration.remove_owned_legacy_settings()
+	if removed.is_empty():
+		return
+	var save_error := ProjectSettings.save()
+	if save_error != OK:
+		push_error("[MCP] Removed legacy Autoloads in memory but failed to save project.godot: %s" % error_string(save_error))
+		return
+	print("[MCP] Removed legacy persistent Autoloads: %s" % ", ".join(removed))
 
+
+func _exit_tree() -> void:
 	if websocket_server:
 		websocket_server.stop_server()
 
@@ -78,69 +66,17 @@ func _exit_tree() -> void:
 	print("[MCP] Godot MCP Pro stopped")
 
 
-func _register_project_settings() -> void:
-	pass
-
-
-func _cleanup_stale_autoloads() -> void:
-	# Purge obsolete MCP autoloads (MCPInputService, MCPGameInspector) so ProjectSettings is never polluted
-	for key: String in ["autoload/MCPInputService", "autoload/MCPGameInspector"]:
-		if ProjectSettings.has_setting(key):
-			var cur := str(ProjectSettings.get_setting(key))
-			if cur.contains("addons/godot_mcp"):
-				ProjectSettings.set_setting(key, null)
-
-
 var _dialog_check_timer: float = 0.0
 const _DIALOG_CHECK_INTERVAL: float = 0.5  # Check every 0.5 seconds
 
 
 func _process(delta: float) -> void:
-	# Check if game inspector requested debugger continue
-	var flag_path := OS.get_user_data_dir() + "/mcp_debugger_continue"
-	if FileAccess.file_exists(flag_path):
-		DirAccess.remove_absolute(flag_path)
-		_try_debugger_continue()
-
 	# Periodically check for blocking editor dialogs (only when enabled by AI)
 	if auto_dismiss_dialogs:
 		_dialog_check_timer += delta
 		if _dialog_check_timer >= _DIALOG_CHECK_INTERVAL:
 			_dialog_check_timer = 0.0
 			_auto_dismiss_dialogs()
-
-
-func _try_debugger_continue() -> void:
-	# Last resort: find and press the debugger Continue button to unstick the game
-	var base: Node = EditorInterface.get_base_control()
-	var continue_btn := _find_debugger_continue_button(base)
-	if continue_btn and continue_btn.visible and not continue_btn.disabled:
-		continue_btn.emit_signal("pressed")
-		push_warning("[MCP] Auto-pressed debugger Continue button")
-	else:
-		push_warning("[MCP] Could not find debugger Continue button")
-
-
-func _find_debugger_continue_button(node: Node) -> Button:
-	var continue_icon: Texture2D = null
-	var base: Control = EditorInterface.get_base_control()
-	if base != null and base.has_theme_icon("DebugContinue", "EditorIcons"):
-		continue_icon = base.get_theme_icon("DebugContinue", "EditorIcons")
-	return _find_continue_button_recursive(node, continue_icon)
-
-
-func _find_continue_button_recursive(node: Node, continue_icon: Texture2D) -> Button:
-	if node is Button:
-		var btn: Button = node
-		if continue_icon != null and btn.icon == continue_icon:
-			return btn
-		if btn.tooltip_text.contains("Continue") or btn.text == "Continue":
-			return btn
-	for child in node.get_children():
-		var found: Button = _find_continue_button_recursive(child, continue_icon)
-		if found:
-			return found
-	return null
 
 
 func _auto_dismiss_dialogs() -> void:
@@ -171,15 +107,3 @@ func _find_and_dismiss_dialogs(node: Node) -> void:
 		if child is Window and not child.visible:
 			continue
 		_find_and_dismiss_dialogs(child)
-
-
-func _cleanup_temp_files() -> void:
-	var user_dir := OS.get_user_data_dir()
-	for filename: String in _MCP_TEMP_FILES:
-		var path := user_dir + "/" + filename
-		if FileAccess.file_exists(path):
-			DirAccess.remove_absolute(path)
-	# Also clean up screenshot image
-	var screenshot_path := user_dir + "/mcp_screenshot.png"
-	if FileAccess.file_exists(screenshot_path):
-		DirAccess.remove_absolute(screenshot_path)

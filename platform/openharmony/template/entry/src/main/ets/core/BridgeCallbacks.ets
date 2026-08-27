@@ -7,10 +7,63 @@ import plugin from 'libentry.so';
 import { CursorManager } from './CursorManager';
 import { FileManager } from './FileManager';
 import { SensorManager } from './SensorManager';
-import { getRestartArgs, setGameLaunched } from './AbilityState';
+import {
+  clearRuntimeLaunchMetadata,
+  getGodotMode,
+  getRestartArgs,
+  getRuntimeLaunchMetadata,
+  RuntimeLaunchMetadata,
+  setGameLaunched,
+  setRuntimeLaunchMetadata
+} from './AbilityState';
+import { GodotMcpServerGateway } from './GodotMcpServerGateway';
 import { Logger } from './Logger';
 
 const logger = new Logger('BridgeCallbacks')
+
+const RUNTIME_SESSION_ARGUMENT = '--mcp-runtime-session-id'
+const RUNTIME_OPERATION_ARGUMENT = '--mcp-runtime-operation-id'
+const RUNTIME_NONCE_ARGUMENT = '--mcp-runtime-boot-nonce'
+
+interface RuntimeArgumentEnvelope {
+  restartArgs: string[]
+  metadata: RuntimeLaunchMetadata | null
+}
+
+function isRuntimeCorrelationToken(value: string): boolean {
+  return value.length > 0 && value.length <= 160 && /^[A-Za-z0-9._:-]+$/.test(value)
+}
+
+/**
+ * Runtime correlation flags are private transport metadata, not Godot CLI
+ * options. Consume them before GameAbility passes restartArgs to godot_init so
+ * they cannot reach the game command-line parser.
+ */
+function consumeRuntimeLaunchMetadata(args: string[]): RuntimeArgumentEnvelope {
+  const restartArgs: string[] = []
+  let sessionId = ''
+  let operationId = ''
+  let bootNonce = ''
+  for (let index = 0; index < args.length; index++) {
+    const argument = args[index].trim()
+    if ((argument === RUNTIME_SESSION_ARGUMENT || argument === RUNTIME_OPERATION_ARGUMENT || argument === RUNTIME_NONCE_ARGUMENT) && index + 1 < args.length) {
+      const value = args[++index].trim()
+      if (argument === RUNTIME_SESSION_ARGUMENT) {
+        sessionId = value
+      } else if (argument === RUNTIME_OPERATION_ARGUMENT) {
+        operationId = value
+      } else {
+        bootNonce = value
+      }
+      continue
+    }
+    restartArgs.push(args[index])
+  }
+  if (isRuntimeCorrelationToken(sessionId) && isRuntimeCorrelationToken(operationId) && isRuntimeCorrelationToken(bootNonce)) {
+    return { restartArgs: restartArgs, metadata: { sessionId: sessionId, operationId: operationId, bootNonce: bootNonce } }
+  }
+  return { restartArgs: restartArgs, metadata: null }
+}
 
 export class BridgeCallbacks {
   /**
@@ -19,6 +72,57 @@ export class BridgeCallbacks {
    */
   static showInputDialog: ((title: string, message: string, defaultText: string) => void) | null = null
   static mainWindow: window.Window | null = null
+  private static gameReadyPublished: boolean = false
+
+  /**
+   * GameAbility cannot share EditorAbility's in-process websocket gateway.
+   * It sends the fact through the editor-owned loopback TCP gateway instead of
+   * starting EditorAbility, which would risk foregrounding the editor.
+   */
+  static async publishGameRuntimeLifecycle(type: string, reason: string = ''): Promise<boolean> {
+    const metadata = getRuntimeLaunchMetadata()
+    if (!metadata || !isRuntimeCorrelationToken(metadata.sessionId) ||
+        !isRuntimeCorrelationToken(metadata.operationId) || !isRuntimeCorrelationToken(metadata.bootNonce)) {
+      logger.error(`Refused to emit ${type}: GameAbility has no valid runtime correlation envelope`)
+      return false
+    }
+    if (type !== 'REAL_READY' && type !== 'REAL_STOP_ACK' && type !== 'REAL_EXIT' && type !== 'ABRUPT_EXIT') {
+      logger.error(`Refused to emit unsupported runtime lifecycle event ${type}`)
+      return false
+    }
+    const details: Record<string, Object> = {}
+    if (reason.length > 0) {
+      details['reason'] = reason
+    }
+    return await GodotMcpServerGateway.publishRuntimeLifecycleToEditor(
+      type,
+      metadata.sessionId,
+      metadata.operationId,
+      metadata.bootNonce,
+      details
+    )
+  }
+
+  static resetGameLifecycleReadiness(): void {
+    BridgeCallbacks.gameReadyPublished = false
+  }
+
+  /**
+   * READY retries are bounded to ten seconds. This is transport recovery only;
+   * it neither terminates GameAbility nor changes its process lifetime.
+   */
+  private static publishFirstFrameReady(deadlineMs: number = Date.now() + 10000): void {
+    if (BridgeCallbacks.gameReadyPublished || getGodotMode() !== 'game') {
+      return
+    }
+    void BridgeCallbacks.publishGameRuntimeLifecycle('REAL_READY', 'first_engine_frame_completed').then((delivered: boolean) => {
+      if (delivered) {
+        BridgeCallbacks.gameReadyPublished = true
+      } else if (Date.now() < deadlineMs) {
+        setTimeout(() => BridgeCallbacks.publishFirstFrameReady(deadlineMs), 500)
+      }
+    })
+  }
 
   /**
    * Register all NAPI callbacks and start the engine.
@@ -98,11 +202,27 @@ export class BridgeCallbacks {
       let godotMode: string
 
       // Parse args with exact match — '--editor' would match '--editor-pid' as substring!
-      let argsArray: string[] = args.split('\n').filter(a => a.trim().length > 0)
+      const rawArgsArray: string[] = args.split('\n').filter(a => a.trim().length > 0)
+      const runtimeEnvelope = consumeRuntimeLaunchMetadata(rawArgsArray)
+      let argsArray: string[] = runtimeEnvelope.restartArgs
+      const authoritativeRuntime = runtimeEnvelope.metadata !== null
+      if (authoritativeRuntime) {
+        // A complete MCP correlation envelope is an explicit real-run intent.
+        // Strip conflicting mode flags as well as forcing GameAbility; passing
+        // --editor into godot_init would otherwise start editor mode inside the
+        // isolated game process.
+        argsArray = argsArray.filter((argument: string) => {
+          const normalized = argument.trim()
+          return normalized !== '--editor' && normalized !== '--project-manager'
+        })
+      }
       const hasEditor = argsArray.some(a => a.trim() === '--editor')
       const hasProjectManager = argsArray.some(a => a.trim() === '--project-manager')
 
-      if (hasEditor) {
+      if (authoritativeRuntime) {
+        targetAbility = 'GameAbility'
+        godotMode = 'game'
+      } else if (hasEditor) {
         targetAbility = 'EditorAbility'
         godotMode = 'editor'
       } else if (hasProjectManager) {
@@ -129,6 +249,23 @@ export class BridgeCallbacks {
       if (projectPath) {
         params['projectPath'] = projectPath
       }
+      if (targetAbility === 'GameAbility') {
+        if (runtimeEnvelope.metadata) {
+          params['session_id'] = runtimeEnvelope.metadata.sessionId
+          params['operation_id'] = runtimeEnvelope.metadata.operationId
+          params['boot_nonce'] = runtimeEnvelope.metadata.bootNonce
+          setRuntimeLaunchMetadata(
+            runtimeEnvelope.metadata.sessionId,
+            runtimeEnvelope.metadata.operationId,
+            runtimeEnvelope.metadata.bootNonce
+          )
+        } else {
+          // Direct/legacy launch: it may still run, but it cannot claim to be
+          // the authoritative MCP session because it has no correlation data.
+          clearRuntimeLaunchMetadata()
+          logger.warn('Launching GameAbility without runtime correlation envelope')
+        }
+      }
       const want: Want = {
         bundleName: context.abilityInfo.bundleName,
         abilityName: targetAbility,
@@ -150,7 +287,20 @@ export class BridgeCallbacks {
         setGameLaunched(true)
         context.startAbilityForResult(want).then((result) => {
           logger.info(`GameAbility exited, resultCode=${result.resultCode} — resetting editor run state`)
+          const launchMetadata = getRuntimeLaunchMetadata()
+          if (launchMetadata) {
+            const exitDetails: Record<string, Object> = {}
+            exitDetails['origin'] = 'startAbilityForResult'
+            GodotMcpServerGateway.getInstance().publishRuntimeLifecycle(
+              'REAL_EXIT',
+              launchMetadata.sessionId,
+              launchMetadata.operationId,
+              launchMetadata.bootNonce,
+              exitDetails
+            )
+          }
           setGameLaunched(false)
+          clearRuntimeLaunchMetadata()
           // Defer C++ reset to next event loop tick — calling stop_playing()
           // synchronously from the startAbilityForResult callback conflicts
           // with Godot's editor state machine and causes PM window to open.
@@ -159,6 +309,20 @@ export class BridgeCallbacks {
           }, 200)
         }).catch((e: Error) => {
           setGameLaunched(false)
+          const launchMetadata = getRuntimeLaunchMetadata()
+          if (launchMetadata) {
+            const abruptDetails: Record<string, Object> = {}
+            abruptDetails['origin'] = 'startAbilityForResult'
+            abruptDetails['error'] = String(e)
+            GodotMcpServerGateway.getInstance().publishRuntimeLifecycle(
+              'ABRUPT_EXIT',
+              launchMetadata.sessionId,
+              launchMetadata.operationId,
+              launchMetadata.bootNonce,
+              abruptDetails
+            )
+          }
+          clearRuntimeLaunchMetadata()
           logger.error('startAbilityForResult failed (code=' + (e as BusinessError).code + ')')
         })
 
@@ -187,10 +351,20 @@ export class BridgeCallbacks {
     // Process kill callback — Editor sends kill signal to running GameAbility
     plugin.setProcessKillCallback((): void => {
       logger.info('Process kill — terminating GameAbility')
+      const launchMetadata = getRuntimeLaunchMetadata()
+      if (!launchMetadata) {
+        logger.error('Refused GameAbility stop without a runtime correlation envelope')
+        return
+      }
       const killWant: Want = {
         bundleName: context.abilityInfo.bundleName,
         abilityName: 'GameAbility',
-        parameters: { key: 'kill' }
+        parameters: {
+          key: 'kill',
+          session_id: launchMetadata.sessionId,
+          operation_id: launchMetadata.operationId,
+          boot_nonce: launchMetadata.bootNonce
+        }
       }
       context.startAbility(killWant).catch((e: Error) => {
         logger.error('Failed to send kill signal to GameAbility', (e as BusinessError).code)
@@ -319,6 +493,27 @@ export class BridgeCallbacks {
       plugin.setRestartArguments(restartArgsStr);
     }
 
+    // Only the separately-process-isolated GameAbility may receive the
+    // capture context. Native code repeats this token validation and injects
+    // the service only into its in-memory Autoload list before Main::start.
+    const runtimeMetadata = getRuntimeLaunchMetadata()
+    if (getGodotMode() === 'game') {
+      if (runtimeMetadata &&
+          isRuntimeCorrelationToken(runtimeMetadata.sessionId) &&
+          isRuntimeCorrelationToken(runtimeMetadata.operationId) &&
+          isRuntimeCorrelationToken(runtimeMetadata.bootNonce)) {
+        if (!plugin.setRuntimeScreenshotContext(
+          runtimeMetadata.sessionId,
+          runtimeMetadata.operationId,
+          runtimeMetadata.bootNonce
+        )) {
+          logger.error('Refused to bootstrap authoritative GameAbility screenshot capture')
+        }
+      } else {
+        logger.warn('GameAbility has no valid correlation envelope; authoritative screenshot capture is disabled')
+      }
+    }
+
     // File I/O bridge — routes C++ file operations to ArkTS @ohos.file.fs
     plugin.setFsRequestCallback((requestJson: string): void => {
       let response: FsBaseResult = { ok: false, error: '' }
@@ -362,6 +557,15 @@ export class BridgeCallbacks {
       const respStr = JSON.stringify(response)
       const withId = '{"req_id":' + reqId + ',' + respStr.substring(1)
       plugin.fsResult(withId)
+    })
+
+    // This callback is triggered from native code only after Godot completed
+    // its first main-loop iteration on the attached XComponent surface.
+    plugin.setRuntimeReadyCallback((): void => {
+      if (getGodotMode() !== 'game' || BridgeCallbacks.gameReadyPublished) {
+        return
+      }
+      BridgeCallbacks.publishFirstFrameReady()
     })
 
     plugin.setup(allowedPermissions)

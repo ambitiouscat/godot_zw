@@ -1,9 +1,5 @@
 import { socket } from '@kit.NetworkKit';
 import { util } from '@kit.ArkTS';
-import { componentSnapshot } from '@kit.ArkUI';
-import { image } from '@kit.ImageKit';
-import { fileIo as fs } from '@kit.CoreFileKit';
-import { getProjectPath } from './AbilityState';
 import { Logger } from './Logger';
 
 const logger = new Logger('GodotMcpServerGateway');
@@ -148,19 +144,20 @@ interface JsonRpcErrorResponse {
   error: JsonRpcErrorPayload;
 }
 
-interface JsonRpcScreenshotResult {
-  path: string;
-  global_path: string;
-  width: number;
-  height: number;
-  size_bytes: number;
+/**
+ * Lifecycle facts emitted by GameAbility and consumed by the editor-resident
+ * Godot MCP plugin. The correlation values are required; events missing one
+ * cannot change editor runtime state.
+ */
+export interface RuntimeLifecycleEvent {
+  type: string;
+  session_id: string;
+  operation_id: string;
+  boot_nonce: string;
+  event_id: string;
+  timestamp_ms: number;
   source: string;
-}
-
-interface JsonRpcSuccessResponse {
-  jsonrpc: string;
-  id: string;
-  result: JsonRpcScreenshotResult;
+  details?: Record<string, Object>;
 }
 
 interface ClientConnectionState {
@@ -172,7 +169,7 @@ interface ClientConnectionState {
 }
 
 /**
- * Dedicated local 6505 WebSocket server gateway hub.
+ * Dedicated local 6510 WebSocket server gateway hub.
  * Serves as the multi-client middle bridge between Godot's websocket_server.gd client and OpenCode's AI engine.
  */
 export class GodotMcpServerGateway {
@@ -186,6 +183,7 @@ export class GodotMcpServerGateway {
   private forwardedRequests: Map<string, socket.TCPSocketConnection> = new Map();
   private textDecoder = new util.TextDecoder();
   private textEncoder = new util.TextEncoder();
+  private pendingRuntimeLifecycleEvents: RuntimeLifecycleEvent[] = [];
 
   private heartbeatTimerId: number = -1;
 
@@ -196,10 +194,197 @@ export class GodotMcpServerGateway {
     return GodotMcpServerGateway.instance;
   }
 
+  /**
+   * GameAbility must not use startAbility(EditorAbility) for lifecycle events:
+   * that can foreground the editor and immediately steal focus from the game.
+   * The editor process already owns this loopback gateway, so GameAbility uses
+   * a short-lived raw TCP JSON-RPC connection instead. The server forwards the
+   * request only to the editor's authenticated Godot websocket client. A TCP
+   * write is not considered delivery: the caller waits for the matching
+   * JSON-RPC result with result.accepted === true.
+   */
+  public static async publishRuntimeLifecycleToEditor(
+    type: string,
+    sessionId: string,
+    operationId: string,
+    bootNonce: string,
+    details?: Record<string, Object>
+  ): Promise<boolean> {
+    const validToken = (value: string): boolean => value.length > 0 && value.length <= 160 && /^[A-Za-z0-9._:-]+$/.test(value);
+    const validType = type === 'REAL_READY' || type === 'REAL_STOP_ACK' || type === 'REAL_EXIT' || type === 'ABRUPT_EXIT';
+    if (!validType || !validToken(sessionId) || !validToken(operationId) || !validToken(bootNonce)) {
+      logger.error(`Rejected malformed GameAbility lifecycle event type=${type}`);
+      return false;
+    }
+
+    const client = socket.constructTCPSocketInstance();
+    const requestId = `runtime_lifecycle_${Date.now()}_${Math.floor(Math.random() * 0x7fffffff)}`;
+    let resolveAcknowledgement: ((accepted: boolean) => void) | null = null;
+    let acknowledgementSettled = false;
+    let acknowledgementTimeoutId: number = -1;
+    const acknowledgementDecoder = new util.TextDecoder();
+    let acknowledgementBuffer = '';
+    const finishAcknowledgement = (accepted: boolean): void => {
+      if (acknowledgementSettled) {
+        return;
+      }
+      acknowledgementSettled = true;
+      if (acknowledgementTimeoutId !== -1) {
+        clearTimeout(acknowledgementTimeoutId);
+        acknowledgementTimeoutId = -1;
+      }
+      if (resolveAcknowledgement) {
+        resolveAcknowledgement(accepted);
+      }
+    };
+    client.on('message', (value: socket.SocketMessageInfo) => {
+      try {
+        acknowledgementBuffer += acknowledgementDecoder.decodeToString(new Uint8Array(value.message));
+        const lines = acknowledgementBuffer.split('\n');
+        acknowledgementBuffer = lines.pop() || '';
+        for (let index = 0; index < lines.length; index++) {
+          const responseText = lines[index].trim();
+          if (responseText.length === 0) {
+            continue;
+          }
+          const response = JSON.parse(responseText) as Record<string, Object>;
+          if (String(response['id'] || '') !== requestId) {
+            continue;
+          }
+          const result = response['result'] as Record<string, Object> | undefined;
+          finishAcknowledgement(result !== undefined && result['accepted'] === true);
+          return;
+        }
+      } catch (e) {
+        logger.error('Failed to parse runtime_lifecycle acknowledgement', e);
+        finishAcknowledgement(false);
+      }
+    });
+    client.on('error', (_e: Error) => finishAcknowledgement(false));
+    client.on('close', () => finishAcknowledgement(false));
+    const acknowledgement = new Promise<boolean>((resolve) => {
+      resolveAcknowledgement = resolve;
+      acknowledgementTimeoutId = setTimeout(() => finishAcknowledgement(false), 1500);
+    });
+    try {
+      const event: RuntimeLifecycleEvent = {
+        type: type,
+        session_id: sessionId,
+        operation_id: operationId,
+        boot_nonce: bootNonce,
+        event_id: `ohos_game_${Date.now()}_${Math.floor(Math.random() * 0x7fffffff)}`,
+        timestamp_ms: Date.now(),
+        source: 'game_ability'
+      };
+      if (details) {
+        event.details = details;
+      }
+      await client.connect({
+        address: { address: '127.0.0.1', port: 6510, family: 1 },
+        timeout: 1000
+      });
+      await client.send({ data: JSON.stringify({ jsonrpc: '2.0', id: requestId, method: 'runtime_lifecycle', params: event }) + '\n', encoding: 'utf-8' });
+      const accepted = await acknowledgement;
+      if (accepted) {
+        logger.info(`Editor MCP accepted GameAbility lifecycle event ${type} for ${sessionId}`);
+      } else {
+        logger.error(`Editor MCP did not accept GameAbility lifecycle event ${type} for ${sessionId}`);
+      }
+      return accepted;
+    } catch (e) {
+      logger.error(`Failed to deliver GameAbility lifecycle event ${type} to editor loopback gateway`, e);
+      return false;
+    } finally {
+      try {
+        await client.close();
+      } catch (_e) {}
+    }
+  }
+
   public isGodotConnected(): boolean {
     if (!this.engineClient) return false;
     const state = this.clients.get(this.engineClient);
     return state !== undefined && state.isHandshakeComplete;
+  }
+
+  /**
+   * Send an authoritative GameAbility lifecycle fact to the editor websocket.
+   * No event is inferred from focus, window visibility, or screen capture.
+   */
+  public publishRuntimeLifecycle(
+    type: string,
+    sessionId: string,
+    operationId: string,
+    bootNonce: string,
+    details?: Record<string, Object>
+  ): void {
+    if (!this.isRuntimeLifecycleType(type) ||
+        !this.isCorrelationToken(sessionId) ||
+        !this.isCorrelationToken(operationId) ||
+        !this.isCorrelationToken(bootNonce)) {
+      logger.error(`Rejected malformed runtime lifecycle event type=${type}`);
+      return;
+    }
+
+    const event: RuntimeLifecycleEvent = {
+      type: type,
+      session_id: sessionId,
+      operation_id: operationId,
+      boot_nonce: bootNonce,
+      event_id: `ohos_${Date.now()}_${++this.requestIdCounter}`,
+      timestamp_ms: Date.now(),
+      source: 'game_ability'
+    };
+    if (details) {
+      event.details = details;
+    }
+    if (!this.sendRuntimeLifecycleEvent(event)) {
+      if (this.pendingRuntimeLifecycleEvents.length >= 32) {
+        this.pendingRuntimeLifecycleEvents.shift();
+      }
+      this.pendingRuntimeLifecycleEvents.push(event);
+      logger.warn(`Queued runtime lifecycle event ${type}; editor MCP websocket is unavailable`);
+    }
+  }
+
+  private isCorrelationToken(value: string): boolean {
+    return value.length > 0 && value.length <= 160 && /^[A-Za-z0-9._:-]+$/.test(value);
+  }
+
+  private isRuntimeLifecycleType(type: string): boolean {
+    return type === 'REAL_READY' || type === 'REAL_STOP_ACK' || type === 'REAL_EXIT' || type === 'ABRUPT_EXIT';
+  }
+
+  private sendRuntimeLifecycleEvent(event: RuntimeLifecycleEvent): boolean {
+    if (!this.engineClient || !this.isGodotConnected()) {
+      return false;
+    }
+    const payload = JSON.stringify({
+      jsonrpc: '2.0',
+      method: 'runtime_lifecycle',
+      params: event
+    });
+    const bytes: Uint8Array = this.textEncoder.encodeInto(payload);
+    this.sendWebSocketFrame(this.engineClient, 0x01, bytes);
+    logger.info(`Published runtime lifecycle event ${event.type} for ${event.session_id}`);
+    return true;
+  }
+
+  private flushRuntimeLifecycleEvents(): void {
+    if (!this.isGodotConnected() || this.pendingRuntimeLifecycleEvents.length === 0) {
+      return;
+    }
+    const pending = this.pendingRuntimeLifecycleEvents;
+    this.pendingRuntimeLifecycleEvents = [];
+    for (let i = 0; i < pending.length; i++) {
+      if (!this.sendRuntimeLifecycleEvent(pending[i])) {
+        this.pendingRuntimeLifecycleEvents.push(pending[i]);
+        for (let j = i + 1; j < pending.length; j++) {
+          this.pendingRuntimeLifecycleEvents.push(pending[j]);
+        }
+        return;
+      }
+    }
   }
 
   public async start(port: number = 6510): Promise<void> {
@@ -238,6 +423,7 @@ export class GodotMcpServerGateway {
     this.engineClient = null;
     this.forwardedRequests.clear();
     this.pendingCommands.clear();
+    this.pendingRuntimeLifecycleEvents = [];
     if (this.tcpServer) {
       try {
         this.tcpServer.close();
@@ -269,7 +455,7 @@ export class GodotMcpServerGateway {
   }
 
   private handleNewConnection(client: socket.TCPSocketConnection): void {
-    logger.info('New client connection received on 6505 gateway, awaiting WS handshake');
+    logger.info('New client connection received on 6510 gateway, awaiting WS handshake');
     const state: ClientConnectionState = {
       client: client,
       isHandshakeComplete: false,
@@ -284,7 +470,7 @@ export class GodotMcpServerGateway {
     });
 
     client.on('close', () => {
-      logger.info('Client disconnected from 6505 gateway');
+      logger.info('Client disconnected from 6510 gateway');
       this.clients.delete(client);
       if (this.engineClient === client) {
         this.engineClient = null;
@@ -315,7 +501,7 @@ export class GodotMcpServerGateway {
     });
 
     client.on('error', (err) => {
-      logger.error('Client socket error on 6505 gateway', err);
+      logger.error('Client socket error on 6510 gateway', err);
     });
   }
 
@@ -357,7 +543,7 @@ export class GodotMcpServerGateway {
       if (trimmed.startsWith('{')) {
         state.isRawTcp = true;
         state.isHandshakeComplete = true;
-        logger.info('Raw TCP JSON-RPC client connected on 6505 gateway');
+        logger.info('Raw TCP JSON-RPC client connected on 6510 gateway');
         const lines = reqText.split('\n');
         if (lines.length > 1) {
           for (let i = 0; i < lines.length - 1; i++) {
@@ -395,7 +581,8 @@ export class GodotMcpServerGateway {
             this.engineClient = client;
             state.rxBuffer = new Uint8Array(0);
             this.startHeartbeat();
-            logger.info(`WebSocket handshake completed on 6505 gateway (total clients: ${this.clients.size})`);
+            this.flushRuntimeLifecycleEvents();
+            logger.info(`WebSocket handshake completed on 6510 gateway (total clients: ${this.clients.size})`);
           } catch (e) {
             logger.error('Failed to send handshake response', e);
           }
@@ -501,6 +688,7 @@ export class GodotMcpServerGateway {
           state.isEngine = true;
           this.engineClient = client;
         }
+        this.flushRuntimeLifecycleEvents();
         return;
       }
 
@@ -523,7 +711,8 @@ export class GodotMcpServerGateway {
           const authBytes: Uint8Array = this.textEncoder.encodeInto(authPayload);
           this.sendWebSocketFrame(client, 0x01, authBytes);
         }
-        logger.info(`Godot MCP Engine identified (${method}) and ready on 6510/6505`);
+        logger.info(`Godot MCP Engine identified (${method}) and ready on 6510`);
+        this.flushRuntimeLifecycleEvents();
         return;
       }
 
@@ -555,21 +744,19 @@ export class GodotMcpServerGateway {
       }
 
       const paramsObj = msg['params'] as Record<string, Object> | undefined;
-      const isHostExplicit =
-        paramsObj?.['source'] === 'host' ||
-        paramsObj?.['source'] === 'host_window';
-
-      // Only intercept native host screenshot if caller explicitly requested host or engine is absent with host requested
-      if (
-        (method === 'take_screenshot' ||
-         method === 'capture_screenshot' ||
-         method === 'get_screenshot') &&
-        isHostExplicit
-      ) {
-        void this.handleNativeScreenshot(client, id, paramsObj);
-        return;
+      if (method === 'runtime_lifecycle') {
+        const eventType = String(paramsObj?.['type'] || '');
+        const sessionId = String(paramsObj?.['session_id'] || '');
+        const operationId = String(paramsObj?.['operation_id'] || '');
+        const bootNonce = String(paramsObj?.['boot_nonce'] || '');
+        const source = String(paramsObj?.['source'] || '');
+        if (!state?.isRawTcp || !this.isRuntimeLifecycleType(eventType) ||
+            !this.isCorrelationToken(sessionId) || !this.isCorrelationToken(operationId) ||
+            !this.isCorrelationToken(bootNonce) || source !== 'game_ability') {
+          logger.error('Rejected malformed or non-loopback runtime_lifecycle notification');
+          return;
+        }
       }
-
       // Method request from a caller (OpenCode, UI, etc.)
       if (method.length > 0) {
         if (this.engineClient && this.engineClient !== client) {
@@ -585,7 +772,7 @@ export class GodotMcpServerGateway {
           if (id.length > 0) {
             const errPayload: JsonRpcErrorPayload = {
               code: -32000,
-              message: 'Godot Engine MCP is not connected on port 6505'
+              message: 'Godot Engine MCP is not connected on port 6510'
             };
             const errRespObj: JsonRpcErrorResponse = {
               jsonrpc: '2.0',
@@ -614,7 +801,7 @@ export class GodotMcpServerGateway {
         }
       }
     } catch (e) {
-      logger.error('Failed to parse incoming JSON-RPC on 6505 gateway', e);
+      logger.error('Failed to parse incoming JSON-RPC on 6510 gateway', e);
     }
   }
 
@@ -661,7 +848,7 @@ export class GodotMcpServerGateway {
    */
   public async executeGodotCommand(method: string, params: Record<string, Object> = {}, timeoutMs: number = 5000): Promise<Record<string, Object>> {
     if (!this.isGodotConnected() || !this.engineClient) {
-      throw new Error('Godot MCP Pro is not connected on port 6505');
+      throw new Error('Godot MCP Pro is not connected on port 6510');
     }
 
     const reqId = `gw_${++this.requestIdCounter}`;
@@ -690,93 +877,4 @@ export class GodotMcpServerGateway {
     });
   }
 
-  private async handleNativeScreenshot(
-    client: socket.TCPSocketConnection,
-    id: string,
-    params?: Record<string, Object>
-  ): Promise<void> {
-    try {
-      const relPath = String(params?.['path'] || 'res://screenshot.png');
-      const projectDir = getProjectPath() || '/storage/Users/currentUser/Desktop/ZW/godot/chijinbi-2';
-
-      let targetFile = relPath;
-      if (relPath.startsWith('res://')) {
-        targetFile = projectDir + '/' + relPath.substring(6);
-      } else if (!relPath.startsWith('/')) {
-        targetFile = projectDir + '/' + relPath;
-      }
-
-      // Ensure target directory exists
-      const lastSlash = targetFile.lastIndexOf('/');
-      if (lastSlash > 0) {
-        const dir = targetFile.substring(0, lastSlash);
-        try {
-          if (!fs.accessSync(dir)) {
-            fs.mkdirSync(dir, true);
-          }
-        } catch (_e) {}
-      }
-
-      // Try capturing by component ID "godot_surface" or "window"
-      let pixelMap: image.PixelMap | null = null;
-      try {
-        pixelMap = await componentSnapshot.get('godot_surface');
-      } catch (_e1) {
-        try {
-          pixelMap = await componentSnapshot.get('window');
-        } catch (_e2) {
-          logger.warn('Failed to snapshot component godot_surface/window');
-        }
-      }
-
-      if (!pixelMap) {
-        throw new Error('Could not capture ArkUI Godot surface snapshot');
-      }
-
-      const imgInfo = await pixelMap.getImageInfo();
-      const imagePacker = image.createImagePacker();
-      const packOpts: image.PackingOption = { format: 'image/png', quality: 100 };
-      const pngData = await imagePacker.packing(pixelMap, packOpts);
-
-      const file = fs.openSync(targetFile, fs.OpenMode.CREATE | fs.OpenMode.READ_WRITE | fs.OpenMode.TRUNC);
-      fs.writeSync(file.fd, pngData);
-      fs.closeSync(file);
-      await pixelMap.release();
-
-      logger.info(`Native screenshot captured successfully -> ${targetFile} (${imgInfo.size.width}x${imgInfo.size.height}, ${pngData.byteLength} bytes)`);
-
-      const resultObj: JsonRpcScreenshotResult = {
-        path: relPath,
-        global_path: targetFile,
-        width: imgInfo.size.width,
-        height: imgInfo.size.height,
-        size_bytes: pngData.byteLength,
-        source: 'native_arkui_surface'
-      };
-
-      const respObj: JsonRpcSuccessResponse = {
-        jsonrpc: '2.0',
-        id: id,
-        result: resultObj
-      };
-      const respStr = JSON.stringify(respObj);
-      const respBytes: Uint8Array = this.textEncoder.encodeInto(respStr);
-      this.sendResponseToClient(client, respStr, respBytes);
-    } catch (err) {
-      logger.error('Failed to capture native screenshot', err);
-      const errPayload: JsonRpcErrorPayload = {
-        code: -32603,
-        message: `Failed to capture native screenshot: ${err?.message || String(err)}`
-      };
-      const errRespObj: JsonRpcErrorResponse = {
-        jsonrpc: '2.0',
-        id: id,
-        error: errPayload
-      };
-      const errRespStr = JSON.stringify(errRespObj);
-      const errRespBytes: Uint8Array = this.textEncoder.encodeInto(errRespStr);
-      this.sendResponseToClient(client, errRespStr, errRespBytes);
-    }
-  }
 }
-

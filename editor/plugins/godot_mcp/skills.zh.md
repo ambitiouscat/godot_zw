@@ -8,6 +8,8 @@
 
 你可以使用 169 个 MCP 工具直接连接 Godot 4 编辑器。你可以创建场景、编写脚本、模拟玩家输入、检查运行中的游戏等等——所有操作都无需用户离开当前对话。每次更改都通过 Godot 的 UndoRedo 系统进行，因此用户随时可以 Ctrl+Z 撤销。
 
+> **当前运行契约：** `run_project`、`run_scene`、`run_current_scene` 只启动独立且权威的 `GameAbility`，`stop_project` 只停止该真实运行。Stage 4 通过本次运行专属的 GameAbility 根视口代理执行 `take_screenshot(source="game")`；编辑器截图只能用于静态检查。运行时检查、输入注入、性能采样和运行时测试在各自的关联代理接通前仍返回 `CAPABILITY_UNAVAILABLE`，不得回退到编辑器或系统屏幕截图。
+
 ## 核心工作流
 
 ### 1. 探索项目
@@ -70,27 +72,20 @@ read_script    → 编辑前读取当前内容
 ### 5. 测试与调试
 
 ```
-play_scene             → 启动游戏（mode: "current"、"main" 或文件路径）
-get_game_screenshot    → 查看游戏当前画面
-capture_frames         → 捕获多帧以观察运动/动画
-get_game_scene_tree    → 检查运行时的场景树
-get_game_node_properties → 读取运行时数值（position、health、state 等）
-set_game_node_property → 修改运行中游戏的数值
-simulate_key           → 按键（WASD、SPACE 等）并指定持续时间
-simulate_mouse_click   → 在视口坐标处点击
-simulate_action        → 触发 InputMap 动作（move_left、jump 等）
-get_editor_errors      → 检查运行时错误
-stop_scene             → 停止游戏
+run_project / run_scene / run_current_scene → 启动独立 GameAbility
+get_execution_state    → 等待对应会话进入 REAL_RUNNING
+take_screenshot        → 仅 source: "game" 可作为权威运行画面
+get_editor_errors      → 检查编辑器、编译及运行日志转发错误
+stop_project           → 请求停止，并等待对应 REAL_STOP_ACK 或 REAL_EXIT / IDLE
 ```
 
 **测试循环：**
-1. `play_scene` → 启动游戏
-2. `get_game_screenshot` → 查看当前状态
-3. `simulate_key` / `simulate_action` → 与游戏交互
-4. `capture_frames` → 观察一段时间内的行为
-5. `get_game_node_properties` → 检查特定数值
-6. `stop_scene` → 完成后停止
-7. 修复脚本问题 → 重复
+1. `run_project`（或 `run_scene`）→ 获取会话和操作 ID
+2. 轮询 `get_execution_state`，直到对应会话进入 `REAL_RUNNING`
+3. 调用 `take_screenshot(source="game")`；若能力不可用，停止并如实报告
+4. 仅在相应会话能力明确就绪后使用运行时检查或输入注入
+5. 使用预期会话调用 `stop_project`，等待状态回到 `IDLE`
+6. 修复脚本问题 → 重复
 
 ### 6. 动画
 

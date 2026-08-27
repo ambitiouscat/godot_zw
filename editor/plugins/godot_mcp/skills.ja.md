@@ -8,6 +8,8 @@
 
 Godot 4エディタに直接接続する169のMCPツールを利用できます。シーンの作成、スクリプトの記述、プレイヤー入力のシミュレーション、実行中のゲームの検査など、ユーザーがこの会話から離れることなく、すべての操作が可能です。すべての変更はGodotのUndoRedoシステムを通じて行われるため、いつでもCtrl+Zで元に戻せます。
 
+> **Current runtime contract:** `run_project`, `run_scene`, and `run_current_scene` start the standalone authoritative `GameAbility`; `stop_project` stops it. Stage 4 uses the run-scoped GameAbility root-viewport agent through `take_screenshot(source="game")`. Runtime inspection, input, profiling, and runtime tests remain `CAPABILITY_UNAVAILABLE` until their own correlated agents exist. Never fall back to an editor or OS screenshot.
+
 ## 基本ワークフロー
 
 ### 1. プロジェクトの調査

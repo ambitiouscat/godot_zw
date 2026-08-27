@@ -13,8 +13,6 @@ func get_commands() -> Dictionary:
 		"open_scene": _open_scene,
 		"delete_scene": _delete_scene,
 		"add_scene_instance": _add_scene_instance,
-		"play_scene": _play_scene,
-		"stop_scene": _stop_scene,
 		"save_scene": _save_scene,
 		"get_scene_exports": _get_scene_exports,
 		"export_mesh_library": _export_mesh_library,
@@ -220,40 +218,6 @@ func _add_scene_instance(params: Dictionary) -> Dictionary:
 	})
 
 
-func _play_scene(params: Dictionary) -> Dictionary:
-	var mode: String = optional_string(params, "mode", "main")  # "main", "current", or path
-
-	if EditorInterface.get_edited_scene_root() != null:
-		EditorInterface.save_scene()
-
-	match mode:
-		"main":
-			EditorInterface.play_main_scene()
-		"current":
-			EditorInterface.play_current_scene()
-		_:
-			# Treat as scene path
-			if not FileAccess.file_exists(mode):
-				return error_not_found("Scene file '%s'" % mode)
-			EditorInterface.play_custom_scene(mode)
-
-	return success({"playing": true, "mode": mode})
-
-
-func _stop_scene(_params: Dictionary) -> Dictionary:
-	if not EditorInterface.is_playing_scene():
-		return success({"stopped": false, "message": "No scene is currently playing"})
-
-	EditorInterface.stop_playing_scene()
-
-	# Clean up temp files
-	_cleanup_screenshot_files()
-	_cleanup_input_files()
-	_cleanup_inspector_files()
-
-	return success({"stopped": true})
-
-
 func _save_scene(params: Dictionary) -> Dictionary:
 	var root := get_edited_root()
 	if root == null:
@@ -354,33 +318,6 @@ func _collect_exports_recursive(node: Node, root: Node, nodes_data: Array) -> vo
 
 	for child in node.get_children():
 		_collect_exports_recursive(child, root, nodes_data)
-
-
-func _cleanup_screenshot_files() -> void:
-	var user_dir := get_game_user_dir()
-	var request_path := user_dir + "/mcp_screenshot_request"
-	var screenshot_path := user_dir + "/mcp_screenshot.png"
-	if FileAccess.file_exists(request_path):
-		DirAccess.remove_absolute(request_path)
-	if FileAccess.file_exists(screenshot_path):
-		DirAccess.remove_absolute(screenshot_path)
-
-
-func _cleanup_input_files() -> void:
-	var user_dir := get_game_user_dir()
-	var commands_path := user_dir + "/mcp_input_commands"
-	if FileAccess.file_exists(commands_path):
-		DirAccess.remove_absolute(commands_path)
-
-
-func _cleanup_inspector_files() -> void:
-	var user_dir := get_game_user_dir()
-	var request_path := user_dir + "/mcp_game_request"
-	var response_path := user_dir + "/mcp_game_response"
-	if FileAccess.file_exists(request_path):
-		DirAccess.remove_absolute(request_path)
-	if FileAccess.file_exists(response_path):
-		DirAccess.remove_absolute(response_path)
 
 
 func _export_mesh_library(params: Dictionary) -> Dictionary:

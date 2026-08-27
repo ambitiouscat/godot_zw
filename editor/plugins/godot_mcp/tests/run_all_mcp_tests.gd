@@ -5,7 +5,7 @@ extends SceneTree
 
 func _init() -> void:
 	print("==================================================")
-	print("Running Godot MCP Dual-Track Architecture Test Suite")
+	print("Running Godot MCP Authoritative GameAbility Test Suite")
 	print("==================================================")
 
 	var total_passed := 0
@@ -16,6 +16,7 @@ func _init() -> void:
 		preload("res://addons/godot_mcp/tests/test_contract.gd"),
 		preload("res://addons/godot_mcp/tests/test_lifecycle_coordinator.gd"),
 		preload("res://addons/godot_mcp/tests/test_command_router.gd"),
+		preload("res://addons/godot_mcp/tests/test_runtime_capture.gd"),
 	]
 
 	for suite in suites:
@@ -34,6 +35,6 @@ func _init() -> void:
 		print("==================================================")
 		quit(1)
 	else:
-		print("ALL DUAL-TRACK MCP TESTS PASSED SUCCESSFULLY!")
+		print("ALL AUTHORITATIVE GAMEABILITY MCP TESTS PASSED SUCCESSFULLY!")
 		print("==================================================")
 		quit(0)

@@ -10,16 +10,26 @@
    - Stage 2: Architecture & OpenSpec Proposal (Fun Hypothesis, Design Pillars, Core Loops, Input Map, Task breakdown)
    - 🛑 **[Approval Gate 1]**: Present proposal to user and wait for confirmation before generating code!
    - Stage 3: 5-Layer Forward MCP Construction (Autoload → Meshes/Mats → Nodes/Collisions → Typed Scripts → Settings)
-   - Stage 4: Self-Healing Diagnostics & Multimodal Visual QA (`run_project` → `get_editor_errors` → `take_screenshot` → `stop_project`)
-   - 🛑 **[Approval Gate 2]**: Present visual QA analysis to user.
+   - Stage 4: Self-Healing Diagnostics & Multimodal Visual QA (`run_project` → `get_editor_errors` → `take_screenshot(source="game")` → `stop_project`)
+   - 🛑 **[Approval Gate 2]**: Present visual QA analysis to user based strictly on GameAbility provenance.
    - Stage 5: Archive & Session Checkpoint
 
-2. **Scene-First Visual MCP Assembly (Mandatory 3D Viewport Visibility)**:
+2. **Authoritative GameAbility Runtime Architecture**:
+   - **Real Run Execution (Authoritative Gameplay & Functional Acceptance)**:
+     - Commands: `run_project`, `run_scene(path=...)`, `run_current_scene`, `stop_project`.
+     - Target: Standalone `GameAbility` with full GDScript execution, SceneTree lifecycle, physics, audio, and Input Map.
+     - Stage 4 QA MUST use `take_screenshot(source="game")` backed by GameAbility capture provenance.
+   - **Editor Viewport Inspection**:
+     - Command: `take_screenshot(source="editor")` for inspecting the Godot 3D/2D editor viewport.
+   - **Zero Cross-Source Fallback**: `take_screenshot` strictly respects `source: "editor" | "game"`. Rejections return explicit error codes without silent fallback.
+   - **Runtime Service Boundary**: After correlated `REAL_READY`, game capture is provided by a run-scoped GameAbility root-viewport agent. Runtime inspection, input injection, profiling, and runtime test commands remain `CAPABILITY_UNAVAILABLE` until their own correlated agents exist; no command may read the edited scene tree or use editor/OS screenshots as a substitute.
+
+3. **Scene-First Visual MCP Assembly (Mandatory 3D Viewport Visibility)**:
    - **🔴 REDLINE**: NEVER procedurally instantiate static level environments, terrain, boards, meshes, cameras, or lights via GDScript `new()` in `_ready()`!
    - **🟢 MANDATORY**: Always use MCP tools (`create_scene`, `create_node`, `create_box_mesh`, `create_collision_shape_3d`, `create_camera_3d`, `create_light_3d`, `set_node_property`, `save_scene`) to construct the full hierarchy in `.tscn` files so scenes are **100% visible and interactive in the Godot 3D editor viewport**.
    - **Dynamic Spawns**: Runtime code instantiation is ONLY permitted for transient dynamic entities (bullets, particles, spawned enemies) and MUST use `.tscn` templates via `load("res://scenes/entities/bullet.tscn").instantiate()`.
 
-3. **5-Tier Categorized Project Directory Hierarchy**:
+4. **5-Tier Categorized Project Directory Hierarchy**:
    - **🔴 REDLINE**: NEVER dump loose scripts, scenes, materials, textures, or audio into `res://` root!
    - **🟢 MANDATORY Hierarchy**:
      - `res://scenes/` — All `.tscn` scenes (`main.tscn`, `levels/`, `entities/`, `ui/`)
@@ -28,9 +38,9 @@
      - `res://resources/` — Engine resources (`materials/`, `themes/`, `shapes/`)
      - `res://openspec/` — OpenSpec change tracking
 
-4. **GDScript 2.0 Static Typing**:
+5. **GDScript 2.0 Static Typing**:
    - Explicit parameter types, return types (`func foo(bar: float) -> void`), and typed arrays (`Array[Node3D]`, `Array[Dictionary]`).
    - Signals must be typed and snake_case (`signal score_changed(new_score: int)`).
 
-5. **Cross-Platform Input**:
+6. **Cross-Platform Input**:
    - Use Input Map actions (`move_left`, `move_right`, `move_forward`, `move_back`, `action_jump`, `action_primary`) to support both HarmonyOS touch and PC keyboard/mouse.

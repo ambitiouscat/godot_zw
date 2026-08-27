@@ -6,7 +6,6 @@ const MCPLifecycleCoordinator = preload("res://addons/godot_mcp/lifecycle/lifecy
 
 var editor_plugin: EditorPlugin
 var coordinator: MCPLifecycleCoordinator = null
-var game_runner: Node = null
 
 var _command_handlers: Dictionary = {}  # method_name -> Callable
 var _disabled_tools: Dictionary = {}  # method_name -> true
@@ -72,20 +71,16 @@ func _register_commands() -> void:
 	_command_handlers["run_project"] = func(p: Dictionary) -> Dictionary:
 		var scene: String = str(ProjectSettings.get_setting("application/run/main_scene", ""))
 		var sp: String = p.get("save_policy", Schemas.SAVE_POLICY_REQUIRE_CLEAN)
-		var cp: String = p.get("conflict_policy", Schemas.CONFLICT_POLICY_REJECT)
-		if p.has("preempt") and p["preempt"] == true: cp = Schemas.CONFLICT_POLICY_PREEMPT
 		var op_id: String = p.get("operation_id", "")
-		var res: Dictionary = coordinator.request_start(Schemas.MODE_REAL_RUN, scene, sp, cp, op_id)
+		var res: Dictionary = coordinator.request_start(Schemas.MODE_REAL_RUN, scene, sp, op_id)
 		if res.has("error"): return res
 		return {"result": res}
 
 	_command_handlers["run_scene"] = func(p: Dictionary) -> Dictionary:
 		var path: String = p.get("path", p.get("scene_path", p.get("scene", "")))
 		var sp: String = p.get("save_policy", Schemas.SAVE_POLICY_REQUIRE_CLEAN)
-		var cp: String = p.get("conflict_policy", Schemas.CONFLICT_POLICY_REJECT)
-		if p.has("preempt") and p["preempt"] == true: cp = Schemas.CONFLICT_POLICY_PREEMPT
 		var op_id: String = p.get("operation_id", "")
-		var res: Dictionary = coordinator.request_start(Schemas.MODE_REAL_RUN, path, sp, cp, op_id)
+		var res: Dictionary = coordinator.request_start(Schemas.MODE_REAL_RUN, path, sp, op_id)
 		if res.has("error"): return res
 		return {"result": res}
 
@@ -94,17 +89,15 @@ func _register_commands() -> void:
 		if editor_plugin and EditorInterface.get_edited_scene_root():
 			cur = EditorInterface.get_edited_scene_root().scene_file_path
 		var sp: String = p.get("save_policy", Schemas.SAVE_POLICY_REQUIRE_CLEAN)
-		var cp: String = p.get("conflict_policy", Schemas.CONFLICT_POLICY_REJECT)
-		if p.has("preempt") and p["preempt"] == true: cp = Schemas.CONFLICT_POLICY_PREEMPT
 		var op_id: String = p.get("operation_id", "")
-		var res: Dictionary = coordinator.request_start(Schemas.MODE_REAL_RUN, cur, sp, cp, op_id)
+		var res: Dictionary = coordinator.request_start(Schemas.MODE_REAL_RUN, cur, sp, op_id)
 		if res.has("error"): return res
 		return {"result": res}
 
 	_command_handlers["stop_project"] = func(p: Dictionary) -> Dictionary:
 		var sess_id: String = p.get("session_id", "")
 		var op_id: String = p.get("operation_id", "")
-		var res: Dictionary = coordinator.request_stop("real", sess_id, op_id)
+		var res: Dictionary = coordinator.request_stop(sess_id, op_id)
 		if res.has("error"): return res
 		return {"result": res}
 
@@ -144,21 +137,8 @@ func _register_commands() -> void:
 			res["result"]["replacement"] = "stop_project"
 		return res
 
-	_command_handlers["is_simulation_running"] = func(_p: Dictionary) -> Dictionary:
-		var st: Dictionary = coordinator.get_execution_state()
-		return {
-			"result": {
-				"deprecated_alias": true,
-				"replacement": "get_execution_state",
-				"is_running": false,
-				"scene": str(st.get("target_scene", "")),
-				"session_id": str(st.get("session_id", ""))
-			}
-		}
-
 	# 5. Strict Screenshot Router with Zero Cross-Source Fallback
 	var base_editor_shot: Callable = _command_handlers.get("get_editor_screenshot", Callable())
-	var base_preview_shot: Callable = _command_handlers.get("get_preview_screenshot", Callable())
 	var base_game_shot: Callable = _command_handlers.get("get_game_screenshot", Callable())
 
 	_command_handlers["take_screenshot"] = func(p: Dictionary) -> Dictionary:
@@ -171,8 +151,6 @@ func _register_commands() -> void:
 			if base_editor_shot.is_valid():
 				return await base_editor_shot.call(p)
 			return {"error": {"code": Schemas.ERR_CODE_CAPTURE_BACKEND_UNAVAILABLE, "message": "Editor screenshot backend not initialized", "symbol": "CAPTURE_BACKEND_UNAVAILABLE"}}
-		elif src == Schemas.SOURCE_PREVIEW:
-			return {"error": {"code": Schemas.ERR_CODE_INVALID_ARGUMENT, "message": "source 'preview' has been removed; use 'game' for authoritative runtime capture or 'editor' for editor inspection.", "symbol": "INVALID_ARGUMENT"}}
 		return {"error": {"code": Schemas.ERR_CODE_INVALID_ARGUMENT, "message": "Invalid screenshot source '%s'. Must be 'editor' or 'game'." % src, "symbol": "INVALID_ARGUMENT"}}
 
 	_command_handlers["capture_screenshot"] = func(p: Dictionary) -> Dictionary:
@@ -404,10 +382,14 @@ func _register_commands() -> void:
 	if _command_handlers.has("read_resource"):
 		_command_handlers["load_resource"] = _command_handlers["read_resource"]
 
-	print("[MCP] Registered %d commands with Dual-Track LifecycleCoordinator" % _command_handlers.size())
+	print("[MCP] Registered %d commands with authoritative GameAbility lifecycle" % _command_handlers.size())
 
 
 func execute(method: String, params: Dictionary) -> Dictionary:
+	# Internal GameAbility -> editor notification. It is deliberately not part of
+	# the AI tool schema and bypasses user-configurable tool disabling.
+	if method == "runtime_lifecycle":
+		return _handle_runtime_lifecycle(params)
 	if not _command_handlers.has(method):
 		return {
 			"error": {
@@ -451,6 +433,24 @@ func execute(method: String, params: Dictionary) -> Dictionary:
 			}
 		}
 	return result
+
+
+func _handle_runtime_lifecycle(params: Dictionary) -> Dictionary:
+	if coordinator == null:
+		return {"error": {"code": Schemas.ERR_CODE_INTERNAL, "message": "Lifecycle coordinator is not initialized", "symbol": "INTERNAL_ERROR"}}
+	var source := str(params.get("source", ""))
+	var session_id := str(params.get("session_id", ""))
+	var operation_id := str(params.get("operation_id", ""))
+	var boot_nonce := str(params.get("boot_nonce", ""))
+	var event_id := str(params.get("event_id", ""))
+	var timestamp_ms := int(params.get("timestamp_ms", 0))
+	if source != "game_ability" or session_id.is_empty() or operation_id.is_empty() or boot_nonce.is_empty() or event_id.is_empty() or timestamp_ms <= 0:
+		return {"error": {"code": Schemas.ERR_CODE_INVALID_ARGUMENT, "message": "runtime_lifecycle requires complete GameAbility correlation fields", "symbol": "INVALID_ARGUMENT"}}
+	if operation_id != coordinator.current_operation_id:
+		return {"error": {"code": Schemas.ERR_CODE_STATE_CONFLICT, "message": "runtime_lifecycle operation_id does not match the active GameAbility session", "symbol": "STATE_CONFLICT"}}
+	if not coordinator.process_event(params):
+		return {"error": {"code": Schemas.ERR_CODE_STATE_CONFLICT, "message": "runtime_lifecycle event was rejected as stale, malformed, or invalid for the current state", "symbol": "STATE_CONFLICT"}}
+	return {"result": {"accepted": true, "state": coordinator.current_state, "session_id": coordinator.current_session_id}}
 
 
 func get_available_methods() -> Array:
