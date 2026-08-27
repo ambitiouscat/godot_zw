@@ -180,9 +180,9 @@ static func get_canonical_commands() -> Dictionary:
 		},
 		"take_screenshot": {
 			"track": "capture",
-			"description": "Capture frame strictly from requested source ('editor', 'preview', 'game') with zero fallback.",
+			"description": "Capture frame strictly from requested source ('editor', 'game') with zero fallback.",
 			"params": {
-				"source": {"type": "string", "enum": ["editor", "preview", "game"], "default": "editor"},
+				"source": {"type": "string", "enum": ["editor", "game"], "default": "editor"},
 				"viewport": {"type": "string", "deprecated": true, "replacement": "source"},
 				"save_path": {"type": "string", "default": ""},
 				"path": {"type": "string", "deprecated": true, "replacement": "save_path"},

@@ -97,3 +97,10 @@
 - [x] 10.8 Validate gameplay, physics, Input Map, touch, audio, Autoload, and multi-scene behavior only in real run and attach the resulting logs and GameAbility screenshots.
 - [x] 10.9 Present the device evidence, known limitations, task status, and visual QA analysis at Approval Gate 2; do not archive before user approval.
 
+## 11. Post-Review Quality and Hygiene Cleanups
+
+- [x] 11.1 Purge dead simulation dispatches (`InEditorGameRunner`) and unused preview references from `lifecycle_coordinator.gd`.
+- [x] 11.2 Remove `_get_active_simulated_root()` and isolate runtime commands (`get_game_scene_tree`, `get_game_node_properties`, `set_game_node_property`) strictly to standalone `GameAbility`.
+- [x] 11.3 Enforce active SHA-256 cross-check assertions and session correlation checks in `editor_commands.gd`.
+- [x] 11.4 Enforce 5-tier directory hierarchy paths (`res://resources/materials/`, `res://resources/shapes/`) and GDScript 2.0 static typing (`-> Dictionary:`) across `command_router.gd` lambdas.
+- [x] 11.5 Update contract tests in `test_contract.gd` to validate the authoritative GameAbility command contract.

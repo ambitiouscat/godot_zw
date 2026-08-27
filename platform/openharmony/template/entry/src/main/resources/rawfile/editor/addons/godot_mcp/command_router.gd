@@ -208,65 +208,65 @@ func _register_commands() -> void:
 			var val: Variant = p.get("value", null)
 			return _command_handlers["edit_resource"].call({"path": path, "properties": {prop: val}})
 	if _command_handlers.has("create_resource"):
-		_command_handlers["create_material"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://material.tres")
+		_command_handlers["create_material"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/materials/material.tres")
 			var type: String = p.get("type", p.get("resource_type", "StandardMaterial3D"))
 			var props: Dictionary = p.get("properties", {})
 			if p.has("albedo_color"): props["albedo_color"] = p["albedo_color"]
 			return _command_handlers["create_resource"].call({"path": path, "type": type, "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_standard_material_3d"] = _command_handlers["create_material"]
-		_command_handlers["create_box_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://box_mesh.tres")
+		_command_handlers["create_box_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/box_mesh.tres")
 			var type: String = p.get("type", p.get("resource_type", "BoxMesh"))
 			var props: Dictionary = p.get("properties", {})
 			if p.has("size"): props["size"] = p["size"]
 			return _command_handlers["create_resource"].call({"path": path, "type": type, "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_mesh"] = _command_handlers["create_box_mesh"]
-		_command_handlers["create_cylinder_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://cylinder_mesh.tres")
+		_command_handlers["create_cylinder_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/cylinder_mesh.tres")
 			var props: Dictionary = p.get("properties", {})
 			if p.has("top_radius"): props["top_radius"] = p["top_radius"]
 			if p.has("bottom_radius"): props["bottom_radius"] = p["bottom_radius"]
 			if p.has("height"): props["height"] = p["height"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "CylinderMesh", "properties": props, "overwrite": p.get("overwrite", true)})
-		_command_handlers["create_sphere_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://sphere_mesh.tres")
+		_command_handlers["create_sphere_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/sphere_mesh.tres")
 			var props: Dictionary = p.get("properties", {})
 			if p.has("radius"): props["radius"] = p["radius"]
 			if p.has("height"): props["height"] = p["height"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "SphereMesh", "properties": props, "overwrite": p.get("overwrite", true)})
-		_command_handlers["create_capsule_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://capsule_mesh.tres")
+		_command_handlers["create_capsule_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/capsule_mesh.tres")
 			var props: Dictionary = p.get("properties", {})
 			if p.has("radius"): props["radius"] = p["radius"]
 			if p.has("height"): props["height"] = p["height"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "CapsuleMesh", "properties": props, "overwrite": p.get("overwrite", true)})
-		_command_handlers["create_plane_mesh"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://plane_mesh.tres")
+		_command_handlers["create_plane_mesh"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/plane_mesh.tres")
 			var props: Dictionary = p.get("properties", {})
 			if p.has("size"): props["size"] = p["size"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "PlaneMesh", "properties": props, "overwrite": p.get("overwrite", true)})
-		_command_handlers["create_box_shape_3d"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://box_shape_3d.tres")
+		_command_handlers["create_box_shape_3d"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/box_shape_3d.tres")
 			var props: Dictionary = {}
 			if p.has("size"): props["size"] = p["size"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "BoxShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_box_shape"] = _command_handlers["create_box_shape_3d"]
-		_command_handlers["create_cylinder_shape_3d"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://cylinder_shape_3d.tres")
+		_command_handlers["create_cylinder_shape_3d"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/cylinder_shape_3d.tres")
 			var props: Dictionary = {}
 			if p.has("radius"): props["radius"] = p["radius"]
 			if p.has("height"): props["height"] = p["height"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "CylinderShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_cylinder_shape"] = _command_handlers["create_cylinder_shape_3d"]
-		_command_handlers["create_sphere_shape_3d"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://sphere_shape_3d.tres")
+		_command_handlers["create_sphere_shape_3d"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/sphere_shape_3d.tres")
 			var props: Dictionary = {}
 			if p.has("radius"): props["radius"] = p["radius"]
 			return _command_handlers["create_resource"].call({"path": path, "type": "SphereShape3D", "properties": props, "overwrite": p.get("overwrite", true)})
 		_command_handlers["create_sphere_shape"] = _command_handlers["create_sphere_shape_3d"]
-		_command_handlers["create_capsule_shape_3d"] = func(p: Dictionary):
-			var path: String = p.get("path", "res://capsule_shape_3d.tres")
+		_command_handlers["create_capsule_shape_3d"] = func(p: Dictionary) -> Dictionary:
+			var path: String = p.get("path", "res://resources/shapes/capsule_shape_3d.tres")
 			var props: Dictionary = {}
 			if p.has("radius"): props["radius"] = p["radius"]
 			if p.has("height"): props["height"] = p["height"]
@@ -275,11 +275,11 @@ func _register_commands() -> void:
 
 	if _command_handlers.has("set_project_setting"):
 		_command_handlers["set_setting"] = _command_handlers["set_project_setting"]
-		_command_handlers["set_main_scene"] = func(p: Dictionary):
+		_command_handlers["set_main_scene"] = func(p: Dictionary) -> Dictionary:
 			var scene: String = p.get("scene", p.get("path", p.get("main_scene", "")))
 			return _command_handlers["set_project_setting"].call({"key": "application/run/main_scene", "value": scene})
 
-	_command_handlers["get_editor_state"] = func(p: Dictionary):
+	_command_handlers["get_editor_state"] = func(p: Dictionary) -> Dictionary:
 		var tree := get_tree()
 		var current_scene: Node = tree.edited_scene_root if tree else null
 		var selected_paths: Array = []
@@ -301,12 +301,12 @@ func _register_commands() -> void:
 		}
 
 	if _command_handlers.has("add_node"):
-		_command_handlers["create_camera_3d"] = func(p: Dictionary):
+		_command_handlers["create_camera_3d"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			cp["type"] = "Camera3D"
 			if not cp.has("name"): cp["name"] = "Camera3D"
 			return _command_handlers["add_node"].call(cp)
-		_command_handlers["create_light_3d"] = func(p: Dictionary):
+		_command_handlers["create_light_3d"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			var light_type: String = cp.get("light_type", cp.get("type", "DirectionalLight3D"))
 			if not light_type.ends_with("Light3D"):
@@ -314,19 +314,19 @@ func _register_commands() -> void:
 			cp["type"] = light_type
 			if not cp.has("name"): cp["name"] = light_type
 			return _command_handlers["add_node"].call(cp)
-		_command_handlers["create_mesh_instance_3d"] = func(p: Dictionary):
+		_command_handlers["create_mesh_instance_3d"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			cp["type"] = "MeshInstance3D"
 			if not cp.has("name"): cp["name"] = "MeshInstance3D"
 			return _command_handlers["add_node"].call(cp)
-		_command_handlers["create_collision_shape_3d"] = func(p: Dictionary):
+		_command_handlers["create_collision_shape_3d"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			cp["type"] = "CollisionShape3D"
 			if not cp.has("name"): cp["name"] = "CollisionShape3D"
 			return _command_handlers["add_node"].call(cp)
 
 	if _command_handlers.has("move_node"):
-		_command_handlers["reparent_node"] = func(p: Dictionary):
+		_command_handlers["reparent_node"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			if not cp.has("new_parent_path"):
 				if cp.has("new_parent"): cp["new_parent_path"] = cp["new_parent"]
@@ -341,19 +341,19 @@ func _register_commands() -> void:
 				elif cp.has("source"): cp["node_path"] = cp["source"]
 			return _command_handlers["move_node"].call(cp)
 
-	_command_handlers["save_project_settings"] = func(p: Dictionary):
+	_command_handlers["save_project_settings"] = func(p: Dictionary) -> Dictionary:
 		var err := ProjectSettings.save()
 		if err == OK:
 			return {"result": {"saved": true}}
 		return {"error": {"code": -32603, "message": "Failed to save project settings: %d" % err}}
 
-	_command_handlers["refresh_filesystem"] = func(p: Dictionary):
+	_command_handlers["refresh_filesystem"] = func(p: Dictionary) -> Dictionary:
 		EditorInterface.get_resource_filesystem().scan()
 		return {"result": {"rescanned": true}}
 	_command_handlers["rescan_filesystem"] = _command_handlers["refresh_filesystem"]
 
 	if _command_handlers.has("set_input_action"):
-		_command_handlers["add_input_action"] = func(p: Dictionary):
+		_command_handlers["add_input_action"] = func(p: Dictionary) -> Dictionary:
 			var cp := p.duplicate()
 			if not cp.has("action") and cp.has("action_name"):
 				cp["action"] = cp["action_name"]
@@ -372,7 +372,7 @@ func _register_commands() -> void:
 				cp["events"] = ev_list
 			return await _command_handlers["set_input_action"].call(cp)
 
-	_command_handlers["list_methods"] = func(_p: Dictionary):
+	_command_handlers["list_methods"] = func(_p: Dictionary) -> Dictionary:
 		var keys: Array = _command_handlers.keys()
 		keys.sort()
 		return {
@@ -384,7 +384,7 @@ func _register_commands() -> void:
 			}
 		}
 
-	_command_handlers["get_documentation"] = func(p: Dictionary):
+	_command_handlers["get_documentation"] = func(p: Dictionary) -> Dictionary:
 		var method: String = p.get("method", p.get("name", p.get("tool", "")))
 		if _command_handlers.has(method):
 			var canonical_map := Schemas.get_canonical_commands()

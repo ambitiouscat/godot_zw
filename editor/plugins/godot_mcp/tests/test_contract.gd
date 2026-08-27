@@ -8,14 +8,15 @@ const MCPCommandSchemas = preload("res://addons/godot_mcp/lifecycle/command_sche
 
 
 static func run_all_tests() -> Dictionary:
+	var err_list: Array[String] = []
 	var results: Dictionary = {
 		"passed": 0,
 		"failed": 0,
-		"errors": []
+		"errors": err_list
 	}
 
 	test_play_aliases_target_real_run(results)
-	test_stop_commands_track_separation(results)
+	test_stop_commands_real_run(results)
 	test_screenshot_source_enums(results)
 	test_deprecated_alias_metadata(results)
 	test_canonical_commands_completeness(results)
@@ -35,27 +36,22 @@ static func _assert(condition: bool, message: String, results: Dictionary) -> vo
 static func test_play_aliases_target_real_run(results: Dictionary) -> void:
 	var alias_map: Dictionary = MCPCommandSchemas.get_alias_map()
 	
-	# CONTRACT: play_* aliases MUST target real run (run_*), NEVER preview (simulate_*)
-	var play_aliases := ["play_main_scene", "play_scene", "play_current_scene"]
-	for alias in play_aliases:
+	# CONTRACT: play_* aliases MUST target real run (run_*)
+	var play_aliases: Array[String] = ["play_main_scene", "play_scene", "play_current_scene"]
+	for alias: String in play_aliases:
 		_assert(alias_map.has(alias), "Alias map must contain %s" % alias, results)
 		var target: String = str(alias_map.get(alias, {}).get("target", ""))
 		_assert(target.begins_with("run_"), "Alias '%s' must target a real run command ('run_*'), got '%s'" % [alias, target], results)
-		_assert(not target.begins_with("simulate_"), "Alias '%s' must NEVER target a simulation/preview command" % alias, results)
 
 
-static func test_stop_commands_track_separation(results: Dictionary) -> void:
+static func test_stop_commands_real_run(results: Dictionary) -> void:
 	var canonical: Dictionary = MCPCommandSchemas.get_canonical_commands()
 	
 	# CONTRACT: stop_project is strictly real run track
 	_assert(canonical.has("stop_project"), "Canonical commands must contain stop_project", results)
 	_assert(canonical["stop_project"]["track"] == "real", "stop_project track must be 'real'", results)
 
-	# CONTRACT: stop_simulation is strictly preview track
-	_assert(canonical.has("stop_simulation"), "Canonical commands must contain stop_simulation", results)
-	_assert(canonical["stop_simulation"]["track"] == "preview", "stop_simulation track must be 'preview'", results)
-
-	# CONTRACT: stop_scene is an alias for stop_project, NOT stop_simulation
+	# CONTRACT: stop_scene is an alias for stop_project
 	var alias_map: Dictionary = MCPCommandSchemas.get_alias_map()
 	_assert(alias_map.has("stop_scene"), "Alias map must contain stop_scene", results)
 	_assert(alias_map["stop_scene"]["target"] == "stop_project", "stop_scene must target stop_project", results)
@@ -67,14 +63,13 @@ static func test_screenshot_source_enums(results: Dictionary) -> void:
 	
 	var src_enum: Array = canonical["take_screenshot"]["params"]["source"]["enum"]
 	_assert(src_enum.has("editor"), "take_screenshot source enum must contain 'editor'", results)
-	_assert(src_enum.has("preview"), "take_screenshot source enum must contain 'preview'", results)
 	_assert(src_enum.has("game"), "take_screenshot source enum must contain 'game'", results)
-	_assert(src_enum.size() == 3, "take_screenshot must only allow exactly ['editor', 'preview', 'game']", results)
+	_assert(src_enum.size() == 2, "take_screenshot must only allow exactly ['editor', 'game']", results)
 
 
 static func test_deprecated_alias_metadata(results: Dictionary) -> void:
 	var alias_map: Dictionary = MCPCommandSchemas.get_alias_map()
-	for alias in alias_map:
+	for alias: String in alias_map:
 		var entry: Dictionary = alias_map[alias]
 		if entry.get("deprecated", false):
 			_assert(entry.has("replacement"), "Deprecated alias '%s' must specify a canonical replacement" % alias, results)
@@ -82,10 +77,9 @@ static func test_deprecated_alias_metadata(results: Dictionary) -> void:
 
 static func test_canonical_commands_completeness(results: Dictionary) -> void:
 	var canonical: Dictionary = MCPCommandSchemas.get_canonical_commands()
-	var required_commands := [
+	var required_commands: Array[String] = [
 		"run_project", "run_scene", "run_current_scene", "stop_project",
-		"simulate_project", "simulate_scene", "simulate_current_scene", "stop_simulation",
 		"get_execution_state", "take_screenshot"
 	]
-	for cmd in required_commands:
+	for cmd: String in required_commands:
 		_assert(canonical.has(cmd), "Required canonical command '%s' must be present in schemas" % cmd, results)

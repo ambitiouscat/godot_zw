@@ -7,10 +7,11 @@ const Schemas = preload("res://addons/godot_mcp/lifecycle/command_schemas.gd")
 
 
 static func run_all_tests() -> Dictionary:
+	var err_list: Array[String] = []
 	var results: Dictionary = {
 		"passed": 0,
 		"failed": 0,
-		"errors": []
+		"errors": err_list
 	}
 
 	test_alias_deprecation_contract(results)
@@ -48,8 +49,9 @@ static func test_alias_deprecation_contract(results: Dictionary) -> void:
 
 
 static func test_source_enum_validation(results: Dictionary) -> void:
-	for src in Schemas.VALID_SOURCES:
-		_assert(src == "editor" or src == "preview" or src == "game", "Valid source must be editor, preview, or game", results)
+	_assert(Schemas.VALID_SOURCES.has("editor"), "Valid sources must contain 'editor'", results)
+	_assert(Schemas.VALID_SOURCES.has("game"), "Valid sources must contain 'game'", results)
+	_assert(Schemas.VALID_SOURCES.size() == 2, "Valid sources must contain exactly 2 sources ('editor', 'game')", results)
 
 
 static func test_stable_error_codes(results: Dictionary) -> void:

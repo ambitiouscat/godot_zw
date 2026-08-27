@@ -48,7 +48,6 @@
     "tests/test_command_router.gd",
     "tests/test_contract.gd",
     "tests/test_lifecycle_coordinator.gd",
-    "tests/test_preview_runner.gd",
     "ui/status_panel.gd",
     "ui/status_panel.tscn",
     "utils/node_utils.gd",

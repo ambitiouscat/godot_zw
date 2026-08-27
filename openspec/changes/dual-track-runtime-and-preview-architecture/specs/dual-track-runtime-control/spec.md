@@ -1,24 +1,25 @@
 ## Purpose
 
 Defines observable command, lifecycle, correlation, screenshot-provenance, and
-source-file immutability contracts for real Godot execution and editor preview.
+source-file immutability contracts for authoritative Godot GameAbility execution
+and standard editor inspection.
 
 ## ADDED Requirements
 
-### Requirement: Canonical Dual-Track Command Contract
-The system SHALL route `run_project`, `run_scene`, and `run_current_scene` only to standalone `GameAbility`; SHALL route `simulate_project`, `simulate_scene`, and `simulate_current_scene` only to in-editor preview; SHALL route `stop_project` only to real run; and SHALL route `stop_simulation` only to preview.
+### Requirement: Canonical Runtime Command Contract
+The system SHALL route `run_project`, `run_scene`, and `run_current_scene` only to standalone `GameAbility`; SHALL route `stop_project` only to real run; SHALL reject `simulate_*` commands and `source="preview"` with `INVALID_ARGUMENT`; and SHALL treat standalone `GameAbility` as the sole authoritative gameplay execution and Stage 4 QA acceptance runtime.
 
 #### Scenario: Start the configured main scene in real mode
 - **WHEN** a client invokes `run_project` from `IDLE`
-- **THEN** the system accepts a real-run operation and does not mount a preview overlay
+- **THEN** the system accepts a real-run operation, assigns a UUID `session_id`, launches `GameAbility`, and transitions to `REAL_STARTING`
 
-#### Scenario: Start the configured main scene in preview mode
-- **WHEN** a client invokes `simulate_project` from `IDLE`
-- **THEN** the system accepts a preview operation and does not launch `GameAbility`
+#### Scenario: Reject removed simulation commands
+- **WHEN** a client invokes `simulate_project`, `simulate_scene`, or `simulate_current_scene`
+- **THEN** the system returns `INVALID_ARGUMENT` indicating simulation has been removed in favor of authoritative `GameAbility` execution
 
-#### Scenario: Reject a wrong-track stop
-- **WHEN** a client invokes `stop_project` while only preview is active, or invokes `stop_simulation` while only real run is active
-- **THEN** the system returns `STATE_CONFLICT` without stopping the active session
+#### Scenario: Stop real run
+- **WHEN** a client invokes `stop_project` while real run is active
+- **THEN** the system terminates `GameAbility`, transitions to `REAL_STOPPING`, and returns to `IDLE` upon process exit
 
 ### Requirement: Command Compatibility and Deprecation
 The system SHALL preserve the alias mapping defined in `design.md`, SHALL return `deprecated_alias: true` and a canonical `replacement` for deprecated aliases, and SHALL NOT preserve the fork-specific behavior in which `play_*` starts preview.
@@ -92,19 +93,19 @@ The system SHALL correlate real-run readiness and termination to the active sess
 - **THEN** the system reconciles liveness and does not clear the session solely because of the foreground event
 
 ### Requirement: Strict Screenshot Source and Provenance
-The system SHALL treat screenshot source as the exact enum `editor`, `preview`, or `game`; SHALL capture only the matching backend; and SHALL return `requested_source`, `actual_source`, `backend`, `session_id`, `request_id`, artifact integrity data, and capture provenance on success.
+The system SHALL treat screenshot source as the exact enum `editor` or `game`; SHALL reject `preview` with `INVALID_ARGUMENT`; SHALL capture only the matching backend (`editor_viewport` or `game_ability_viewport`); and SHALL return `requested_source`, `actual_source`, `backend`, `session_id`, `request_id`, artifact integrity data (including SHA-256 bit-for-bit validation), and capture provenance on success.
 
-#### Scenario: Capture preview evidence
-- **WHEN** `take_screenshot` requests `source: "preview"` during `PREVIEW_RUNNING`
-- **THEN** the system captures the active preview SubViewport and returns `actual_source: "preview_subviewport"`, `backend: "in_editor_subviewport"`, and the matching preview session
+#### Scenario: Reject preview screenshot request
+- **WHEN** `take_screenshot` requests `source: "preview"`
+- **THEN** the system returns `INVALID_ARGUMENT` and does not capture any image
 
 #### Scenario: Capture real-game evidence
 - **WHEN** `take_screenshot` requests `source: "game"` during capture-ready `REAL_RUNNING`
-- **THEN** the system captures the matching `GameAbility` surface or native root viewport and reports the actual GameAbility backend and matching session
+- **THEN** the system captures the matching `GameAbility` surface or native root viewport, validates SHA-256 and session correlation, and reports `backend: "game_ability_viewport"` and matching session
 
-#### Scenario: Do not reinterpret game as preview
-- **WHEN** `take_screenshot` requests `source: "game"` while preview is active and no real session is running
-- **THEN** the system returns `RUN_STATE_CONFLICT` and does not return a preview or editor image
+#### Scenario: Do not substitute game for editor or editor for game
+- **WHEN** `take_screenshot` requests `source: "game"` while no real session is running
+- **THEN** the system returns `RUN_STATE_CONFLICT` and does not return an editor image
 
 ### Requirement: Correlated Capture Integrity
 Every real-game capture SHALL use a unique `request_id`, SHALL bind request and response to the active `session_id` and boot nonce, SHALL atomically commit the image before its response, and SHALL reject stale, incomplete, out-of-session, or integrity-invalid results.
@@ -136,8 +137,19 @@ Start commands SHALL default to `save_policy: "require_clean"`, SHALL reject uns
 - **THEN** the system returns `UNSAVED_CHANGES`, does not save, and does not start either track
 
 #### Scenario: Establish a post-save baseline
-- **WHEN** a start command uses `save_policy: "save"` and the preflight save succeeds
-- **THEN** the response reports `preflight_saved: true` and the session baseline is established after the save
+### Requirement: Runtime Command Isolation and Standalone Execution
+Runtime inspection and modification commands (`get_game_scene_tree`, `get_game_node_properties`, `set_game_node_property`, `execute_game_script`) SHALL communicate strictly with the standalone `GameAbility` process. The system SHALL NEVER inspect, query, or mutate the editor's `edited_scene_root` as a runtime instance or simulation fallback.
+
+#### Scenario: Query scene tree when game is not running
+- **WHEN** a client invokes `get_game_scene_tree` while `GameAbility` is not in `REAL_RUNNING`
+- **THEN** the system returns `PRECONDITION_FAILED` and does not query or mutate the active editor scene
+
+### Requirement: 5-Tier Category Directory Hierarchy for Resource Fallbacks
+Default fallback paths for resource creation MCP tools SHALL strictly adhere to the 5-tier directory hierarchy (`res://resources/materials/`, `res://resources/shapes/`, etc.) and SHALL NOT default to the `res://` root.
+
+#### Scenario: Create box mesh with default path
+- **WHEN** a client invokes `create_box_mesh` without specifying a path
+- **THEN** the system defaults to `res://resources/shapes/box_mesh.tres` rather than `res://box_mesh.tres`
 
 #### Scenario: Preserve project sources across a session
 - **WHEN** a clean-baseline preview or real run is started, captured, and stopped

@@ -370,14 +370,21 @@ func _get_game_screenshot(params: Dictionary) -> Dictionary:
 	DirAccess.remove_absolute(screenshot_path)
 
 	var png_buffer: PackedByteArray = image.save_png_to_buffer()
-	var fallback_sha := ""
+	var computed_sha := ""
 	var ctx := HashingContext.new()
 	if ctx.start(HashingContext.HASH_SHA256) == OK:
 		ctx.update(png_buffer)
-		fallback_sha = ctx.finish().hex_encode()
-	var sha: String = str(resp_meta.get("sha256", fallback_sha))
+		computed_sha = ctx.finish().hex_encode()
+
+	var device_sha: String = str(resp_meta.get("sha256", ""))
+	if not device_sha.is_empty() and not computed_sha.is_empty() and device_sha != computed_sha:
+		return error_internal("Cryptographic SHA-256 integrity mismatch: device reported '%s' but host image buffer computed '%s'" % [device_sha, computed_sha])
+	var sha: String = computed_sha if not computed_sha.is_empty() else device_sha
+
 	var backend: String = str(resp_meta.get("backend", "game_ability_viewport"))
 	var sess_id: String = str(resp_meta.get("session_id", ""))
+	if not sess_id.is_empty() and not active_sess.is_empty() and sess_id != active_sess:
+		return error_internal("Session correlation mismatch: capture response session '%s' does not match active session '%s'" % [sess_id, active_sess])
 	if sess_id.is_empty():
 		sess_id = active_sess
 	var now := Time.get_ticks_msec()

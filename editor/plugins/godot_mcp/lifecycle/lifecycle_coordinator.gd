@@ -29,9 +29,8 @@ var transition_started_at_ms: int = 0
 var last_session_info: Dictionary = {}
 var unresolved_error: Variant = null
 
-# Pluggable backends for real execution and preview (allows unit test mocking)
+# Pluggable backend for real execution (allows unit test mocking)
 var real_backend: Object = null
-var preview_backend: Object = null
 
 # Configuration
 var start_handshake_timeout_ms: int = 15000
@@ -184,29 +183,20 @@ func request_start(mode: String, scene_path: String, save_policy: String = Schem
 	transition_started_at_ms = now
 	unresolved_error = null
 
-	var target_state := Schemas.STATE_REAL_STARTING if mode == Schemas.MODE_REAL_RUN else Schemas.STATE_PREVIEW_STARTING
-	_set_state(target_state)
+	_set_state(Schemas.STATE_REAL_STARTING)
 
-	# 7. Dispatch to target backend
-	var warnings: Array = []
+	# 7. Dispatch to real GameAbility backend
+	var warnings: Array[String] = []
 	var backend_err: Error = OK
-	if mode == Schemas.MODE_REAL_RUN:
-		if real_backend and real_backend.has_method("launch_game"):
-			backend_err = real_backend.launch_game(scene_path, current_session_id, current_boot_nonce)
-		else:
-			backend_err = _default_real_launch(scene_path)
+	if real_backend and real_backend.has_method("launch_game"):
+		backend_err = real_backend.launch_game(scene_path, current_session_id, current_boot_nonce)
 	else:
-		if preview_backend and preview_backend.has_method("start_preview"):
-			var prev_res: Dictionary = preview_backend.start_preview(scene_path, current_session_id)
-			if prev_res.has("warnings"):
-				warnings = prev_res["warnings"]
-		else:
-			backend_err = _default_preview_launch(scene_path)
+		backend_err = _default_real_launch(scene_path)
 
 	if backend_err != OK:
 		_set_state(Schemas.STATE_IDLE)
 		current_mode = Schemas.MODE_NONE
-		return _make_error(Schemas.ERR_CODE_INTERNAL, "Failed to launch backend for %s (error %d)" % [mode, backend_err], "INTERNAL_ERROR")
+		return _make_error(Schemas.ERR_CODE_INTERNAL, "Failed to launch GameAbility backend (error %d)" % backend_err, "INTERNAL_ERROR")
 
 	var response := {
 		"accepted": true,
@@ -333,11 +323,6 @@ func process_event(event: Dictionary) -> void:
 			if current_state == Schemas.STATE_REAL_STARTING:
 				_set_state(Schemas.STATE_REAL_RUNNING)
 				session_started.emit(current_session_id, Schemas.MODE_REAL_RUN, current_target_scene)
-		
-		"PREVIEW_READY":
-			if current_state == Schemas.STATE_PREVIEW_STARTING:
-				_set_state(Schemas.STATE_PREVIEW_RUNNING)
-				session_started.emit(current_session_id, Schemas.MODE_PREVIEW, current_target_scene)
 
 		"REAL_STOP_ACK":
 			# Real stop ACK received; remains in REAL_STOPPING until REAL_EXIT
@@ -346,10 +331,6 @@ func process_event(event: Dictionary) -> void:
 		"REAL_EXIT":
 			if current_state == Schemas.STATE_REAL_STOPPING or current_state == Schemas.STATE_REAL_RUNNING:
 				_complete_session_termination("exit_ok")
-
-		"PREVIEW_STOP_ACK":
-			if current_state == Schemas.STATE_PREVIEW_STOPPING or current_state == Schemas.STATE_PREVIEW_RUNNING:
-				_complete_session_termination("preview_closed")
 
 		"CRASH", "ABRUPT_EXIT":
 			unresolved_error = event.get("details", {"message": "Process terminated abruptly"})
@@ -364,18 +345,11 @@ func _initiate_stop(mode: String, sess_id: String, op_id: String) -> Dictionary:
 	current_operation_id = op_id
 	transition_started_at_ms = Time.get_ticks_msec()
 
-	if mode == Schemas.MODE_REAL_RUN:
-		_set_state(Schemas.STATE_REAL_STOPPING)
-		if real_backend and real_backend.has_method("stop_game"):
-			real_backend.stop_game(sess_id)
-		else:
-			_default_real_stop()
+	_set_state(Schemas.STATE_REAL_STOPPING)
+	if real_backend and real_backend.has_method("stop_game"):
+		real_backend.stop_game(sess_id)
 	else:
-		_set_state(Schemas.STATE_PREVIEW_STOPPING)
-		if preview_backend and preview_backend.has_method("stop_preview"):
-			preview_backend.stop_preview(sess_id)
-		else:
-			_default_preview_stop()
+		_default_real_stop()
 
 	return {
 		"accepted": true,
@@ -441,21 +415,15 @@ func _default_real_stop() -> void:
 	EditorInterface.stop_playing_scene()
 
 
-func _default_preview_launch(scene_path: String) -> Error:
-	var runner = get_tree().root.find_child("InEditorGameRunner", true, false)
-	if runner and runner.has_method("start_simulation"):
-		runner.start_simulation(scene_path, current_session_id)
-		return OK
-	return FAILED
-
-
-func _default_preview_stop() -> void:
-	var runner = get_tree().root.find_child("InEditorGameRunner", true, false)
-	if runner and runner.has_method("stop_simulation"):
-		runner.stop_simulation(current_session_id)
-
-
 func _has_unsaved_scenes() -> bool:
+	var root := EditorInterface.get_edited_scene_root()
+	if root == null:
+		return false
+	var mgr := EditorInterface.get_editor_undo_redo()
+	if mgr != null:
+		var ur = mgr.get_history_undo_redo(EditorUndoRedoManager.GLOBAL_HISTORY)
+		if ur != null and ur.has_undo():
+			return true
 	return false
 
 
