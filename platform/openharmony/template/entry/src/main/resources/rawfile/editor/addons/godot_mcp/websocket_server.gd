@@ -154,6 +154,12 @@ func _process(delta: float) -> void:
 							"method": "auth_required",
 							"params": {"scheme": "shared-token"},
 						}))
+					else:
+						ws.send_text(JSON.stringify({
+							"jsonrpc": "2.0",
+							"method": "engine_ready",
+							"params": {"version": "1.16.0"},
+						}))
 					print_verbose("[MCP] Connected on port %d" % p)
 					client_connected.emit()
 				else:

@@ -504,24 +504,26 @@ export class GodotMcpServerGateway {
         return;
       }
 
-      // Handle Godot MCP addon auth_required message
-      if (method === 'auth_required') {
+      // Handle Godot MCP addon auth_required or engine_ready message
+      if (method === 'auth_required' || method === 'engine_ready') {
         if (state) {
           state.isEngine = true;
           this.engineClient = client;
         }
-        // Immediately authenticate Godot addon with empty token
-        const authParams: JsonRpcAuthParams = { token: '' };
-        const authMsg: JsonRpcAuthMessage = {
-          jsonrpc: '2.0',
-          id: 'auth_init',
-          method: 'auth',
-          params: authParams
-        };
-        const authPayload = JSON.stringify(authMsg);
-        const authBytes: Uint8Array = this.textEncoder.encodeInto(authPayload);
-        this.sendWebSocketFrame(client, 0x01, authBytes);
-        logger.info('Godot MCP Engine identified and authenticated on 6505');
+        if (method === 'auth_required') {
+          // Immediately authenticate Godot addon with empty token
+          const authParams: JsonRpcAuthParams = { token: '' };
+          const authMsg: JsonRpcAuthMessage = {
+            jsonrpc: '2.0',
+            id: 'auth_init',
+            method: 'auth',
+            params: authParams
+          };
+          const authPayload = JSON.stringify(authMsg);
+          const authBytes: Uint8Array = this.textEncoder.encodeInto(authPayload);
+          this.sendWebSocketFrame(client, 0x01, authBytes);
+        }
+        logger.info(`Godot MCP Engine identified (${method}) and ready on 6510/6505`);
         return;
       }
 
@@ -553,20 +555,16 @@ export class GodotMcpServerGateway {
       }
 
       const paramsObj = msg['params'] as Record<string, Object> | undefined;
-      const isGameViewport =
-        paramsObj?.['source'] === 'game' ||
-        paramsObj?.['viewport'] === 'game' ||
-        method === 'get_game_screenshot' ||
-        method === 'capture_game_screenshot';
+      const isHostExplicit =
+        paramsObj?.['source'] === 'host' ||
+        paramsObj?.['source'] === 'host_window';
 
-      // Native host screenshot interception for editor surface
+      // Only intercept native host screenshot if caller explicitly requested host or engine is absent with host requested
       if (
         (method === 'take_screenshot' ||
          method === 'capture_screenshot' ||
-         method === 'get_screenshot' ||
-         method === 'capture_game_screenshot' ||
-         method === 'get_game_screenshot') &&
-        (!isGameViewport || !this.engineClient || this.engineClient === client)
+         method === 'get_screenshot') &&
+        isHostExplicit
       ) {
         void this.handleNativeScreenshot(client, id, paramsObj);
         return;

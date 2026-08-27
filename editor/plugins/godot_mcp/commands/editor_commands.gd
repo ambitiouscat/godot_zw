@@ -8,10 +8,6 @@ func get_commands() -> Dictionary:
 		"get_output_log": _get_output_log,
 		"get_editor_screenshot": _get_editor_screenshot,
 		"get_game_screenshot": _get_game_screenshot,
-		"take_screenshot": _get_editor_screenshot,
-		"capture_screenshot": _get_editor_screenshot,
-		"get_screenshot": _get_editor_screenshot,
-		"capture_game_screenshot": _get_game_screenshot,
 		"execute_editor_script": _execute_editor_script,
 		"clear_output": _clear_output,
 		"reload_plugin": _reload_plugin,
@@ -21,12 +17,6 @@ func get_commands() -> Dictionary:
 		"set_auto_dismiss": _set_auto_dismiss,
 		"get_editor_camera": _get_editor_camera,
 		"set_editor_camera": _set_editor_camera,
-		"run_project": _run_project,
-		"run_main_scene": _run_project,
-		"run_scene": _run_scene,
-		"run_current_scene": _run_current_scene,
-		"stop_project": _stop_project,
-		"stop_playing_scene": _stop_project,
 	}
 
 
@@ -238,7 +228,6 @@ func _find_rtl(node: Node, depth: int = 0) -> RichTextLabel:
 
 
 func _get_editor_screenshot(params: Dictionary) -> Dictionary:
-	# Capture the editor's main viewport - no await to avoid timeout
 	var base_control: Control = get_editor().get_base_control()
 	if base_control == null:
 		return error_internal("Could not access editor base control")
@@ -255,6 +244,13 @@ func _get_editor_screenshot(params: Dictionary) -> Dictionary:
 	if image == null:
 		return error_internal("Could not get image from viewport")
 
+	var png_buffer: PackedByteArray = image.save_png_to_buffer()
+	var ctx := HashingContext.new()
+	ctx.start(HashingContext.HASH_SHA256)
+	ctx.update(png_buffer)
+	var sha: String = ctx.finish().hex_encode()
+	var now: int = Time.get_ticks_msec()
+
 	var save_path: String = params.get("save_path", params.get("path", ""))
 	if save_path != "":
 		var abs_path := _resolve_save_path(save_path)
@@ -262,98 +258,168 @@ func _get_editor_screenshot(params: Dictionary) -> Dictionary:
 		if err != OK:
 			return error_internal("Failed to save screenshot: %s" % error_string(err))
 		return success({
+			"requested_source": "editor",
+			"actual_source": "editor_viewport",
+			"backend": "editor_viewport",
 			"path": save_path,
 			"saved_path": save_path,
 			"global_path": abs_path,
 			"width": image.get_width(),
 			"height": image.get_height(),
 			"format": "png",
-			"source": "editor_viewport"
+			"sha256": sha,
+			"capture_timestamp_ms": now,
+			"source": "editor"
 		})
 
-	var png_buffer := image.save_png_to_buffer()
 	var base64 := Marshalls.raw_to_base64(png_buffer)
-
 	return success({
+		"requested_source": "editor",
+		"actual_source": "editor_viewport",
+		"backend": "editor_viewport",
 		"image_base64": base64,
 		"width": image.get_width(),
 		"height": image.get_height(),
 		"format": "png",
-		"source": "editor_viewport"
+		"sha256": sha,
+		"capture_timestamp_ms": now,
+		"source": "editor"
 	})
+
+
+
 
 
 func _get_game_screenshot(params: Dictionary) -> Dictionary:
 	var ei := get_editor()
 	if not ei.is_playing_scene():
-		return error(-32000, "No scene is currently playing", {"suggestion": "Use play_scene first"})
+		return error_conflict("GameAbility is not running. Cannot capture game screenshot.", {
+			"symbol": "RUN_STATE_CONFLICT",
+			"backend": "game_ability"
+		})
 
-	# Communicate with the game process via file system
 	var user_dir := get_game_user_dir()
 	var request_path := user_dir + "/mcp_screenshot_request"
+	var response_path := user_dir + "/mcp_screenshot_response.json"
 	var screenshot_path := user_dir + "/mcp_screenshot.png"
+	print("[EditorCommands] Requesting game screenshot at: ", request_path)
 
-	# Clean up any stale screenshot file
+	# Clean up any stale response or screenshot files
+	if FileAccess.file_exists(response_path):
+		DirAccess.remove_absolute(response_path)
 	if FileAccess.file_exists(screenshot_path):
 		DirAccess.remove_absolute(screenshot_path)
 
-	# Create the request file to signal the game process
+	var active_sess := ""
+	var coordinator = get_tree().root.find_child("LifecycleCoordinator", true, false)
+	if coordinator and coordinator.has_method("get_execution_state"):
+		var st: Dictionary = coordinator.get_execution_state()
+		active_sess = str(st.get("session_id", ""))
+
+	var req_id := "req_%08x" % randi()
+	var req_dict := {
+		"request_id": req_id,
+		"session_id": active_sess,
+		"timestamp_ms": Time.get_ticks_msec()
+	}
+
+	# Send atomic screenshot request
 	var req := FileAccess.open(request_path, FileAccess.WRITE)
 	if req == null:
-		return error_internal("Could not create screenshot request file")
+		print("[EditorCommands] Failed to open request file for write at: ", request_path)
+		return error_internal("Could not create screenshot request file in %s" % user_dir)
+	req.store_string(JSON.stringify(req_dict))
 	req.close()
+	print("[EditorCommands] Screenshot request file written successfully")
 
-	# Poll for the screenshot file (max 3 seconds, 0.1s interval)
-	var attempts := 30
+	# Poll for screenshot response file (max 3 seconds, 0.05s interval)
+	var attempts := 60
 	while attempts > 0:
-		await get_tree().create_timer(0.1).timeout
+		await get_tree().create_timer(0.05).timeout
 		if FileAccess.file_exists(screenshot_path):
 			break
 		attempts -= 1
 
 	if not FileAccess.file_exists(screenshot_path):
-		# Clean up request file if it still exists
 		if FileAccess.file_exists(request_path):
 			DirAccess.remove_absolute(request_path)
-		return error(-32000, "Screenshot timed out", {
-			"suggestion": "Ensure the game is running and MCPScreenshot autoload is active",
+		return error_conflict("Game screenshot timed out: GameAbility process did not respond.", {
+			"symbol": "CAPTURE_BACKEND_UNAVAILABLE",
+			"backend": "game_ability",
+			"request_id": req_id
 		})
 
-	# Load the PNG file
+	# Read metadata response if available
+	var resp_meta := {}
+	if FileAccess.file_exists(response_path):
+		var rf := FileAccess.open(response_path, FileAccess.READ)
+		if rf != null:
+			var txt := rf.get_as_text()
+			rf.close()
+			var json = JSON.new()
+			if json.parse(txt) == OK and json.data is Dictionary:
+				resp_meta = json.data
+		DirAccess.remove_absolute(response_path)
+
 	var image := Image.new()
 	var err := image.load(screenshot_path)
 	if err != OK:
 		DirAccess.remove_absolute(screenshot_path)
-		return error_internal("Failed to load screenshot: %s" % error_string(err))
+		return error_internal("Failed to load game screenshot: %s" % error_string(err))
 
-	# Clean up temp file
 	DirAccess.remove_absolute(screenshot_path)
 
-	var save_path_param: String = params.get("save_path", params.get("path", ""))
-	if save_path_param != "":
-		var abs_path := _resolve_save_path(save_path_param)
+	var png_buffer: PackedByteArray = image.save_png_to_buffer()
+	var fallback_sha := ""
+	var ctx := HashingContext.new()
+	if ctx.start(HashingContext.HASH_SHA256) == OK:
+		ctx.update(png_buffer)
+		fallback_sha = ctx.finish().hex_encode()
+	var sha: String = str(resp_meta.get("sha256", fallback_sha))
+	var backend: String = str(resp_meta.get("backend", "game_ability_viewport"))
+	var sess_id: String = str(resp_meta.get("session_id", ""))
+	if sess_id.is_empty():
+		sess_id = active_sess
+	var now := Time.get_ticks_msec()
+
+	var save_path: String = params.get("save_path", params.get("path", ""))
+	if not save_path.is_empty():
+		var abs_path := _resolve_save_path(save_path)
+		DirAccess.make_dir_recursive_absolute(abs_path.get_base_dir())
 		var save_err := image.save_png(abs_path)
 		if save_err != OK:
-			return error_internal("Failed to save screenshot: %s" % error_string(save_err))
+			return error_internal("Failed to save game screenshot to %s: %s" % [abs_path, error_string(save_err)])
 		return success({
-			"path": save_path_param,
-			"saved_path": save_path_param,
+			"requested_source": "game",
+			"actual_source": "game_ability",
+			"backend": backend,
+			"session_id": sess_id,
+			"request_id": req_id,
+			"path": save_path,
+			"saved_path": save_path,
 			"global_path": abs_path,
 			"width": image.get_width(),
 			"height": image.get_height(),
 			"format": "png",
-			"source": "game_viewport"
+			"sha256": sha,
+			"capture_timestamp_ms": now,
+			"source": "game"
 		})
 
-	var png_buffer := image.save_png_to_buffer()
 	var base64 := Marshalls.raw_to_base64(png_buffer)
-
 	return success({
+		"requested_source": "game",
+		"actual_source": "game_ability",
+		"backend": backend,
+		"session_id": sess_id,
+		"request_id": req_id,
 		"image_base64": base64,
 		"width": image.get_width(),
 		"height": image.get_height(),
 		"format": "png",
-		"source": "game_viewport"
+		"sha256": sha,
+		"capture_timestamp_ms": now,
+		"source": "game"
 	})
 
 

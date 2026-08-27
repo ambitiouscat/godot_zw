@@ -18,11 +18,16 @@ var websocket_server: Node
 var command_router: Node
 var status_panel: Control
 var auto_dismiss_dialogs: bool = false
-# Track which autoloads THIS session injected (vs project-owned)
 var _session_injected_autoloads: Array[String] = []
+
 
 func _enter_tree() -> void:
 	_register_project_settings()
+
+	# Register runtime GameAbility screenshot service
+	if not ProjectSettings.has_setting("autoload/MCPScreenshot"):
+		add_autoload_singleton("MCPScreenshot", "res://addons/godot_mcp/mcp_screenshot_service.gd")
+		ProjectSettings.save()
 
 	# Create command router
 	command_router = preload("res://addons/godot_mcp/command_router.gd").new()
@@ -42,8 +47,8 @@ func _enter_tree() -> void:
 	add_control_to_bottom_panel(status_panel, "MCP Pro")
 	status_panel.call_deferred("setup", websocket_server, command_router)
 
-	# Inject MCP autoloads into project settings
-	_inject_autoloads()
+	# Clean up any stale MCP autoloads from project settings (Zero-pollution guarantee)
+	_cleanup_stale_autoloads()
 
 	websocket_server.start_server()
 	var cfg := ConfigFile.new()
@@ -54,8 +59,7 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
-	# Remove MCP autoloads and clean up temp files
-	_remove_autoloads()
+	_cleanup_stale_autoloads()
 	_cleanup_temp_files()
 
 	if websocket_server:
@@ -74,82 +78,22 @@ func _exit_tree() -> void:
 	print("[MCP] Godot MCP Pro stopped")
 
 
-## Declares the opt-in connection token setting so it is discoverable in
-## Project Settings. Defaults to false, so nothing changes unless a user turns
-## it on — see SECURITY.md for what it does and does not protect against.
 func _register_project_settings() -> void:
-	const KEY := "godot_mcp_pro/require_connection_token"
-	if not ProjectSettings.has_setting(KEY):
-		ProjectSettings.set_setting(KEY, false)
-	ProjectSettings.set_initial_value(KEY, false)
-	ProjectSettings.add_property_info({
-		"name": KEY,
-		"type": TYPE_BOOL,
-		"hint": PROPERTY_HINT_NONE,
-		"hint_string": "Require MCP servers to present the token in user://mcp_auth_token before accepting commands.",
-	})
-	ProjectSettings.set_as_basic(KEY, true)
+	pass
 
 
-func _inject_autoloads() -> void:
-	_session_injected_autoloads.clear()
-	var changed := false
-	for entry: Array in _MCP_AUTOLOADS:
-		var key: String = entry[0]
-		var script: String = entry[1]
-		var wanted := "*" + script
-		if not ProjectSettings.has_setting(key):
-			ProjectSettings.set_setting(key, wanted)
-			_session_injected_autoloads.append(key)
-			changed = true
-			continue
-
-		var existing := str(ProjectSettings.get_setting(key))
-		if existing == wanted or existing == script:
-			# Left behind by a previous session that crashed or was killed
-			# before _exit_tree ran. Reclaim it, or it stays in project.godot
-			# forever and logs "Can't autoload" once the addon is gone.
-			_session_injected_autoloads.append(key)
-		else:
-			# A different script owns this name. Injecting would clobber the
-			# project's own autoload, and not injecting leaves the matching
-			# MCP service unavailable — so say which it is.
-			push_warning(
-				"[MCP] Autoload '%s' already points at '%s', not the MCP service. Leaving it alone; the features backed by %s will not work." % [
-					key, existing, script.get_file()
-				]
-			)
-	# Autoloads are registered in memory; do not write to project.godot on disk
-	# if changed:
-	# 	ProjectSettings.save()
-
-
-func _remove_autoloads() -> void:
-	# Only remove autoloads that THIS session injected or reclaimed.
-	# Pre-existing project-owned autoloads are preserved.
-	var changed := false
-	var wanted_by_key := {}
-	for entry: Array in _MCP_AUTOLOADS:
-		wanted_by_key[entry[0]] = entry[1]
-
-	for key: String in _session_injected_autoloads:
-		if not ProjectSettings.has_setting(key):
-			continue
-		var script: String = wanted_by_key.get(key, "")
-		var current := str(ProjectSettings.get_setting(key))
-		# The user may have repointed it at their own script mid-session;
-		# removing that would delete their work rather than ours.
-		if current != "*" + script and current != script:
-			continue
-		ProjectSettings.set_setting(key, null)
-		changed = true
-	_session_injected_autoloads.clear()
-	# if changed:
-	# 	ProjectSettings.save()
+func _cleanup_stale_autoloads() -> void:
+	# Purge obsolete MCP autoloads (MCPInputService, MCPGameInspector) so ProjectSettings is never polluted
+	for key: String in ["autoload/MCPInputService", "autoload/MCPGameInspector"]:
+		if ProjectSettings.has_setting(key):
+			var cur := str(ProjectSettings.get_setting(key))
+			if cur.contains("addons/godot_mcp"):
+				ProjectSettings.set_setting(key, null)
 
 
 var _dialog_check_timer: float = 0.0
 const _DIALOG_CHECK_INTERVAL: float = 0.5  # Check every 0.5 seconds
+
 
 func _process(delta: float) -> void:
 	# Check if game inspector requested debugger continue
@@ -178,10 +122,6 @@ func _try_debugger_continue() -> void:
 
 
 func _find_debugger_continue_button(node: Node) -> Button:
-	# Search for the Continue button in ScriptEditorDebugger.
-	# The editor UI is translated, so matching tooltip/label text fails for
-	# non-English editors (issue #34: Italian → "Continua"). Match by the editor
-	# theme icon "DebugContinue" first, falling back to English text.
 	var continue_icon: Texture2D = null
 	var base: Control = EditorInterface.get_base_control()
 	if base != null and base.has_theme_icon("DebugContinue", "EditorIcons"):

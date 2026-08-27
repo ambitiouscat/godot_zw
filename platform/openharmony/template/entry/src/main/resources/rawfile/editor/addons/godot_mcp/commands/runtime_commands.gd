@@ -29,18 +29,53 @@ func get_commands() -> Dictionary:
 	}
 
 
-func _get_game_scene_tree(params: Dictionary) -> Dictionary:
-	var max_depth: int = optional_int(params, "max_depth", -1)
-	var cmd_params := {"max_depth": max_depth}
+func _get_active_simulated_root() -> Node:
+	if is_instance_valid(get_editor()) and get_editor().get_edited_scene_root():
+		return get_editor().get_edited_scene_root()
+	return null
 
+
+func _serialize_simulated_node(node: Node, max_depth: int, current_depth: int) -> Dictionary:
+	var data: Dictionary = {
+		"name": node.name,
+		"class": node.get_class(),
+		"path": str(node.get_path()),
+		"child_count": node.get_child_count(),
+		"process_mode": node.process_mode
+	}
+	if node.get_script():
+		data["script"] = node.get_script().resource_path
+	if max_depth < 0 or current_depth < max_depth:
+		var children: Array[Dictionary] = []
+		for child: Node in node.get_children():
+			children.append(_serialize_simulated_node(child, max_depth, current_depth + 1))
+		data["children"] = children
+	return data
+
+
+func _find_simulated_node(root: Node, path_str: String) -> Node:
+	if path_str.is_empty() or path_str == "." or path_str == root.name or path_str == "/root":
+		return root
+	var clean_path: String = path_str.trim_prefix(".").trim_prefix("/")
+	if root.has_node(clean_path):
+		return root.get_node(clean_path)
+	return root.find_child(clean_path.get_file(), true, false)
+
+
+func _get_game_scene_tree(params: Dictionary) -> Dictionary:
+	var sim_root: Node = _get_active_simulated_root()
+	var max_depth: int = optional_int(params, "max_depth", -1)
+	if sim_root and is_instance_valid(sim_root):
+		var tree_data: Dictionary = _serialize_simulated_node(sim_root, max_depth, 0)
+		return success({"tree": tree_data, "mode": "in_editor_viewport", "root_name": sim_root.name})
+
+	var cmd_params: Dictionary = {"max_depth": max_depth}
 	var script_filter: String = optional_string(params, "script_filter")
 	if not script_filter.is_empty():
 		cmd_params["script_filter"] = script_filter
-
 	var type_filter: String = optional_string(params, "type_filter")
 	if not type_filter.is_empty():
 		cmd_params["type_filter"] = type_filter
-
 	var named_only: bool = optional_bool(params, "named_only", false)
 	if named_only:
 		cmd_params["named_only"] = true
@@ -49,12 +84,28 @@ func _get_game_scene_tree(params: Dictionary) -> Dictionary:
 
 
 func _get_game_node_properties(params: Dictionary) -> Dictionary:
-	var result := require_string(params, "node_path")
+	var result: Array = require_string(params, "node_path")
 	if result[1] != null:
 		return result[1]
 
-	var cmd_params := {"node_path": result[0]}
-	# Optional property filter
+	var sim_root: Node = _get_active_simulated_root()
+	if sim_root and is_instance_valid(sim_root):
+		var target: Node = _find_simulated_node(sim_root, result[0])
+		if target == null:
+			return error_not_found("Node '%s' not found in active simulation" % result[0])
+		var props: Dictionary = {}
+		var requested_props: Array = params.get("properties", [])
+		if requested_props.is_empty():
+			for p: Dictionary in target.get_property_list():
+				var pname: String = str(p.get("name", ""))
+				if not pname.begins_with("_"):
+					props[pname] = target.get(pname)
+		else:
+			for pname: Variant in requested_props:
+				props[str(pname)] = target.get(str(pname))
+		return success({"node_path": str(target.get_path()), "properties": props, "mode": "in_editor_viewport"})
+
+	var cmd_params: Dictionary = {"node_path": result[0]}
 	if params.has("properties") and params["properties"] is Array:
 		cmd_params["properties"] = params["properties"]
 
@@ -73,6 +124,19 @@ func _set_game_node_property(params: Dictionary) -> Dictionary:
 	if not params.has("value"):
 		return error_invalid_params("Missing required parameter: value")
 
+	var sim_root := _get_active_simulated_root()
+	if sim_root and is_instance_valid(sim_root):
+		var target := _find_simulated_node(sim_root, result[0])
+		if target == null:
+			return error_not_found("Node '%s' not found in active simulation" % result[0])
+		target.set(prop_result[0], params["value"])
+		return success({
+			"node_path": str(target.get_path()),
+			"property": prop_result[0],
+			"value": target.get(prop_result[0]),
+			"mode": "in_editor_viewport"
+		})
+
 	return await _send_game_command("set_node_property", {
 		"node_path": result[0],
 		"property": prop_result[0],
@@ -85,6 +149,17 @@ func _execute_game_script(params: Dictionary) -> Dictionary:
 	if result[1] != null:
 		return result[1]
 
+	var sim_root := _get_active_simulated_root()
+	if sim_root and is_instance_valid(sim_root):
+		var expr := Expression.new()
+		var err := expr.parse(result[0])
+		if err == OK:
+			var res = expr.execute([], sim_root)
+			if not expr.has_execute_failed():
+				return success({"result": res, "mode": "in_editor_viewport"})
+			return error_internal("Expression execution error: %s" % expr.get_error_text())
+		return error_internal("Expression parse error: %d" % err)
+
 	return await _send_game_command("execute_script", {
 		"code": result[0],
 	}, 10.0)
@@ -95,8 +170,7 @@ func _capture_frames(params: Dictionary) -> Dictionary:
 	var frame_interval: int = optional_int(params, "frame_interval", 10)
 	var half_resolution: bool = optional_bool(params, "half_resolution", true)
 
-	# Dynamic timeout: allow enough time for frame capture
-	# At 60fps, 30 frames * 10 interval = 300 frames = 5 seconds + overhead
+
 	var estimated_seconds: float = (count * frame_interval) / 60.0 + 2.0
 	var timeout := minf(estimated_seconds, 25.0)
 

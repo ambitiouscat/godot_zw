@@ -38,8 +38,8 @@ func error_no_scene() -> Dictionary:
 	return error(-32000, "No scene is currently open", {"suggestion": "Use open_scene to open a scene first"})
 
 
-func error_internal(message: String) -> Dictionary:
-	return error(-32603, "Internal error: %s" % message)
+func error_internal(message: String, data: Dictionary = {}) -> Dictionary:
+	return error(-32603, "Internal error: %s" % message, data)
 
 
 func error_conflict(message: String, data: Dictionary = {}) -> Dictionary:
@@ -129,6 +129,9 @@ func require_dictionary_array(params: Dictionary, key: String) -> Dictionary:
 ## The game process reads the name from disk, so we must do the same.
 func get_game_user_dir() -> String:
 	var cached_dir := OS.get_user_data_dir()
+	if OS.has_feature("openharmony") or OS.has_feature("mobile") or OS.has_feature("android"):
+		return cached_dir
+
 	var cfg := ConfigFile.new()
 	var err := cfg.load(ProjectSettings.globalize_path("res://project.godot"))
 	if err != OK:

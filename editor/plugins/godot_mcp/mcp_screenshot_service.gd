@@ -1,41 +1,92 @@
-## Autoload injected by Godot MCP Pro plugin at runtime.
-## Monitors for screenshot requests from the editor and captures the game viewport.
+@tool
 extends Node
 
+## GameAbility capture agent helper service.
+## Monitors for screenshot requests and captures the game root viewport.
+
 const REQUEST_PATH := "user://mcp_screenshot_request"
+const RESPONSE_PATH := "user://mcp_screenshot_response.json"
 const SCREENSHOT_PATH := "user://mcp_screenshot.png"
+const SCREENSHOT_TMP_PATH := "user://mcp_screenshot_tmp.png"
 
 
 func _ready() -> void:
-	# This service only exists to serve the editor-driven MCP workflow. In an
-	# exported game it would poll user:// every frame for nothing, so shut it
-	# down entirely there.
-	if not OS.has_feature("editor") or OS.has_environment("GODOT_MCP_HEADLESS_CHILD"):
-		process_mode = Node.PROCESS_MODE_DISABLED
-		set_process(false)
-		return
+	print("[MCPScreenshot] MCPScreenshot service ready in process! user_data_dir = ", OS.get_user_data_dir())
 	process_mode = Node.PROCESS_MODE_ALWAYS
+	set_process(true)
 
 
 func _process(_delta: float) -> void:
 	if FileAccess.file_exists(REQUEST_PATH):
-		_take_screenshot()
+		print("[MCPScreenshot] Detected screenshot request at ", REQUEST_PATH)
+		_handle_screenshot_request()
 
 
-func _take_screenshot() -> void:
-	# Delete request file immediately to avoid re-triggering
-	DirAccess.remove_absolute(REQUEST_PATH)
+func _handle_screenshot_request() -> void:
+	var req_data: Dictionary = {}
+	if FileAccess.file_exists(REQUEST_PATH):
+		var file := FileAccess.open(REQUEST_PATH, FileAccess.READ)
+		if file != null:
+			var txt := file.get_as_text()
+			file.close()
+			if not txt.is_empty():
+				var parsed: Variant = JSON.parse_string(txt)
+				if parsed is Dictionary:
+					req_data = parsed
+		DirAccess.remove_absolute(REQUEST_PATH)
 
-	# Wait one frame so the viewport has a fully rendered image
-	# process_always=true (default) so the timer ticks even when tree is paused
+	# Wait a tick for viewport render completion
 	await get_tree().create_timer(0.05).timeout
 
-	var viewport := get_viewport()
-	if viewport == null:
-		return
+	var image: Image = null
+	var viewport: Viewport = get_viewport()
+	if viewport != null:
+		var tex: ViewportTexture = viewport.get_texture()
+		if tex != null:
+			image = tex.get_image()
 
-	var image := viewport.get_texture().get_image()
 	if image == null:
+		image = DisplayServer.screen_get_image()
+
+	if image == null:
+		print("[MCPScreenshot] Failed to get viewport/screen image in GameAbility")
+		var err_dict := {
+			"status": "error",
+			"error": "Failed to get viewport image in GameAbility",
+			"request_id": req_data.get("request_id", "")
+		}
+		var rf := FileAccess.open(RESPONSE_PATH, FileAccess.WRITE)
+		if rf != null:
+			rf.store_string(JSON.stringify(err_dict))
+			rf.close()
 		return
 
-	image.save_png(SCREENSHOT_PATH)
+	var err: Error = image.save_png(SCREENSHOT_PATH)
+	if err != OK:
+		print("[MCPScreenshot] Failed to save screenshot to %s: %s" % [SCREENSHOT_PATH, error_string(err)])
+		return
+
+	var png_buffer: PackedByteArray = image.save_png_to_buffer()
+	var ctx := HashingContext.new()
+	var sha := ""
+	if ctx.start(HashingContext.HASH_SHA256) == OK:
+		ctx.update(png_buffer)
+		sha = ctx.finish().hex_encode()
+
+	var resp_dict: Dictionary = {
+		"status": "ok",
+		"request_id": req_data.get("request_id", ""),
+		"session_id": req_data.get("session_id", ""),
+		"boot_nonce": req_data.get("boot_nonce", ""),
+		"width": image.get_width(),
+		"height": image.get_height(),
+		"format": "png",
+		"sha256": sha,
+		"timestamp_ms": Time.get_ticks_msec(),
+		"backend": "game_ability_viewport"
+	}
+
+	var resp_file := FileAccess.open(RESPONSE_PATH, FileAccess.WRITE)
+	if resp_file != null:
+		resp_file.store_string(JSON.stringify(resp_dict))
+		resp_file.close()

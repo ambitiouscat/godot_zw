@@ -33,7 +33,7 @@ import { window } from '@kit.ArkUI';
 import { deviceInfo } from '@kit.BasicServicesKit';
 import plugin from 'libentry.so';
 import { Logger } from '../core/Logger';
-import { setGodotMode, setProjectPath, setRestartArgs, isGameLaunched, setGameLaunched } from '../core/AbilityState';
+import { setGodotMode, setProjectPath, setRestartArgs, setGameLaunched } from '../core/AbilityState';
 import { BridgeCallbacks } from '../core/BridgeCallbacks';
 import { GodotMcpInstaller } from '../core/GodotMcpInstaller';
 import { GodotMcpServerGateway } from '../core/GodotMcpServerGateway';
@@ -129,12 +129,6 @@ export default class EditorAbility extends UIAbility {
 
   onForeground(): void {
     logger.info('Ability onForeground');
-    // Layer 2 fallback: Editor coming to foreground with gameLaunched flag
-    // means Game was likely closed while Editor was in background.
-    if (isGameLaunched()) {
-      logger.info('onForeground with gameLaunched — Game likely died externally');
-      this.resetEditorRunState();
-    }
   }
 
   onBackground(): void {

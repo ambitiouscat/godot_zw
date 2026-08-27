@@ -7,7 +7,7 @@ import plugin from 'libentry.so';
 import { CursorManager } from './CursorManager';
 import { FileManager } from './FileManager';
 import { SensorManager } from './SensorManager';
-import { getRestartArgs, setGameLaunched, isGameLaunched } from './AbilityState';
+import { getRestartArgs, setGameLaunched } from './AbilityState';
 import { Logger } from './Logger';
 
 const logger = new Logger('BridgeCallbacks')
@@ -162,15 +162,6 @@ export class BridgeCallbacks {
           logger.error('startAbilityForResult failed (code=' + (e as BusinessError).code + ')')
         })
 
-        // Safety timeout: if Game crashes without the system resolving
-        // startAbilityForResult (edge case), force reset after 15s.
-        setTimeout(() => {
-          if (isGameLaunched()) {
-            logger.warn('Game timeout — no exit signal received, force resetting run state')
-            setGameLaunched(false)
-            plugin.resetEditorRunState()
-          }
-        }, 15000)
       } else if (returnToBackground) {
         // Game → Editor: just terminate. EditorAbility is alive in background
         // within the same task card. System brings it to foreground automatically.
